@@ -1,0 +1,37 @@
+image: python:3.7
+options:
+  docker: true
+
+definitions:
+  test: &test
+    step:
+      name: Test
+      caches:
+        - pip
+        - docker
+      script:
+        - pip install -r test/acceptance/requirements.txt
+        - pytest -v test/acceptance
+
+  push: &push
+    step:
+      name: Push and Tag
+      caches:
+        - docker
+      script:
+        - pipe: docker://bitbucketpipelines/bitbucket-pipe-release:3.0.0
+          variables:
+            DOCKERHUB_USERNAME: $DOCKERHUB_USERNAME
+            DOCKERHUB_PASSWORD: $DOCKERHUB_PASSWORD
+            IMAGE: yvogl/$BITBUCKET_REPO_SLUG
+            GIT_PUSH: "true"
+            TAG: "true"
+            CHANGELOG: "true"
+
+pipelines:
+  default:
+    - <<: *test
+  branches:
+    master:
+    - <<: *test
+    - <<: *push
