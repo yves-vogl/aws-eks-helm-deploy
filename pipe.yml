@@ -1,9 +1,40 @@
 name: AWS EKS Helm Deploy
-image: yvogl/aws-eks-helm-deploy:1.0.0@sha256:bfb9c62b7d4a0708cbcb8825109dddd436b99658394a2b4d103549ac876542f4
+image: yvogl/aws-eks-helm-deploy:1.0.0
 category: Deployment
 description: Deploy Helm charts to AWS EKS
 repository: https://bitbucket.org/yvogl/aws-eks-helm-deploy
-maintainer: yves.vogl@adesso-service.com
+vendor:
+  name: adesso as a service GmbH
+  website: https://adesso-service.com
+maintainer:
+  name: Yves Vogl
+  website: https://adesso-service.com
+variables:
+  - name: AWS_REGION
+    default: eu-central-1
+  - name: AWS_ACCESS_KEY_ID
+    default: $AWS_ACCESS_KEY_ID
+  - name: AWS_SECRET_ACCESS_KEY
+    default: $AWS_SECRET_ACCESS_KEY
+  - name: ROLE_ARN
+    default: ""
+  - name: SESSION_NAME
+    default: ""
+  - name: CLUSTER_NAME
+    default: <required>
+  - name: CHART
+    default: <required>
+  - name: RELEASE_NAME
+    default: $CHART
+  - name: NAMESPACE
+    default: default
+  - name: SET
+    default: []
+  - name: VALUES
+    default: []
+  - name: DEBUG
+    default: false
+
 tags:
   - aws
   - kubernetes
