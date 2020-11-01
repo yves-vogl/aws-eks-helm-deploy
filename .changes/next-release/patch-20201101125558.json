@@ -1,0 +1,4 @@
+{
+  "type": "patch",
+  "description": "Removing invalid SHA hash from image tag"
+}
