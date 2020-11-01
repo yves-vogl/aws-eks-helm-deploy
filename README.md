@@ -42,7 +42,7 @@ Basic example:
 
 ```yaml
 script:
-  - pipe: dgg-devops/aws-eks-helm-deploy:0.6.0
+  - pipe: dgg-devops/aws-eks-helm-deploy:1.0.0
     variables:
       NAME: "foobar"
 ```
@@ -78,7 +78,7 @@ script:
       NAMESPACE: default
       SET: [
         'replicaCount=3',
-        'image.version=1.4.2-${BITBUCKET_BUILD_NUMBER}',
+        'image.version=1.0.0-${BITBUCKET_BUILD_NUMBER}',
         'env.foo_from_repository_or_deployment_variable=${BAR}',
       ]
       VALUES: [

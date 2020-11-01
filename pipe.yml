@@ -1,5 +1,5 @@
 name: AWS EKS Helm Deploy
-image: yvogl/aws-eks-helm-deploy:1.0.0
+image: yvogl/aws-eks-helm-deploy:1.0.0@sha256:bfb9c62b7d4a0708cbcb8825109dddd436b99658394a2b4d103549ac876542f4
 category: Deployment
 description: Deploy Helm charts to AWS EKS
 repository: https://bitbucket.org/yvogl/aws-eks-helm-deploy
