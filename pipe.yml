@@ -4,11 +4,11 @@ category: Deployment
 description: Deploy Helm charts to AWS EKS
 repository: https://bitbucket.org/yvogl/aws-eks-helm-deploy
 vendor:
-  name: adesso as a service GmbH
-  website: https://adesso-service.com
+  name: adesso SE
+  website: https://adesso.de
 maintainer:
   name: Yves Vogl
-  website: https://adesso-service.com
+  website: https://adesso.de
 variables:
   - name: AWS_REGION
     default: eu-central-1

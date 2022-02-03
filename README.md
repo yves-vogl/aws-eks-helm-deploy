@@ -7,7 +7,7 @@ Deploy Helm charts to AWS EKS
 Add the following snippet to the script section of your `bitbucket-pipelines.yml` file:
 
 ```yaml
-- pipe: yvogl/aws-eks-helm-deploy:1.0.1
+- pipe: docker://yvogl/aws-eks-helm-deploy:1.0.1
   variables:
     AWS_ACCESS_KEY_ID: "<string>"
     AWS_SECRET_ACCESS_KEY: "<string>"
@@ -42,7 +42,7 @@ Basic example:
 
 ```yaml
 script:
-  - pipe: dgg-devops/aws-eks-helm-deploy:1.0.1
+  - pipe: docker://yvogl/aws-eks-helm-deploy:1.0.1
     variables:
       NAME: "foobar"
 ```
@@ -67,7 +67,7 @@ script:
         - aws configure set source_profile default --profile vault
         - aws configure set region eu-central-1 --profile vault
         - aws secretsmanager get-secret-value --secret-id application/secret --profile vault | jq -r ".SecretString" > secrets.yaml
-  - pipe: yvogl/aws-eks-helm-deploy:1.0.1
+  - pipe: docker://yvogl/aws-eks-helm-deploy:1.0.1
     variables:
       AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
       AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
@@ -88,8 +88,8 @@ script:
 ```
 
 ## Support
-If you’d like help with this pipe, or you have an issue or feature request, let us know.
-The pipe is maintained by yves.vogl@adesso-service.com.
+If you’d like help with this pipe, or you have an issue or feature request, let me know.
+The pipe is maintained by yves.vogl@adesso.de
 
 If you’re reporting an issue, please include:
 
