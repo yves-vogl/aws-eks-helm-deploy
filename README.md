@@ -30,7 +30,9 @@ Add the following snippet to the script section of your `bitbucket-pipelines.yml
 | NAMESPACE                 | Target Kubernetes namespace of the deployment. Default: `kube-public`. |
 | SET                       | List of values which should be used as --set argument for Helm |
 | VALUES                    | Local values YAML files which should be passed to Helm (--values) |
-| DEBUG                     | Debug. Default: `false`.
+| DEBUG                     | Debug. Default: `false`. |
+| WAIT                      | Wait until application is ready. Default: `false`. |
+| DEBUG                     | Debug. Default: `false`. |
 
 _(*) = required variable._
 
