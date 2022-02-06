@@ -26,6 +26,7 @@ class HelmClient:
   release = None
   set = []
   _values = []
+  wait = False
 
   def __init__(self, chart):
 
@@ -67,6 +68,9 @@ class HelmClient:
         '--values',
         value
       )
+    
+    if self.wait:
+        command.append('--wait')    
 
     return self._run(command)
 
