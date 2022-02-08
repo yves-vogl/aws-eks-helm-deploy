@@ -74,6 +74,7 @@ def test_success(capsys):
     '-e', 'BITBUCKET_COMMIT=abcdef',
     '-e', 'BITBUCKET_TAG=1.2.3',
     '-e', 'BITBUCKET_STEP_TRIGGERER_UUID=63edd06c-3b89-4ccb-90d5-016a88f438d8',
+    '-e', 'WAIT=true',
     '-e', 'DEBUG=true',
     '-v', chart_path + ':/tmp/chart',
     docker_image,
@@ -94,6 +95,7 @@ def test_success(capsys):
   assert '--set "bitbucket.bitbucket_tag=1.2.3"' in result.stdout
   assert '--set "bitbucket.bitbucket_step_triggerer_uuid=63edd06c-3b89-4ccb-90d5-016a88f438d8"' in result.stdout
   assert '--values /tmp/chart/secrets.yaml' in result.stdout
+  assert '--wait' in result.stdout
   assert '✔ helm upgrade test /tmp/chart/test --install --namespace test --set "replicaCount=2" --set "bitbucket.bitbucket_build_number=1234" --set "bitbucket.bitbucket_repo_slug=test" --set "bitbucket.bitbucket_commit=abcdef" --set "bitbucket.bitbucket_tag=1.2.3" --set "bitbucket.bitbucket_step_triggerer_uuid=63edd06c-3b89-4ccb-90d5-016a88f438d8" --values /tmp/chart/secrets.yaml' in result.stdout
 
   assert result.returncode == 0

@@ -33,5 +33,6 @@ def get_schema():
     'NAMESPACE': {'type': 'string', 'required': False, 'default': 'kube-public'},
     'SET': {'type': 'list', 'required': False, 'default': []},
     'VALUES': {'type': 'list', 'required': False, 'default': []},
+    'WAIT': {'type': 'boolean', 'required': False, 'default': False},
     'DEBUG': {'type': 'boolean', 'required': False, 'default': False}
   }
