@@ -48,7 +48,8 @@ class HelmPipe(Pipe):
         set = self.get_variable('SET')
         values = self.get_variable('VALUES')
         wait = self.get_variable('WAIT')
-        debug = self.get_variable('DEBUG')
+        debug = self.get_variable('HELMDEBUG')
+        atomic = self.get_variable('ATOMIC')
 
         session = botocore.session.get_session()
 
@@ -96,6 +97,7 @@ class HelmPipe(Pipe):
             helm_client.values = values
             helm_client.wait = wait
             helm_client.debug = debug
+            helm_client.atomic = atomic
             helm_client_result = helm_client.install()
 
         except HelmChartNotFoundError as error:

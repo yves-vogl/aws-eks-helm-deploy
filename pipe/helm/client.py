@@ -27,6 +27,7 @@ class HelmClient:
     set = []
     _values = []
     wait = False
+    atomic = False
     debug = False
 
     def __init__(self, chart):
@@ -73,6 +74,9 @@ class HelmClient:
 
         if self.wait:
             command.append('--wait')
+
+        if self.atomic:
+            command.append('--atomic')
 
         if self.debug:
             command.append('--debug')

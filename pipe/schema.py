@@ -14,25 +14,28 @@
 
 import os
 
+
 def get_schema():
-  uuid_key = 'BITBUCKET_PIPELINE_UUID'
-  build_key = 'BITBUCKET_BUILD_NUMBER'
-  if uuid_key in os.environ and build_key in os.environ:
-    default_session_name = f"{os.environ[uuid_key].replace('{', '').replace('}', '')}@{os.environ[build_key]}"
-  else:
-    default_session_name = 'BitbucketPipe'
-  return {
-    'AWS_REGION': {'type': 'string', 'required': False, 'default': 'eu-central-1'},
-    'AWS_ACCESS_KEY_ID': {'type': 'string', 'required': True},
-    'AWS_SECRET_ACCESS_KEY': {'type': 'string', 'required': True},
-    'ROLE_ARN': {'type': 'string', 'required': False, 'nullable': True},
-    'SESSION_NAME': {'type': 'string', 'required': False, 'default': default_session_name},
-    'CLUSTER_NAME': {'type': 'string', 'required': True},
-    'CHART': {'type': 'string', 'required': True},
-    'RELEASE_NAME': {'type': 'string', 'required': False, 'nullable': True},
-    'NAMESPACE': {'type': 'string', 'required': False, 'default': 'kube-public'},
-    'SET': {'type': 'list', 'required': False, 'default': []},
-    'VALUES': {'type': 'list', 'required': False, 'default': []},
-    'WAIT': {'type': 'boolean', 'required': False, 'default': False},
-    'DEBUG': {'type': 'boolean', 'required': False, 'default': False}
-  }
+    uuid_key = 'BITBUCKET_PIPELINE_UUID'
+    build_key = 'BITBUCKET_BUILD_NUMBER'
+    if uuid_key in os.environ and build_key in os.environ:
+        default_session_name = f"{os.environ[uuid_key].replace('{', '').replace('}', '')}@{os.environ[build_key]}"
+    else:
+        default_session_name = 'BitbucketPipe'
+    return {
+        'AWS_REGION': {'type': 'string', 'required': False, 'default': 'eu-central-1'},
+        'AWS_ACCESS_KEY_ID': {'type': 'string', 'required': True},
+        'AWS_SECRET_ACCESS_KEY': {'type': 'string', 'required': True},
+        'ROLE_ARN': {'type': 'string', 'required': False, 'nullable': True},
+        'SESSION_NAME': {'type': 'string', 'required': False, 'default': default_session_name},
+        'CLUSTER_NAME': {'type': 'string', 'required': True},
+        'CHART': {'type': 'string', 'required': True},
+        'RELEASE_NAME': {'type': 'string', 'required': False, 'nullable': True},
+        'NAMESPACE': {'type': 'string', 'required': False, 'default': 'kube-public'},
+        'SET': {'type': 'list', 'required': False, 'default': []},
+        'VALUES': {'type': 'list', 'required': False, 'default': []},
+        'WAIT': {'type': 'boolean', 'required': False, 'default': False},
+        'ATOMIC': {'type': 'boolean', 'required': False, 'default': False},
+        'DEBUG': {'type': 'boolean', 'required': False, 'default': False},
+        'HELMDEBUG': {'type': 'boolean', 'required': False, 'default': False}
+    }
