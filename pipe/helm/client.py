@@ -21,80 +21,85 @@ from .error import HelmError, HelmChartNotFoundError
 
 class HelmClient:
 
-  chart = None
-  namespace = 'kube-public'
-  release = None
-  set = []
-  _values = []
-  wait = False
+    chart = None
+    namespace = 'kube-public'
+    release = None
+    set = []
+    _values = []
+    wait = False
+    debug = False
 
-  def __init__(self, chart):
+    def __init__(self, chart):
 
-    chart_yaml_path = os.path.join(
-      chart,
-      'Chart.yaml'
-    )
+        chart_yaml_path = os.path.join(
+            chart,
+            'Chart.yaml'
+        )
 
-    if os.path.isfile(chart_yaml_path):
-      self.chart = chart
-    else:
-      raise HelmChartNotFoundError(chart_yaml_path)
+        if os.path.isfile(chart_yaml_path):
+            self.chart = chart
+        else:
+            raise HelmChartNotFoundError(chart_yaml_path)
 
-  def install(self):
+    def install(self):
 
-    command = [
-      'helm',
-      'upgrade'
-    ]
+        command = [
+            'helm',
+            'secrets',
+            'upgrade'
+        ]
 
-    if self.release is not None:
-      command.append(self.release)
+        if self.release is not None:
+            command.append(self.release)
 
-    command += (
-      self.chart,
-      '--install',
-      '--namespace',
-      self.namespace
-    )
+        command += (
+            self.chart,
+            '--install',
+            '--namespace',
+            self.namespace
+        )
 
-    for set in self.set:
-      command += (
-        '--set',
-        set
-      )
+        for set in self.set:
+            command += (
+                '--set',
+                set
+            )
 
-    for value in self.values:
-      command += (
-        '--values',
-        value
-      )
-    
-    if self.wait:
-        command.append('--wait')    
+        for value in self.values:
+            command += (
+                '--values',
+                value
+            )
 
-    return self._run(command)
+        if self.wait:
+            command.append('--wait')
 
-  def _run(self, command):
-    try:
-      helm = subprocess.run(
-        command,
-        capture_output=True
-      )
+        if self.debug:
+            command.append('--debug')
 
-      helm.check_returncode()
+        return self._run(command)
 
-      return helm.stdout.decode('utf-8')
+    def _run(self, command):
+        try:
+            helm = subprocess.run(
+                command,
+                capture_output=True
+            )
 
-    except CalledProcessError as error:
-      raise HelmError(helm.stderr.decode('utf-8'))
+            helm.check_returncode()
 
-  @property
-  def values(self):
-    return self._values
+            return helm.stdout.decode('utf-8')
 
-  @values.setter
-  def values(self, value):
-    for file in value:
-      if not os.path.isfile(file):
-        raise ValueError(f'Cannot access file {file}')
-    self._values = value
+        except CalledProcessError as error:
+            raise HelmError(helm.stderr.decode('utf-8'))
+
+    @property
+    def values(self):
+        return self._values
+
+    @values.setter
+    def values(self, value):
+        for file in value:
+            if not os.path.isfile(file):
+                raise ValueError(f'Cannot access file {file}')
+        self._values = value

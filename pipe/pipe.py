@@ -33,98 +33,101 @@ except ImportError:
 
 
 class HelmPipe(Pipe):
-  def run(self):
-    super().run()
+    def run(self):
+        super().run()
 
-    region_name = self.get_variable('AWS_REGION')
-    role_arn = self.get_variable('ROLE_ARN')
+        region_name = self.get_variable('AWS_REGION')
+        role_arn = self.get_variable('ROLE_ARN')
 
-    session_name = self.get_variable('SESSION_NAME')
-    cluster_name = self.get_variable('CLUSTER_NAME')
+        session_name = self.get_variable('SESSION_NAME')
+        cluster_name = self.get_variable('CLUSTER_NAME')
 
-    chart = self.get_variable('CHART')
-    release_name = self.get_variable('RELEASE_NAME')
-    namespace = self.get_variable('NAMESPACE')
-    set = self.get_variable('SET')
-    values = self.get_variable('VALUES')
-    wait = self.get_variable('WAIT')
+        chart = self.get_variable('CHART')
+        release_name = self.get_variable('RELEASE_NAME')
+        namespace = self.get_variable('NAMESPACE')
+        set = self.get_variable('SET')
+        values = self.get_variable('VALUES')
+        wait = self.get_variable('WAIT')
+        debug = self.get_variable('DEBUG')
 
-    session = botocore.session.get_session()
+        session = botocore.session.get_session()
 
-    eks_client_factory = EKSClientFactory(session)
-    eks_client = eks_client_factory.get_eks_client(
-      region_name=region_name,
-      role_arn=role_arn,
-      role_session_name=session_name
-    )
+        eks_client_factory = EKSClientFactory(session)
+        eks_client = eks_client_factory.get_eks_client(
+            region_name=region_name,
+            role_arn=role_arn,
+            role_session_name=session_name
+        )
 
-    # Role Session Name is hardcoded to EKSGetTokenAuth
-    # I do not patch this method for compatibility reasons
-    sts_client_factory = STSClientFactory(session)
-    sts_client = sts_client_factory.get_sts_client(
-      region_name=region_name,
-      role_arn=role_arn
-    )
+        # Role Session Name is hardcoded to EKSGetTokenAuth
+        # I do not patch this method for compatibility reasons
+        sts_client_factory = STSClientFactory(session)
+        sts_client = sts_client_factory.get_sts_client(
+            region_name=region_name,
+            role_arn=role_arn
+        )
 
-    cluster = eks_client.describe_cluster(name=cluster_name)
-    token = TokenGenerator(sts_client).get_token(cluster_name)
+        cluster = eks_client.describe_cluster(name=cluster_name)
+        token = TokenGenerator(sts_client).get_token(cluster_name)
 
-    self._create_kubeconfig(cluster, token)
+        self._create_kubeconfig(cluster, token)
 
-    # Add Bitbucket Pipeline environment
-    for bitbucket_env in (
-      'bitbucket_build_number',
-      'bitbucket_repo_slug',
-      'bitbucket_commit',
-      'bitbucket_tag',
-      'bitbucket_step_triggerer_uuid'
-    ):
-      if bitbucket_env.upper() in self.env:
-        env_value = os.environ[bitbucket_env.upper()]
+        # Add Bitbucket Pipeline environment
+        for bitbucket_env in (
+            'bitbucket_build_number',
+            'bitbucket_repo_slug',
+            'bitbucket_commit',
+            'bitbucket_tag',
+            'bitbucket_step_triggerer_uuid'
+        ):
+            if bitbucket_env.upper() in self.env:
+                env_value = os.environ[bitbucket_env.upper()]
 
-        if bitbucket_env == 'bitbucket_step_triggerer_uuid':
-          env_value = env_value.replace('{', '').replace('}', '')
+                if bitbucket_env == 'bitbucket_step_triggerer_uuid':
+                    env_value = env_value.replace('{', '').replace('}', '')
 
-        set.append(f'"bitbucket.{bitbucket_env}={env_value}"')
+                set.append(f'"bitbucket.{bitbucket_env}={env_value}"')
 
-    try:
-      helm_client = HelmClient(chart)
-      helm_client.namespace = namespace
-      helm_client.release = release_name
-      helm_client.set = set
-      helm_client.values = values
-      helm_client.wait = wait
-      helm_client_result = helm_client.install()
+        try:
+            helm_client = HelmClient(chart)
+            helm_client.namespace = namespace
+            helm_client.release = release_name
+            helm_client.set = set
+            helm_client.values = values
+            helm_client.wait = wait
+            helm_client.debug = debug
+            helm_client_result = helm_client.install()
 
-    except HelmChartNotFoundError as error:
-      self.fail(message = f'No valid helm chart found at path {error}')
-    except HelmError as error:
-      self.fail(message = error)
+        except HelmChartNotFoundError as error:
+            self.fail(message=f'No valid helm chart found at path {error}')
+        except HelmError as error:
+            self.fail(message=error)
 
-    self.success(message = helm_client_result)
+        self.success(message=helm_client_result)
 
+    def _create_kubeconfig(self, cluster, token):
 
-  def _create_kubeconfig(self, cluster, token):
+        config_path = os.path.join(Path.home(), '.kube')
+        config_file = os.path.join(config_path, 'config')
 
-    config_path = os.path.join(Path.home(), '.kube')
-    config_file = os.path.join(config_path, 'config')
+        Path(config_path).mkdir(parents=True, exist_ok=True)
 
-    Path(config_path).mkdir(parents=True, exist_ok=True)
+        template_path = f'{os.path.dirname(os.path.realpath(__file__))}/templates'
+        template_loader = jinja2.FileSystemLoader(searchpath=template_path)
+        template_environment = jinja2.Environment(loader=template_loader)
 
-    template_path = f'{os.path.dirname(os.path.realpath(__file__))}/templates'
-    template_loader = jinja2.FileSystemLoader(searchpath=template_path)
-    template_environment = jinja2.Environment(loader=template_loader)
+        template = template_environment.get_template('kube.config.j2')
+        template.stream(
+            certificate_authority_data=cluster["cluster"]["certificateAuthority"]["data"],
+            server=cluster["cluster"]["endpoint"],
+            token=token
+        ).dump(config_file)
 
-    template = template_environment.get_template('kube.config.j2')
-    template.stream(
-      certificate_authority_data=cluster["cluster"]["certificateAuthority"]["data"],
-      server=cluster["cluster"]["endpoint"],
-      token=token
-    ).dump(config_file)
 
 def main():
-  pipe = HelmPipe(pipe_metadata='pipe.yml', schema=schema.get_schema())
-  pipe.run()
+    pipe = HelmPipe(pipe_metadata='pipe.yml', schema=schema.get_schema())
+    pipe.run()
+
 
 if __name__ == '__main__':
-  main()
+    main()
