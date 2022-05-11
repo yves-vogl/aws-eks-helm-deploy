@@ -1,0 +1,6 @@
+[
+  {
+    "description": "Fix bug which causes error when trying to uninstall",
+    "type": "patch"
+  }
+]

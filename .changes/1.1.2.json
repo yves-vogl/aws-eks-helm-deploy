@@ -1,0 +1,6 @@
+[
+  {
+    "description": "Fix bug in uninstall schema",
+    "type": "patch"
+  }
+]

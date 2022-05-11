@@ -45,9 +45,11 @@ class HelmPipe(Pipe):
     chart = self.get_variable('CHART')
     release_name = self.get_variable('RELEASE_NAME')
     namespace = self.get_variable('NAMESPACE')
+    create_namespace = self.get_variable('CREATE_NAMESPACE')
     set = self.get_variable('SET')
     values = self.get_variable('VALUES')
     wait = self.get_variable('WAIT')
+    uninstall = self.get_variable('UNINSTALL')
 
     session = botocore.session.get_session()
 
@@ -88,13 +90,18 @@ class HelmPipe(Pipe):
         set.append(f'"bitbucket.{bitbucket_env}={env_value}"')
 
     try:
-      helm_client = HelmClient(chart)
+      helm_client = HelmClient()
       helm_client.namespace = namespace
+      helm_client.create_namespace = create_namespace
       helm_client.release = release_name
       helm_client.set = set
       helm_client.values = values
       helm_client.wait = wait
-      helm_client_result = helm_client.install()
+
+      if not uninstall:
+        helm_client_result = helm_client.install(chart)
+      else:
+        helm_client_result = helm_client.uninstall()
 
     except HelmChartNotFoundError as error:
       self.fail(message = f'No valid helm chart found at path {error}')
