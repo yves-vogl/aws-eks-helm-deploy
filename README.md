@@ -7,7 +7,7 @@ Deploy Helm charts to AWS EKS
 Add the following snippet to the script section of your `bitbucket-pipelines.yml` file:
 
 ```yaml
-- pipe: docker://yvogl/aws-eks-helm-deploy:1.0.2
+- pipe: docker://richarddsmith/aws-eks-helm-deploy:1.1.3
   variables:
     AWS_ACCESS_KEY_ID: "<string>"
     AWS_SECRET_ACCESS_KEY: "<string>"
@@ -28,11 +28,13 @@ Add the following snippet to the script section of your `bitbucket-pipelines.yml
 | CHART (*)                 | Path or name of the chart which should be deployed |
 | RELEASE_NAME              | Name of the helm release |
 | NAMESPACE                 | Target Kubernetes namespace of the deployment. Default: `kube-public`. |
+| CREATE_NAMESPACE          | Boolean. Will instruct helm to create a namespace if missing. Default: `false`. |
 | SET                       | List of values which should be used as --set argument for Helm |
 | VALUES                    | Local values YAML files which should be passed to Helm (--values) |
 | DEBUG                     | Debug. Default: `false`. |
 | WAIT                      | Wait until application is ready. Default: `false`. |
 | DEBUG                     | Debug. Default: `false`. |
+| UNINSTALL                 | Uninstall the release from the given namespace. Default: `false` |
 
 _(*) = required variable._
 
@@ -44,7 +46,7 @@ Basic example:
 
 ```yaml
 script:
-  - pipe: docker://yvogl/aws-eks-helm-deploy:1.0.2
+  - pipe: docker://richarddsmith/aws-eks-helm-deploy:1.1.3
     variables:
       NAME: "foobar"
 ```
@@ -69,7 +71,7 @@ script:
         - aws configure set source_profile default --profile vault
         - aws configure set region eu-central-1 --profile vault
         - aws secretsmanager get-secret-value --secret-id application/secret --profile vault | jq -r ".SecretString" > secrets.yaml
-  - pipe: docker://yvogl/aws-eks-helm-deploy:1.0.2
+  - pipe: docker://richarddsmith/aws-eks-helm-deploy:1.1.3
     variables:
       AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
       AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY

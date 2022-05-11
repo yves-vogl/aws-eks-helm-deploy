@@ -99,3 +99,27 @@ def test_success(capsys):
   assert '✔ helm upgrade test /tmp/chart/test --install --namespace test --set "replicaCount=2" --set "bitbucket.bitbucket_build_number=1234" --set "bitbucket.bitbucket_repo_slug=test" --set "bitbucket.bitbucket_commit=abcdef" --set "bitbucket.bitbucket_tag=1.2.3" --set "bitbucket.bitbucket_step_triggerer_uuid=63edd06c-3b89-4ccb-90d5-016a88f438d8" --values /tmp/chart/secrets.yaml' in result.stdout
 
   assert result.returncode == 0
+
+def test_uninstall_schema():
+    args = [
+      'docker',
+      'run',
+      '-e', 'AWS_ACCESS_KEY_ID=test',
+      '-e', 'AWS_SECRET_ACCESS_KEY=test',
+      '-e', 'CLUSTER_NAME=test',
+      '-e', 'RELEASE_NAME=test',
+      '-e', 'NAMESPACE=test',
+      '-e', 'BITBUCKET_BUILD_NUMBER=1234',
+      '-e', 'BITBUCKET_REPO_SLUG=test',
+      '-e', 'BITBUCKET_COMMIT=abcdef',
+      '-e', 'BITBUCKET_TAG=1.2.3',
+      '-e', 'BITBUCKET_STEP_TRIGGERER_UUID=63edd06c-3b89-4ccb-90d5-016a88f438d8',
+      '-e', 'UNINSTALL=true',
+      docker_image,
+      '/opt/pipe/test.py'
+    ]
+
+    result = subprocess.run(args, check=False, text=True, capture_output=True)
+
+    assert '--namespace test' in result.stdout
+    assert '✔ helm uninstall --namespace test test' in result.stdout

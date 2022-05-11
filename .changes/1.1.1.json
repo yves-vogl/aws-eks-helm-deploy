@@ -1,0 +1,6 @@
+[
+  {
+    "description": "Update jinja version",
+    "type": "patch"
+  }
+]

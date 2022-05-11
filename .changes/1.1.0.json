@@ -1,0 +1,10 @@
+[
+  {
+    "description": "Add uninstall flag",
+    "type": "minor"
+  },
+  {
+    "description": "Add support for --wait",
+    "type": "patch"
+  }
+]

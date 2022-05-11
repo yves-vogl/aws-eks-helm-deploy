@@ -23,13 +23,16 @@ class HelmClient:
 
   chart = None
   namespace = 'kube-public'
+  create_namespace = False
   release = None
   set = []
   _values = []
   wait = False
 
-  def __init__(self, chart):
-
+  def validate_chart(self, chart):
+    """
+    Validate that chart is available in correct location
+    """
     chart_yaml_path = os.path.join(
       chart,
       'Chart.yaml'
@@ -40,7 +43,28 @@ class HelmClient:
     else:
       raise HelmChartNotFoundError(chart_yaml_path)
 
-  def install(self):
+      
+  def uninstall(self):
+    """
+    Run a helm uninstall. Leaves the namespace intact
+    """
+
+    command = [
+      'helm',
+      'uninstall',
+      '--namespace',
+      self.namespace,
+      self.release
+    ]
+
+    return self._run(command)
+
+  def install(self, chart):
+    """
+    Run a helm install
+    """
+
+    self.validate_chart(chart)
 
     command = [
       'helm',
@@ -56,6 +80,9 @@ class HelmClient:
       '--namespace',
       self.namespace
     )
+
+    if self.create_namespace:
+      command.append('--create-namespace')
 
     for set in self.set:
       command += (
