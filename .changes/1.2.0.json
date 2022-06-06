@@ -1,0 +1,10 @@
+[
+  {
+    "description": "Install any subcharts",
+    "type": "minor"
+  },
+  {
+    "description": "update helm image version",
+    "type": "patch"
+  }
+]

@@ -7,7 +7,7 @@ Deploy Helm charts to AWS EKS
 Add the following snippet to the script section of your `bitbucket-pipelines.yml` file:
 
 ```yaml
-- pipe: docker://richarddsmith/aws-eks-helm-deploy:1.1.3
+- pipe: docker://richarddsmith/aws-eks-helm-deploy:1.2.0
   variables:
     AWS_ACCESS_KEY_ID: "<string>"
     AWS_SECRET_ACCESS_KEY: "<string>"
@@ -35,6 +35,7 @@ Add the following snippet to the script section of your `bitbucket-pipelines.yml
 | WAIT                      | Wait until application is ready. Default: `false`. |
 | DEBUG                     | Debug. Default: `false`. |
 | UNINSTALL                 | Uninstall the release from the given namespace. Default: `false` |
+| INSTALL_SUBCHARTS         | Run `helm dependency update` to pull in the latest subcharts based on `Charts.yaml`. Default: `false` |
 
 _(*) = required variable._
 
@@ -46,7 +47,7 @@ Basic example:
 
 ```yaml
 script:
-  - pipe: docker://richarddsmith/aws-eks-helm-deploy:1.1.3
+  - pipe: docker://richarddsmith/aws-eks-helm-deploy:1.2.0
     variables:
       NAME: "foobar"
 ```

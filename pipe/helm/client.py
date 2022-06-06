@@ -16,7 +16,11 @@ import os
 import subprocess
 from subprocess import CalledProcessError
 
+from bitbucket_pipes_toolkit import get_logger
+
 from .error import HelmError, HelmChartNotFoundError
+
+logger = get_logger()
 
 
 class HelmClient:
@@ -28,6 +32,7 @@ class HelmClient:
   set = []
   _values = []
   wait = False
+  install_subcharts = False
 
   def validate_chart(self, chart):
     """
@@ -43,9 +48,9 @@ class HelmClient:
     else:
       raise HelmChartNotFoundError(chart_yaml_path)
 
-  def install_dependencies(self):
+  def subcharts_install(self):
     """
-    Install/Update any chart dependencies
+    Install/Update any subcharts
     """
     command = [
       'helm',
@@ -53,6 +58,8 @@ class HelmClient:
       'update',
       self.chart
     ]
+
+    logger.info("Install subcharts")
 
     return self._run(command)
 
@@ -78,7 +85,9 @@ class HelmClient:
     """
 
     self.validate_chart(chart)
-    self.install_dependencies()
+    if self.install_subcharts:
+      result = self.subcharts_install()
+      logger.info(result)
 
     command = [
       'helm',
@@ -112,7 +121,7 @@ class HelmClient:
     
     if self.wait:
         command.append('--wait')    
-
+      
     return self._run(command)
 
   def _run(self, command):

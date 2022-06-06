@@ -50,6 +50,7 @@ class HelmPipe(Pipe):
     values = self.get_variable('VALUES')
     wait = self.get_variable('WAIT')
     uninstall = self.get_variable('UNINSTALL')
+    install_subcharts = self.get_variable('INSTALL_SUBCHARTS')
 
     session = botocore.session.get_session()
 
@@ -97,6 +98,7 @@ class HelmPipe(Pipe):
       helm_client.set = set
       helm_client.values = values
       helm_client.wait = wait
+      helm_client.install_subcharts = install_subcharts
 
       if not uninstall:
         helm_client_result = helm_client.install(chart)

@@ -39,7 +39,8 @@ def get_schema():
     'VALUES': {'type': 'list', 'required': False, 'default': []},
     'WAIT': {'type': 'boolean', 'required': False, 'default': False},
     'DEBUG': {'type': 'boolean', 'required': False, 'default': False},
-    'UNINSTALL': {'type': 'boolean', 'required': False, 'default': False}
+    'UNINSTALL': {'type': 'boolean', 'required': False, 'default': False},
+    'INSTALL_SUBCHARTS': {'type': 'boolean', 'required': False, 'default': False}
   }
 
   if os.getenv(uninstall, 'False').lower() == 'true':
