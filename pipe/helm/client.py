@@ -43,6 +43,19 @@ class HelmClient:
     else:
       raise HelmChartNotFoundError(chart_yaml_path)
 
+  def install_dependencies(self):
+    """
+    Install/Update any chart dependencies
+    """
+    command = [
+      'helm',
+      'dependency',
+      'update',
+      self.chart
+    ]
+
+    return self._run(command)
+
       
   def uninstall(self):
     """
@@ -65,6 +78,7 @@ class HelmClient:
     """
 
     self.validate_chart(chart)
+    self.install_dependencies()
 
     command = [
       'helm',
