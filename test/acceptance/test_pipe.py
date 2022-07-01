@@ -49,6 +49,21 @@ def test_no_parameters():
   assert 'CLUSTER_NAME:\n- required field' in result.stdout
   assert 'CHART:\n- required field' in result.stdout
 
+def test_parameters_when_oidc_token_envvar_is_set():
+  args = [
+    'docker',
+    'run',
+    '-e', 'BITBUCKET_STEP_OIDC_TOKEN=token',
+    docker_image,
+  ]
+
+  result = subprocess.run(args, check=False, text=True, capture_output=True)
+
+  assert result.returncode == 1
+  assert 'AWS_ACCESS_KEY_ID:\n- required field' not in result.stdout
+  assert 'AWS_SECRET_ACCESS_KEY:\n- required field' not in result.stdout
+  assert 'ROLE_ARN:\n- required field' in result.stdout
+
 def test_success(capsys):
 
   chart_path = os.path.join(

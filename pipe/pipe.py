@@ -55,7 +55,8 @@ class HelmPipe(Pipe):
     eks_client = eks_client_factory.get_eks_client(
       region_name=region_name,
       role_arn=role_arn,
-      role_session_name=session_name
+      role_session_name=session_name,
+      oidc_token=os.getenv('BITBUCKET_STEP_OIDC_TOKEN')
     )
 
     # Role Session Name is hardcoded to EKSGetTokenAuth
