@@ -13,5 +13,5 @@ COPY LICENSE.txt pipe.yml README.md /opt/pipe/
 
 COPY --chown=root:root --from=helm /usr/bin/helm /usr/bin/helm
 
-ENTRYPOINT ["python"]
-CMD ["/opt/pipe/pipe.py"]
+# ENTRYPOINT ["python"]
+CMD ["python", "/opt/pipe/pipe.py"]
