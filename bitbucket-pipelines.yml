@@ -23,7 +23,7 @@ definitions:
           variables:
             DOCKERHUB_USERNAME: $DOCKERHUB_USERNAME
             DOCKERHUB_PASSWORD: $DOCKERHUB_PASSWORD
-            IMAGE: yvogl/$BITBUCKET_REPO_SLUG
+            IMAGE: $DOCKERHUB_USERNAME/aws-eks-helm-deploy
             GIT_PUSH: "true"
             TAG: "true"
             CHANGELOG: "true"
