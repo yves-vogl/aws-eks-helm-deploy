@@ -33,5 +33,5 @@ pipelines:
     - <<: *test
   branches:
     master:
-    - <<: *test
+#    - <<: *test
     - <<: *push
