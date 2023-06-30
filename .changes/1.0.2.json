@@ -1,0 +1,6 @@
+[
+  {
+    "description": "Add support for --wait",
+    "type": "patch"
+  }
+]
