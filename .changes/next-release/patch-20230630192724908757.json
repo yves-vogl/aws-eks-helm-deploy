@@ -1,0 +1,4 @@
+{
+  "type": "patch",
+  "description": "Fixed issue with markupsafe"
+}
