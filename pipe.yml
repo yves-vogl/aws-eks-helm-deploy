@@ -34,6 +34,8 @@ variables:
     default: []
   - name: DEBUG
     default: false
+  - name: INSTALL_DEPS
+    default: false
 
 tags:
   - aws

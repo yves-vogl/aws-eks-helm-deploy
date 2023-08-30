@@ -27,6 +27,7 @@ class HelmClient:
   set = []
   _values = []
   wait = False
+  install_deps = False
 
   def __init__(self, chart):
 
@@ -68,9 +69,12 @@ class HelmClient:
         '--values',
         value
       )
-    
+
     if self.wait:
-        command.append('--wait')    
+        command.append('--wait')
+
+    if self.install_deps:
+        command.append('--dependency-update')
 
     return self._run(command)
 
