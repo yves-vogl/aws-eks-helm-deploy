@@ -28,6 +28,7 @@ class HelmClient:
   _values = []
   wait = False
   install_deps = False
+  debug = False
 
   def __init__(self, chart):
 
@@ -76,10 +77,16 @@ class HelmClient:
     if self.install_deps:
         command.append('--dependency-update')
 
+    if self.debug:
+        command.append('--debug')
+
     return self._run(command)
 
   def _run(self, command):
     try:
+      if self.debug:
+        print(command)
+
       helm = subprocess.run(
         command,
         capture_output=True
