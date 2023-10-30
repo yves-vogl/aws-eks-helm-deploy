@@ -1,4 +1,0 @@
-{
-  "type": "minor",
-  "description": "Upgrade of dependencies. Do not require local Chart.yml"
-}

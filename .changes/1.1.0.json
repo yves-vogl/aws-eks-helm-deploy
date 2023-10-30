@@ -1,0 +1,10 @@
+{
+  "changes": [
+    {
+      "description": "Upgrade of dependencies. Do not require local Chart.yml",
+      "type": "minor"
+    }
+  ],
+  "created_at": "2023-10-30T14:43:16.926357+00:00",
+  "version": "1.1.0"
+}
