@@ -12,7 +12,7 @@ In order to automate this process it uses a tool called [`semversioner`](https:/
 pip install semversioner
 ```
 
-2) During development phase, every change that needs to be integrated to `master` will need one or more changeset files. You can use semversioner to generate changeset.
+2) During development phase, every change that needs to be integrated to `main` will need one or more changeset files. You can use semversioner to generate changeset.
 
 ```sh
 semversioner add-change --type patch --description "Fix security vulnerability with authentication."
@@ -26,7 +26,7 @@ git commit -m "BP-234 FIX security issue with authentication"
 git push origin
 ```
 
-4) That's it! Merge to `master` and Enjoy! Bitbucket Pipelines will do the rest:
+4) That's it! Merge to `main` and Enjoy! Bitbucket Pipelines will do the rest:
 
 - Generate new version number based on the changeset types `major`, `minor`, `patch`.
 - Generate a new file in `.changes` directory with all the changes for this specific version.

@@ -7,7 +7,7 @@ Deploy Helm charts to AWS EKS
 Add the following snippet to the script section of your `bitbucket-pipelines.yml` file:
 
 ```yaml
-- pipe: docker://yvogl/aws-eks-helm-deploy:1.0.2
+- pipe: docker://yvogl/aws-eks-helm-deploy:1.1.0
   variables:
     AWS_ACCESS_KEY_ID: "<string>"
     AWS_SECRET_ACCESS_KEY: "<string>"
@@ -44,7 +44,7 @@ Basic example:
 
 ```yaml
 script:
-  - pipe: docker://yvogl/aws-eks-helm-deploy:1.0.2
+  - pipe: docker://yvogl/aws-eks-helm-deploy:1.1.0
     variables:
       NAME: "foobar"
 ```
