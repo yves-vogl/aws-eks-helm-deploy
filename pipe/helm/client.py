@@ -30,15 +30,20 @@ class HelmClient:
 
   def __init__(self, chart):
 
-    chart_yaml_path = os.path.join(
-      chart,
-      'Chart.yaml'
-    )
+    self.chart = chart
 
-    if os.path.isfile(chart_yaml_path):
-      self.chart = chart
-    else:
-      raise HelmChartNotFoundError(chart_yaml_path)
+    # chart_yaml_path = os.path.join(
+    #   chart,
+    #   'Chart.yaml'
+    # )
+
+    # Do not check existence of Chart.yaml file. Chart can also be specified
+    # using an URL or repository and chart name.
+
+    # if os.path.isfile(chart_yaml_path):
+    #   self.chart = chart
+    # else:
+    #   raise HelmChartNotFoundError(chart_yaml_path)
 
   def install(self):
 
@@ -68,9 +73,9 @@ class HelmClient:
         '--values',
         value
       )
-    
+
     if self.wait:
-        command.append('--wait')    
+      command.append('--wait')
 
     return self._run(command)
 
