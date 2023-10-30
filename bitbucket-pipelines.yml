@@ -19,7 +19,7 @@ definitions:
       caches:
         - docker
       script:
-        - pipe: docker://bitbucketpipelines/bitbucket-pipe-release:3.0.0
+        - pipe: docker://bitbucketpipelines/bitbucket-pipe-release:5.5.0
           variables:
             DOCKERHUB_USERNAME: $DOCKERHUB_USERNAME
             DOCKERHUB_PASSWORD: $DOCKERHUB_PASSWORD
@@ -33,5 +33,5 @@ pipelines:
     - <<: *test
   branches:
     master:
-    - <<: *test
-    - <<: *push
+      - <<: *test
+      - <<: *push
