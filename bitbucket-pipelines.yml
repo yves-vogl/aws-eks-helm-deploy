@@ -32,6 +32,6 @@ pipelines:
   default:
     - <<: *test
   branches:
-    master:
+    main:
       - <<: *test
       - <<: *push
