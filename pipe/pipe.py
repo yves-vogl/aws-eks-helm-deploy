@@ -45,6 +45,7 @@ class HelmPipe(Pipe):
     chart = self.get_variable('CHART')
     release_name = self.get_variable('RELEASE_NAME')
     namespace = self.get_variable('NAMESPACE')
+    create_namespace = self.get_variable('CREATE_NAMESPACE')
     set = self.get_variable('SET')
     values = self.get_variable('VALUES')
     wait = self.get_variable('WAIT')
@@ -90,6 +91,7 @@ class HelmPipe(Pipe):
     try:
       helm_client = HelmClient(chart)
       helm_client.namespace = namespace
+      helm_client.create_namespace = create_namespace
       helm_client.release = release_name
       helm_client.set = set
       helm_client.values = values

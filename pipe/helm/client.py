@@ -23,6 +23,7 @@ class HelmClient:
 
   chart = None
   namespace = 'kube-public'
+  create_namespace = False
   release = None
   set = []
   _values = []
@@ -76,6 +77,9 @@ class HelmClient:
 
     if self.wait:
       command.append('--wait')
+
+    if self.create_namespace:
+      command.append('--create-namespace')
 
     return self._run(command)
 
