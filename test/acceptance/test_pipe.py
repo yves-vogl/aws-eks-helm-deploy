@@ -65,6 +65,7 @@ def test_success(capsys):
     '-e', 'CHART=/tmp/chart/test',
     '-e', 'RELEASE_NAME=test',
     '-e', 'NAMESPACE=test',
+    '-e', 'CREATE_NAMESPACE=true',
     '-e', 'SET_COUNT=1',
     '-e', 'SET_0="replicaCount=2"',
     '-e', 'VALUES_COUNT=1',
@@ -88,6 +89,7 @@ def test_success(capsys):
 
   assert 'helm upgrade test /tmp/chart/test --install' in result.stdout
   assert '--namespace test' in result.stdout
+  assert '--create-namespace' in result.stdout
   assert '--set "replicaCount=2"' in result.stdout
   assert '--set "bitbucket.bitbucket_build_number=1234"' in result.stdout
   assert '--set "bitbucket.bitbucket_repo_slug=test"' in result.stdout

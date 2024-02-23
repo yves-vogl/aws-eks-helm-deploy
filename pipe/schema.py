@@ -31,6 +31,7 @@ def get_schema():
     'CHART': {'type': 'string', 'required': True},
     'RELEASE_NAME': {'type': 'string', 'required': False, 'nullable': True},
     'NAMESPACE': {'type': 'string', 'required': False, 'default': 'kube-public'},
+    'CREATE_NAMESPACE': {'type': 'boolean', 'required': False, 'default': False},
     'SET': {'type': 'list', 'required': False, 'default': []},
     'VALUES': {'type': 'list', 'required': False, 'default': []},
     'WAIT': {'type': 'boolean', 'required': False, 'default': False},

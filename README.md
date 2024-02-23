@@ -28,6 +28,7 @@ Add the following snippet to the script section of your `bitbucket-pipelines.yml
 | CHART (*)                 | Path or name of the chart which should be deployed |
 | RELEASE_NAME              | Name of the helm release |
 | NAMESPACE                 | Target Kubernetes namespace of the deployment. Default: `kube-public`. |
+| CREATE_NAMESPACE          | Create the release namespace if not present |
 | SET                       | List of values which should be used as --set argument for Helm |
 | VALUES                    | Local values YAML files which should be passed to Helm (--values) |
 | DEBUG                     | Debug. Default: `false`. |
