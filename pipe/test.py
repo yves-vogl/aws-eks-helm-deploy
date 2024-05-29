@@ -16,7 +16,9 @@ from unittest.mock import Mock, patch
 from pathlib import Path
 import os
 import botocore
+
 import pipe
+from .helm.duration import validate_go_duration
 
 original_method = botocore.client.BaseClient._make_api_call
 
@@ -50,5 +52,25 @@ def mock_helm_run(self, command):
 @patch('helm.client.HelmClient._run', new=mock_helm_run)
 def test():
   pipe.main()
+
+def test_durations():
+  # Test examples
+  test_durations = [
+      "72h3m0.5s",   # Valid
+      "3m0.5s",      # Valid
+      "72h",         # Valid
+      "0.5s",        # Valid
+      "72h3m",       # Valid
+      "3m",          # Valid
+      "72h0.5s",     # Valid
+      "72h3m0.5",    # Invalid
+      "3m72h",       # Invalid
+      "3m-1s",       # Invalid
+      "72hours"      # Invalid
+  ]
+  # Validate and print results
+  for duration in test_durations:
+    print(f"{duration}: {validate_go_duration(duration)}")
+
 
 test()

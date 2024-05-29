@@ -34,6 +34,8 @@ variables:
     default: []
   - name: DEBUG
     default: false
+  - name: TIMEOUT
+    default: "5m"
 
 tags:
   - aws

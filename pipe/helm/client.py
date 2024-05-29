@@ -16,7 +16,17 @@ import os
 import subprocess
 from subprocess import CalledProcessError
 
-from .error import HelmError, HelmChartNotFoundError
+from typing import List
+
+from .error import HelmError, HelmChartNotFoundError, HelmInvalidTimeout
+from .duration import validate_go_duration
+
+def add_timeout(command: List[str], timeout: str) -> List[str]:
+  """Validates `timeout` and appends timeout flag to command."""
+  if not validate_go_duration(timeout):
+    raise HelmInvalidTimeout(timeout=timeout)
+  command.extend(["--timeout", timeout])
+  return command
 
 
 class HelmClient:
@@ -28,6 +38,7 @@ class HelmClient:
   set = []
   _values = []
   wait = False
+  timeout = "5m"
 
   def __init__(self, chart):
 
@@ -45,6 +56,8 @@ class HelmClient:
     #   self.chart = chart
     # else:
     #   raise HelmChartNotFoundError(chart_yaml_path)
+
+
 
   def install(self):
 
@@ -80,6 +93,8 @@ class HelmClient:
 
     if self.create_namespace:
       command.append('--create-namespace')
+
+    command = add_timeout(command, self.timeout)
 
     return self._run(command)
 

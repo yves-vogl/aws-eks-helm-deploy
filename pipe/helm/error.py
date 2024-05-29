@@ -17,3 +17,12 @@ class HelmError(BaseException):
 
 class HelmChartNotFoundError(BaseException):
   pass
+
+class HelmInvalidTimeout(HelmError):
+  """Raised when invalid timeout value is provided."""
+
+  def __init__(self, timeout, message=None):
+    self.timeout = timeout
+    if message is None:
+      message = f"Invalid timeout value: {timeout}, please provide a valid go Duration."
+    super().__init__(message)
