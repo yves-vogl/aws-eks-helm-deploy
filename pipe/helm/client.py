@@ -18,7 +18,7 @@ from subprocess import CalledProcessError
 
 from typing import List
 
-from .error import HelmError, HelmChartNotFoundError, HelmInvalidTimeout
+from .error import HelmError, HelmInvalidTimeout
 from .duration import validate_go_duration
 
 def add_timeout(command: List[str], timeout: str) -> List[str]:

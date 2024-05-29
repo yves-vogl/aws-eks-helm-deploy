@@ -12,13 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from unittest.mock import Mock, patch
-from pathlib import Path
-import os
+from unittest.mock import patch
 import botocore
 
 import pipe
-from .helm.duration import validate_go_duration
+from helm.duration import validate_go_duration
 
 original_method = botocore.client.BaseClient._make_api_call
 
@@ -53,24 +51,30 @@ def mock_helm_run(self, command):
 def test():
   pipe.main()
 
-def test_durations():
+def test_valid_durations():
+  durations = [
+      "72h3m0.5s",
+      "3m0.5s",
+      "72h",
+      "0.5s",
+      "72h3m",
+      "3m",
+      "72h0.5s",
+      ]
+  validations = [validate_go_duration(d) for d in durations]
+  assert all(validations), f'validation failed: results {zip(durations, validations)}'
+
+def test_invalid_durations():
   # Test examples
-  test_durations = [
-      "72h3m0.5s",   # Valid
-      "3m0.5s",      # Valid
-      "72h",         # Valid
-      "0.5s",        # Valid
-      "72h3m",       # Valid
-      "3m",          # Valid
-      "72h0.5s",     # Valid
-      "72h3m0.5",    # Invalid
-      "3m72h",       # Invalid
-      "3m-1s",       # Invalid
-      "72hours"      # Invalid
+  durations = [
+      "72h3m0.5",
+      "3m72h",
+      "3m-1s",
+      "72hours",
+      ""
   ]
-  # Validate and print results
-  for duration in test_durations:
-    print(f"{duration}: {validate_go_duration(duration)}")
+  validations = [validate_go_duration(d) for d in durations]
+  assert not all(validations), f'validation failed: {zip(durations, validations)}'
 
-
-test()
+tests = [test, test_valid_durations, test_invalid_durations]
+[t() for t in tests]
