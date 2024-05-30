@@ -18,7 +18,7 @@ Deploy [Helm](https://helm.sh) charts to [AWS Elastic Kubernetes Service](https:
 Add the following snippet to the script section of your `bitbucket-pipelines.yml` file:
 
 ```yaml
-- pipe: docker://yvogl/aws-eks-helm-deploy:1.2.1
+- pipe: docker://yvogl/aws-eks-helm-deploy:1.3.0
   variables:
     AWS_ACCESS_KEY_ID: "<string>"
     AWS_SECRET_ACCESS_KEY: "<string>"
@@ -56,7 +56,7 @@ Basic example:
 
 ```yaml
 script:
-  - pipe: docker://yvogl/aws-eks-helm-deploy:1.2.1
+  - pipe: docker://yvogl/aws-eks-helm-deploy:1.3.0
     variables:
       NAME: "foobar"
 ```
@@ -81,7 +81,7 @@ script:
         - aws configure set source_profile default --profile vault
         - aws configure set region eu-central-1 --profile vault
         - aws secretsmanager get-secret-value --secret-id application/secret --profile vault | jq -r ".SecretString" > secrets.yaml
-  - pipe: docker://yvogl/aws-eks-helm-deploy:1.2.1
+  - pipe: docker://yvogl/aws-eks-helm-deploy:1.3.0
     variables:
       AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
       AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
