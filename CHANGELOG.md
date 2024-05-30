@@ -1,6 +1,10 @@
 # Changelog
 Note: version releases in the 0.x.y range may introduce breaking changes.
 
+## 1.2.1
+
+- patch: Add helm timeout configurable #15
+
 ## 1.2.0
 
 - minor: Support for create_namespace

@@ -1,4 +1,0 @@
-{
-  "type": "patch",
-  "description": "Add helm timeout configurable #15"
-}
