@@ -26,7 +26,7 @@ git commit -m "BP-234 FIX security issue with authentication"
 git push origin
 ```
 
-4) That's it! Merge to `main` and Enjoy! Bitbucket Pipelines will do the rest:
+4) That's it! Merge to `main` and enjoy! [Bitbucket Pipelines](https://bitbucket.org/yvogl/aws-eks-helm-deploy/) will do the rest:
 
 - Generate new version number based on the changeset types `major`, `minor`, `patch`.
 - Generate a new file in `.changes` directory with all the changes for this specific version.
