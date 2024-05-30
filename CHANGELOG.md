@@ -1,6 +1,10 @@
 # Changelog
 Note: version releases in the 0.x.y range may introduce breaking changes.
 
+## 1.3.0
+
+- minor: Upgrading all dependencies to the latest stable version
+
 ## 1.2.1
 
 - patch: Add helm timeout configurable #15
