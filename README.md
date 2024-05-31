@@ -39,7 +39,7 @@ Add the following snippet to the script section of your `bitbucket-pipelines.yml
 | CREATE_NAMESPACE          | Create the release namespace if not present |
 | SET                       | List of values which should be used as --set argument for Helm |
 | VALUES                    | Local values YAML files which should be passed to Helm (--values) |
-| DEBUG                     | Debug. Default: `false`. |
+| TIMEOUT                   | Timeout. Default: `5m`. |
 | WAIT                      | Wait until application is ready. Default: `false`. |
 | DEBUG                     | Debug. Default: `false`. |
 
