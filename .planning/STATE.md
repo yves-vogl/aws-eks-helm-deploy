@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-06-16)
 Phase: 1 of 7 (Toolchain & Spine)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-06-16 — Roadmap created; 57/57 v1 requirements mapped across 7 phases
+Last activity: 2026-06-16 — Roadmap created; 67/67 v1 requirements mapped across 7 phases
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -81,5 +81,5 @@ Items acknowledged and carried forward as v2.1+ (see REQUIREMENTS.md "v2 (Deferr
 ## Session Continuity
 
 Last session: 2026-06-16
-Stopped at: Roadmap created — 7 phases, 57/57 v1 REQs mapped
+Stopped at: Roadmap created — 7 phases, 67/67 v1 REQs mapped
 Resume file: None
