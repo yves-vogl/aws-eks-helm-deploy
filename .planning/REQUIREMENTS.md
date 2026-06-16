@@ -153,29 +153,94 @@ Explicit boundaries. Anti-features carry reasoning so re-adding requires explici
 
 ## Traceability
 
-Empty initially. Populated by `gsd-roadmapper` when ROADMAP.md is generated.
+Populated by `gsd-roadmapper` on 2026-06-16 — every v1 REQ mapped to exactly one phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TOOL-01..08 | TBD | Pending |
-| AUTH-01..07 | TBD | Pending |
-| CHART-01..05 | TBD | Pending |
-| PIPE-01..06 | TBD | Pending |
-| HISTORY-01..02 | TBD | Pending |
-| META-01..03 | TBD | Pending |
-| IMAGE-01..06 | TBD | Pending |
-| SEC-01..06 | TBD | Pending |
-| CI-01..07 | TBD | Pending |
-| OBS-01..02 | TBD | Pending |
-| DOC-01..08 | TBD | Pending |
-| CMN-01..04 | TBD | Pending |
-| MIG-01..03 | TBD | Pending |
+| TOOL-01 | Phase 1 | Pending |
+| TOOL-02 | Phase 1 | Pending |
+| TOOL-03 | Phase 1 | Pending |
+| TOOL-04 | Phase 1 | Pending |
+| TOOL-05 | Phase 1 | Pending |
+| TOOL-06 | Phase 1 | Pending |
+| TOOL-07 | Phase 1 | Pending |
+| TOOL-08 | Phase 1 | Pending |
+| AUTH-01 | Phase 2 | Pending |
+| AUTH-02 | Phase 2 | Pending |
+| AUTH-03 | Phase 4 | Pending |
+| AUTH-04 | Phase 4 | Pending |
+| AUTH-05 | Phase 4 | Pending |
+| AUTH-06 | Phase 4 | Pending |
+| AUTH-07 | Phase 2 | Pending |
+| CHART-01 | Phase 3 | Pending |
+| CHART-02 | Phase 4 | Pending |
+| CHART-03 | Phase 4 | Pending |
+| CHART-04 | Phase 4 | Pending |
+| CHART-05 | Phase 3 | Pending |
+| PIPE-01 | Phase 3 | Pending |
+| PIPE-02 | Phase 5 | Pending |
+| PIPE-03 | Phase 5 | Pending |
+| PIPE-04 | Phase 5 | Pending |
+| PIPE-05 | Phase 5 | Pending |
+| PIPE-06 | Phase 3 | Pending |
+| HISTORY-01 | Phase 3 | Pending |
+| HISTORY-02 | Phase 3 | Pending |
+| META-01 | Phase 3 | Pending |
+| META-02 | Phase 5 | Pending |
+| META-03 | Phase 5 | Pending |
+| IMAGE-01 | Phase 1 | Pending |
+| IMAGE-02 | Phase 1 | Pending |
+| IMAGE-03 | Phase 1 | Pending |
+| IMAGE-04 | Phase 6 | Pending |
+| IMAGE-05 | Phase 1 | Pending |
+| IMAGE-06 | Phase 6 | Pending |
+| SEC-01 | Phase 6 | Pending |
+| SEC-02 | Phase 6 | Pending |
+| SEC-03 | Phase 6 | Pending |
+| SEC-04 | Phase 6 | Pending |
+| SEC-05 | Phase 6 | Pending |
+| SEC-06 | Phase 5 | Pending |
+| CI-01 | Phase 6 | Pending |
+| CI-02 | Phase 6 | Pending |
+| CI-03 | Phase 6 | Pending |
+| CI-04 | Phase 6 | Pending |
+| CI-05 | Phase 6 | Pending |
+| CI-06 | Phase 6 | Pending |
+| CI-07 | Phase 6 | Pending |
+| OBS-01 | Phase 1 | Pending |
+| OBS-02 | Phase 1 | Pending |
+| DOC-01 | Phase 7 | Pending |
+| DOC-02 | Phase 7 | Pending |
+| DOC-03 | Phase 7 | Pending |
+| DOC-04 | Phase 7 | Pending |
+| DOC-05 | Phase 7 | Pending |
+| DOC-06 | Phase 7 | Pending |
+| DOC-07 | Phase 7 | Pending |
+| DOC-08 | Phase 7 | Pending |
+| CMN-01 | Phase 6 | Pending |
+| CMN-02 | Phase 6 | Pending |
+| CMN-03 | Phase 6 | Pending |
+| CMN-04 | Phase 6 | Pending |
+| MIG-01 | Phase 6 | Pending |
+| MIG-02 | Phase 5 | Pending |
+| MIG-03 | Phase 7 | Pending |
 
 **Coverage:**
-- v1 requirements: **57** total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 57 ⚠️ (expected — will be 0 after roadmap creation)
+- v1 requirements: **67** total (8 TOOL + 7 AUTH + 5 CHART + 6 PIPE + 2 HISTORY + 3 META + 6 IMAGE + 6 SEC + 7 CI + 2 OBS + 8 DOC + 4 CMN + 3 MIG)
+- Mapped to phases: **67** (100%)
+- Unmapped: **0** ✓
+
+**Distribution per phase:**
+- Phase 1 (Toolchain & Spine): 14 REQs — TOOL-01..08, IMAGE-01, IMAGE-02, IMAGE-03, IMAGE-05, OBS-01, OBS-02
+- Phase 2 (AWS Layer & Auth Foundation): 3 REQs — AUTH-01, AUTH-02, AUTH-07
+- Phase 3 (Helm Core & Upgrade Action): 7 REQs — CHART-01, CHART-05, PIPE-01, PIPE-06, HISTORY-01, HISTORY-02, META-01
+- Phase 4 (OIDC & Chart Source Extensions): 7 REQs — AUTH-03, AUTH-04, AUTH-05, AUTH-06, CHART-02, CHART-03, CHART-04
+- Phase 5 (Log Masking, Diff, Rollback & Metadata Flip): 8 REQs — SEC-06, PIPE-02, PIPE-03, PIPE-04, PIPE-05, META-02, META-03, MIG-02
+- Phase 6 (Release Pipeline & Supply Chain): 19 REQs — IMAGE-04, IMAGE-06, SEC-01..05, CI-01..07, CMN-01..04, MIG-01
+- Phase 7 (Documentation Site & Migration Guide): 9 REQs — DOC-01..08, MIG-03
+
+Sum: 14 + 3 + 7 + 7 + 8 + 19 + 9 = 67 ✓
 
 ---
 *Requirements defined: 2026-06-16*
-*Last updated: 2026-06-16 after initialization*
+*Last updated: 2026-06-16 after roadmap creation (traceability populated)*
