@@ -15,6 +15,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from aws_eks_helm_deploy.errors import ConfigurationError
+from aws_eks_helm_deploy.settings import Settings
 
 
 @pytest.mark.unit
@@ -67,9 +68,23 @@ def test_main_module_runs(mocker: MockerFixture) -> None:
     """python -m aws_eks_helm_deploy runs main() and exits with an integer code."""
     mock_pipe = mocker.MagicMock()
     mocker.patch("aws_eks_helm_deploy.cli.PipeIO", return_value=mock_pipe)
+    mocker.patch("aws_eks_helm_deploy.cli.configure_logging")
 
     with pytest.raises(SystemExit) as exc_info:
         runpy.run_module("aws_eks_helm_deploy", run_name="__main__", alter_sys=True)
 
     assert isinstance(exc_info.value.code, int)
     assert exc_info.value.code == 0
+
+
+@pytest.mark.unit
+def test_main_calls_configure_logging(mocker: MockerFixture) -> None:
+    """main() calls configure_logging(settings) exactly once after Settings()."""
+    mock_cfg = mocker.patch("aws_eks_helm_deploy.cli.configure_logging")
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+
+    from aws_eks_helm_deploy.cli import main
+
+    assert main() == 0
+    assert mock_cfg.call_count == 1
+    assert isinstance(mock_cfg.call_args.args[0], Settings)

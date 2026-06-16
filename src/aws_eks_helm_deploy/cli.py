@@ -3,15 +3,14 @@
 main(argv) is the console_scripts entry point registered in pyproject.toml.
 It is also called by __main__.py for `python -m aws_eks_helm_deploy`.
 
-Phase 1 placeholder: instantiates Settings and PipeIO, emits a success message,
-and returns exit code 0. Real ACTION dispatch (upgrade/diff/rollback) lands in
-Phase 3+. configure_logging() is deferred to Plan D so OBS-01/02 lands in a
-focused commit.
+Phase 1 placeholder: instantiates Settings, configures structured logging (OBS-01/02),
+and returns exit code 0. Real ACTION dispatch (upgrade/diff/rollback) lands in Phase 3+.
 """
 
 from __future__ import annotations
 
 from aws_eks_helm_deploy.errors import PipeError
+from aws_eks_helm_deploy.logging import configure_logging
 from aws_eks_helm_deploy.pipe_io import PipeIO
 from aws_eks_helm_deploy.settings import Settings
 
@@ -26,11 +25,11 @@ def main(argv: list[str] | None = None) -> int:
         0 on success, exc.exit_code on PipeError, 99 on unexpected Exception.
     """
     settings = Settings()
+    configure_logging(settings)
     pipe = PipeIO()
     try:
         # Phase 1 skeleton: no real action dispatched yet.
         # ACTION dispatch (upgrade / diff / rollback) lands in Phase 3+.
-        _ = settings  # settings is consumed in Phase 3+
         pipe.success("Phase 1 skeleton — no action executed")
         return 0
     except PipeError as exc:
