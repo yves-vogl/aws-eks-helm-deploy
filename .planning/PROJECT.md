@@ -61,6 +61,7 @@
 - [ ] **Scheduled Trivy rescan** of the published GHCR image (daily cron); SARIF results upload to GitHub Code Scanning, `CRITICAL`/`HIGH` findings auto-open issues
 - [ ] **Dependabot** for Python + Docker + GitHub Actions; base-image bumps use `fix(deps):` prefix so `release-please` cuts a patch release that re-publishes a freshly-scanned image
 - [ ] **GitHub Private Vulnerability Reporting** as the CVE disclosure channel; responses published as GitHub Security Advisories linked from `CHANGELOG.md` patch entries
+- [ ] **OpenSSF Scorecard** (`ossf/scorecard-action@v2`, weekly) — target score **≥ 8/10** at v2.0 tag-cut; live badge in README links to `securityscorecards.dev`; SARIF results visible in the Security tab
 - [ ] Branch protection on `main` (signed commits, required reviews, required status checks)
 
 **Documentation and community**
