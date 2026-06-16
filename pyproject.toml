@@ -1,0 +1,85 @@
+[project]
+name = "aws-eks-helm-deploy"
+version = "2.0.0-dev"
+requires-python = ">=3.13"
+dependencies = [
+    "boto3 ~= 1.43",
+    "bitbucket-pipes-toolkit ~= 6.2",
+    "Jinja2 ~= 3.1",
+    "PyYAML ~= 6.0",
+    "structlog ~= 26.0",
+    "pydantic-settings ~= 2.14",
+]
+
+[project.scripts]
+aws-eks-helm-deploy = "aws_eks_helm_deploy.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aws_eks_helm_deploy"]
+
+[dependency-groups]
+dev = [
+    "ruff ~= 0.15",
+    "mypy ~= 2.1",
+    "boto3-stubs[eks,sts]",
+    "pytest ~= 9.1",
+    "pytest-cov ~= 7.1",
+    "pytest-mock ~= 3.15",
+    "pytest-xdist ~= 3.8",
+    "moto[eks,sts] ~= 5.2",
+    "coverage[toml] ~= 7.14",
+    "pre-commit ~= 4.0",
+    "pip-audit ~= 2.10",
+]
+integration = [
+    "pytest ~= 9.1",
+    "pytest-mock ~= 3.15",
+]
+acceptance = [
+    "pytest ~= 9.1",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "N", "S", "C90", "ANN"]
+ignore = ["ANN101", "ANN102", "S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "ANN"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+files = ["src"]
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: fast, no I/O, default tier",
+    "integration: requires kind + helm binary",
+    "acceptance: requires docker; builds image",
+]
+addopts = "-m 'unit' --cov=aws_eks_helm_deploy --cov-branch"
+
+[tool.coverage.run]
+branch = true
+source = ["aws_eks_helm_deploy"]
+omit = ["*/tests/*", "*/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
