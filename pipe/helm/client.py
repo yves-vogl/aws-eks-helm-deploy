@@ -16,109 +16,88 @@ import os
 import subprocess
 from subprocess import CalledProcessError
 
-from typing import List
-
-from .error import HelmError, HelmInvalidTimeout
 from .duration import validate_go_duration
+from .error import HelmError, HelmInvalidTimeout
 
-def add_timeout(command: List[str], timeout: str) -> List[str]:
-  """Validates `timeout` and appends timeout flag to command."""
-  if not validate_go_duration(timeout):
-    raise HelmInvalidTimeout(timeout=timeout)
-  command.extend(["--timeout", timeout])
-  return command
+
+def add_timeout(command: list[str], timeout: str) -> list[str]:
+    """Validates `timeout` and appends timeout flag to command."""
+    if not validate_go_duration(timeout):
+        raise HelmInvalidTimeout(timeout=timeout)
+    command.extend(["--timeout", timeout])
+    return command
 
 
 class HelmClient:
+    chart = None
+    namespace = "kube-public"
+    create_namespace = False
+    release = None
+    set = []
+    _values = []
+    wait = False
+    timeout = "5m"
 
-  chart = None
-  namespace = 'kube-public'
-  create_namespace = False
-  release = None
-  set = []
-  _values = []
-  wait = False
-  timeout = "5m"
+    def __init__(self, chart):
 
-  def __init__(self, chart):
+        self.chart = chart
 
-    self.chart = chart
+        # chart_yaml_path = os.path.join(
+        #   chart,
+        #   'Chart.yaml'
+        # )
 
-    # chart_yaml_path = os.path.join(
-    #   chart,
-    #   'Chart.yaml'
-    # )
+        # Do not check existence of Chart.yaml file. Chart can also be specified
+        # using an URL or repository and chart name.
 
-    # Do not check existence of Chart.yaml file. Chart can also be specified
-    # using an URL or repository and chart name.
+        # if os.path.isfile(chart_yaml_path):
+        #   self.chart = chart
+        # else:
+        #   raise HelmChartNotFoundError(chart_yaml_path)
 
-    # if os.path.isfile(chart_yaml_path):
-    #   self.chart = chart
-    # else:
-    #   raise HelmChartNotFoundError(chart_yaml_path)
+    def install(self):
 
+        command = ["helm", "upgrade"]
 
+        if self.release is not None:
+            command.append(self.release)
 
-  def install(self):
+        command += (self.chart, "--install", "--namespace", self.namespace)
 
-    command = [
-      'helm',
-      'upgrade'
-    ]
+        for set in self.set:
+            command += ("--set", set)
 
-    if self.release is not None:
-      command.append(self.release)
+        for value in self.values:
+            command += ("--values", value)
 
-    command += (
-      self.chart,
-      '--install',
-      '--namespace',
-      self.namespace
-    )
+        if self.wait:
+            command.append("--wait")
 
-    for set in self.set:
-      command += (
-        '--set',
-        set
-      )
+        if self.create_namespace:
+            command.append("--create-namespace")
 
-    for value in self.values:
-      command += (
-        '--values',
-        value
-      )
+        command = add_timeout(command, self.timeout)
 
-    if self.wait:
-      command.append('--wait')
+        return self._run(command)
 
-    if self.create_namespace:
-      command.append('--create-namespace')
+    def _run(self, command):
+        try:
+            helm = subprocess.run(command, capture_output=True)
 
-    command = add_timeout(command, self.timeout)
+            helm.check_returncode()
 
-    return self._run(command)
+            return helm.stdout.decode("utf-8")
 
-  def _run(self, command):
-    try:
-      helm = subprocess.run(
-        command,
-        capture_output=True
-      )
+        except CalledProcessError:
+            raise HelmError(helm.stderr.decode("utf-8"))
 
-      helm.check_returncode()
+    @property
+    def values(self):
+        return self._values
 
-      return helm.stdout.decode('utf-8')
-
-    except CalledProcessError as error:
-      raise HelmError(helm.stderr.decode('utf-8'))
-
-  @property
-  def values(self):
-    return self._values
-
-  @values.setter
-  def values(self, value):
-    for file in value:
-      if not os.path.isfile(file):
-        raise ValueError(f'Cannot access file {file}')
-    self._values = value
+    @values.setter
+    def values(self, value):
+        for file in value:
+            if not os.path.isfile(file):
+                raise ValueError(f"Cannot access file {file}")
+        self._values = value
