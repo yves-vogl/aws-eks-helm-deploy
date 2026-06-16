@@ -73,6 +73,9 @@ Two consumer-side personas drive the requirements: **(M)** the maintainer of a d
 - [ ] **SEC-04**: `trivy` scans the built image, Dockerfile, Helm chart fixtures, and secret-leak patterns on every PR; CI fails on `CRITICAL` or `HIGH` findings unless suppressed in `.trivyignore` with rationale.
 - [ ] **SEC-05**: `pip-audit` runs on every PR; CI fails on any unsuppressed vulnerability.
 - [ ] **SEC-06**: Helm output emitted by the pipe (logs, PR comments, debug dumps) **masks `kind: Secret` rendered manifests** — replacing the entire `data:`/`stringData:` payload with `<redacted>`. **(Pitfall TS-9 in PITFALLS.md; precondition for PIPE-03.)**
+- [ ] **SEC-07**: A scheduled **continuous vulnerability scan** workflow (`.github/workflows/security-rescan.yml`, cron daily) runs `aquasecurity/trivy-action` against `ghcr.io/yves-vogl/aws-eks-helm-deploy:latest` and against the `:2` rolling tag. On `CRITICAL` findings the workflow opens a GitHub issue with labels `area/security` + `priority/p0`; on `HIGH` findings a `priority/p1` issue. Findings already tracked in an open issue are de-duplicated by digest+CVE. Results are uploaded as SARIF to GitHub Code Scanning so the **Security** tab shows live CVE state.
+- [ ] **SEC-08**: Dependabot updates that bump the **Dockerfile base-image digest** (`python:3.13-slim-bookworm`) use the commit prefix `fix(deps): bump base image …` (configured in `.github/dependabot.yml` via `commit-message: prefix: fix`). This makes `release-please` cut a `patch` release on merge, which triggers `.github/workflows/release.yml` and re-publishes a freshly-scanned image to GHCR. The same prefix is used for `helm` and `helm-diff` plugin bumps.
+- [ ] **SEC-09**: **GitHub Private Vulnerability Reporting** is enabled on the repository (`Settings → Security → Private vulnerability reporting`); `SECURITY.md` (DOC-06) documents the disclosure flow and points to it. CVE responses are published as **GitHub Security Advisories** with CVE IDs requested via the GitHub Security Advisory workflow when applicable; advisories are linked from `CHANGELOG.md` patch entries.
 
 ### CI / Release (CI)
 
@@ -200,6 +203,9 @@ Populated by `gsd-roadmapper` on 2026-06-16 — every v1 REQ mapped to exactly o
 | SEC-04 | Phase 6 | Pending |
 | SEC-05 | Phase 6 | Pending |
 | SEC-06 | Phase 5 | Pending |
+| SEC-07 | Phase 6 | Pending |
+| SEC-08 | Phase 6 | Pending |
+| SEC-09 | Phase 6 | Pending |
 | CI-01 | Phase 6 | Pending |
 | CI-02 | Phase 6 | Pending |
 | CI-03 | Phase 6 | Pending |
@@ -236,11 +242,11 @@ Populated by `gsd-roadmapper` on 2026-06-16 — every v1 REQ mapped to exactly o
 - Phase 3 (Helm Core & Upgrade Action): 7 REQs — CHART-01, CHART-05, PIPE-01, PIPE-06, HISTORY-01, HISTORY-02, META-01
 - Phase 4 (OIDC & Chart Source Extensions): 7 REQs — AUTH-03, AUTH-04, AUTH-05, AUTH-06, CHART-02, CHART-03, CHART-04
 - Phase 5 (Log Masking, Diff, Rollback & Metadata Flip): 8 REQs — SEC-06, PIPE-02, PIPE-03, PIPE-04, PIPE-05, META-02, META-03, MIG-02
-- Phase 6 (Release Pipeline & Supply Chain): 19 REQs — IMAGE-04, IMAGE-06, SEC-01..05, CI-01..07, CMN-01..04, MIG-01
+- Phase 6 (Release Pipeline & Supply Chain): 22 REQs — IMAGE-04, IMAGE-06, SEC-01..05, SEC-07, SEC-08, SEC-09, CI-01..07, CMN-01..04, MIG-01
 - Phase 7 (Documentation Site & Migration Guide): 9 REQs — DOC-01..08, MIG-03
 
-Sum: 14 + 3 + 7 + 7 + 8 + 19 + 9 = 67 ✓
+Sum: 14 + 3 + 7 + 7 + 8 + 22 + 9 = 70 ✓
 
 ---
 *Requirements defined: 2026-06-16*
-*Last updated: 2026-06-16 after roadmap creation (traceability populated)*
+*Last updated: 2026-06-16 — added SEC-07/08/09 (continuous image vulnerability monitoring)*

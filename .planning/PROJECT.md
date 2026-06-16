@@ -56,9 +56,11 @@
 - [ ] Conventional-Commits → automatic SemVer via `release-please` (replaces `semversioner` + `.changes/`)
 - [ ] v2.0 Docker images pushed to **GitHub Container Registry only** (`ghcr.io/yves-vogl/aws-eks-helm-deploy`); Docker Hub (`yvogl/aws-eks-helm-deploy`) stays frozen at v1.3.0 as the v1.x archive
 - [ ] Image signed with **Cosign** (keyless, GitHub Actions OIDC); SBOM published as image attestation (Syft + SPDX or CycloneDX)
-- [ ] **Trivy / Grype** vulnerability scan as a CI gate on every build
+- [ ] **Trivy** vulnerability scan as a CI gate on every build (image + Dockerfile + Helm-chart fixtures + secret-leak patterns)
 - [ ] **pip-audit** dependency scan as a CI gate
-- [ ] **Dependabot** for Python + Docker + GitHub Actions dependencies; auto-merge enabled when CI green (incl. major bumps, per project policy)
+- [ ] **Scheduled Trivy rescan** of the published GHCR image (daily cron); SARIF results upload to GitHub Code Scanning, `CRITICAL`/`HIGH` findings auto-open issues
+- [ ] **Dependabot** for Python + Docker + GitHub Actions; base-image bumps use `fix(deps):` prefix so `release-please` cuts a patch release that re-publishes a freshly-scanned image
+- [ ] **GitHub Private Vulnerability Reporting** as the CVE disclosure channel; responses published as GitHub Security Advisories linked from `CHANGELOG.md` patch entries
 - [ ] Branch protection on `main` (signed commits, required reviews, required status checks)
 
 **Documentation and community**
