@@ -73,7 +73,7 @@ markers = [
     "integration: requires kind + helm binary",
     "acceptance: requires docker; builds image",
 ]
-addopts = "-m 'unit' --cov=aws_eks_helm_deploy --cov-branch"
+addopts = "-m 'unit' --cov=aws_eks_helm_deploy --cov-branch --cov-fail-under=100"
 
 [tool.coverage.run]
 branch = true
