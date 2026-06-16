@@ -1,0 +1,355 @@
+---
+phase: 01-toolchain-spine
+plan: B
+type: execute
+wave: 2
+depends_on:
+  - 01-A-toolchain-bootstrap
+  - 01-D-structured-logging
+files_modified:
+  - pyproject.toml
+  - Makefile
+  - tests/conftest.py
+  - tests/integration/__init__.py
+  - tests/integration/conftest.py
+  - tests/integration/test_helm_smoke.py
+  - tests/acceptance/__init__.py
+  - tests/acceptance/conftest.py
+  - tests/acceptance/test_image_smoke.py
+autonomous: true
+requirements:
+  - TOOL-06
+  - TOOL-07
+  - TOOL-08
+tags:
+  - pytest
+  - kind
+  - docker
+  - integration
+  - acceptance
+
+must_haves:
+  truths:
+    - "`uv run pytest --cov=aws_eks_helm_deploy --cov-branch --cov-fail-under=100` exits 0 on the skeleton produced by Plan A and Plan D — 100% line + branch coverage gate is enforced."
+    - "`make integration-test` (or `uv run pytest -m integration`) provisions a `kind` cluster, runs at least one helm-on-cluster smoke test, and tears the cluster down on exit."
+    - "`make acceptance-test` (or `uv run pytest -m acceptance`) builds the Docker image (depends on Plan C output) and `docker run`s it to assert non-root execution and clean error handling."
+    - "When `kind` is not installed, integration tests skip with a clear reason; when `docker` is not installed, acceptance tests skip — but on a host with both, both tiers run green."
+    - "Test markers `unit`, `integration`, `acceptance` are respected: default `pytest` runs only `unit`; the other tiers require explicit `-m`."
+  artifacts:
+    - path: "pyproject.toml"
+      provides: "Updated `[tool.pytest.ini_options]` with `addopts = \"-m 'unit' --cov=aws_eks_helm_deploy --cov-branch --cov-fail-under=100\"` (the strict gate Plan A intentionally deferred)."
+      contains: "cov-fail-under"
+    - path: "Makefile"
+      provides: "Targets: bootstrap, lint, type-check, unit, integration, acceptance, integration-test (alias), acceptance-test (alias)."
+      contains: "integration-test"
+    - path: "tests/conftest.py"
+      provides: "Top-level shared fixtures (currently: pytest_collection_modifyitems to add the default `unit` mark when none given)."
+    - path: "tests/integration/conftest.py"
+      provides: "`kind_cluster` session-scoped fixture: skips if `kind` missing; creates + deletes cluster."
+      contains: "kind_cluster"
+    - path: "tests/integration/test_helm_smoke.py"
+      provides: "`test_helm_version_in_cluster` — asserts `helm version --short` reports a v3.x line."
+      contains: "test_helm_version"
+    - path: "tests/acceptance/conftest.py"
+      provides: "`built_image` session-scoped fixture: `docker build -t aws-eks-helm-deploy:acceptance-test .`"
+      contains: "built_image"
+    - path: "tests/acceptance/test_image_smoke.py"
+      provides: "`test_image_runs_as_nonroot` (uid != 0) + `test_help_exits_without_traceback` (no Python tb on stderr)."
+      contains: "test_image_runs_as_nonroot"
+  key_links:
+    - from: "pyproject.toml [tool.pytest.ini_options]"
+      to: "tests/unit"
+      via: "testpaths + markers + addopts"
+      pattern: "cov-fail-under=100"
+    - from: "tests/integration/conftest.py::kind_cluster"
+      to: "kind CLI binary"
+      via: "subprocess.run(['kind', 'create', 'cluster', ...])"
+      pattern: "shutil.which\\(\"kind\"\\)"
+    - from: "tests/acceptance/conftest.py::built_image"
+      to: "Dockerfile (Plan C output)"
+      via: "subprocess.run(['docker', 'build', '-t', ..., '.'])"
+      pattern: "docker.*build"
+    - from: "Makefile target `integration-test`"
+      to: "tests/integration/"
+      via: "uv run pytest -m integration"
+      pattern: "pytest -m integration"
+---
+
+<objective>
+Layer the test infrastructure that turns the Plan A skeleton into a 100%-covered, three-tier (unit / integration / acceptance) test suite. After this plan: `pytest` defaults to the unit tier with a hard 100% line+branch coverage gate; `make integration-test` brings up a `kind` cluster and runs a helm-on-cluster smoke test; `make acceptance-test` builds the Plan C Docker image and runs a non-root + clean-error smoke against it.
+
+Purpose: Plan B closes TOOL-06 (100% coverage gate), TOOL-07 (kind integration tier), and TOOL-08 (Docker acceptance tier). It is sequenced AFTER Plan A (needs the Settings/errors/pipe_io/cli skeleton to gate coverage against) and AFTER Plan D (needs `logging.py` covered too — Plan D's tests bring it to 100% before this plan flips the gate). It is INDEPENDENT of Plan C's Dockerfile build at planning time, but the acceptance tier task runs against the Plan C image at execute time, so Plan C must merge before this plan's acceptance smoke can be exercised end-to-end. Same wave because no file overlap; sequencing is enforced by `make acceptance-test` failing gracefully ("Dockerfile not found / build failed") when Plan C hasn't merged yet — execution order between B and C is a wave-2 scheduling concern handled by the orchestrator's lockfile.
+
+Output:
+- `pyproject.toml` updated with `--cov-fail-under=100` gate (TOOL-06).
+- `tests/integration/` tier with `kind` lifecycle fixture + helm smoke (TOOL-07).
+- `tests/acceptance/` tier with session-scoped `docker build` fixture + non-root smoke (TOOL-08).
+- `Makefile` with `bootstrap`, `lint`, `type-check`, `unit`, `integration` (+ `integration-test` alias), `acceptance` (+ `acceptance-test` alias) targets.
+</objective>
+
+<execution_context>
+@$HOME/.claude/gsd-core/workflows/execute-plan.md
+@$HOME/.claude/gsd-core/templates/summary.md
+</execution_context>
+
+<context>
+@.planning/PROJECT.md
+@.planning/ROADMAP.md
+@.planning/REQUIREMENTS.md
+@.planning/phases/01-toolchain-spine/01-RESEARCH.md
+@.planning/phases/01-toolchain-spine/01-PATTERNS.md
+@.planning/phases/01-toolchain-spine/01-01-SUMMARY.md
+@.planning/phases/01-toolchain-spine/01-PLAN-A-toolchain-bootstrap.md
+@.planning/phases/01-toolchain-spine/01-PLAN-D-structured-logging.md
+@.planning/phases/01-toolchain-spine/01-PLAN-C-dockerfile.md
+@test/acceptance
+</context>
+
+<tasks>
+
+<task type="auto" tdd="true">
+  <name>Task B1: pyproject.toml `--cov-fail-under=100` gate + `tests/conftest.py`</name>
+  <files>pyproject.toml, tests/conftest.py</files>
+  <read_first>
+    - .planning/phases/01-toolchain-spine/01-RESEARCH.md (Pattern 1 pytest+coverage blocks; Pitfall 3 on coverage with placeholder modules)
+    - .planning/phases/01-toolchain-spine/01-PATTERNS.md (pyproject.toml `[tool.pytest.ini_options]` and `[tool.coverage.*]`)
+    - .planning/phases/01-toolchain-spine/01-01-SUMMARY.md (Plan A output — confirm `pyproject.toml` shape; any deviations to preserve)
+    - .planning/phases/01-toolchain-spine/01-PLAN-A-toolchain-bootstrap.md (Plan A `<artifacts>` section: list of source modules that coverage must cover)
+    - .planning/phases/01-toolchain-spine/01-PLAN-D-structured-logging.md (Plan D adds `logging.py`; if Plan D has not yet merged when this task runs, the coverage gate WILL fail — block on Plan D)
+  </read_first>
+  <behavior>
+    - `[tool.pytest.ini_options].addopts` becomes `"-m 'unit' --cov=aws_eks_helm_deploy --cov-branch --cov-fail-under=100"`.
+    - Running `uv run pytest` with no args runs ONLY unit tests with the coverage gate enforced.
+    - Running `uv run pytest -m integration` does NOT trigger the coverage gate (manual override via `-m`; integration tier doesn't need 100% — only unit does).
+    - Running `uv run pytest --no-cov` is a documented escape hatch for debugging single tests; still gated in CI.
+    - `tests/conftest.py` is present (empty or with a no-op `pytest_collection_modifyitems` that auto-adds the `unit` marker when none of unit/integration/acceptance is set) so pytest discovers `tests/` as a package.
+    - With Plan A modules + Plan D `logging.py` and their corresponding test files all merged, the coverage report on the unit tier shows 100% line + 100% branch for every file under `aws_eks_helm_deploy/` (minus the `omit` list).
+  </behavior>
+  <action>
+    Edit `pyproject.toml`:
+    - Replace `addopts = "-m 'unit'"` (Plan A value) with `addopts = "-m 'unit' --cov=aws_eks_helm_deploy --cov-branch --cov-fail-under=100"`.
+    - Leave `[tool.coverage.run]`/`[tool.coverage.report]` blocks unchanged (Plan A already set them).
+    - Verify `omit = ["*/tests/*", "*/__main__.py"]` is present in `[tool.coverage.run]`; if not, add it.
+
+    Create `tests/conftest.py`:
+    - `from __future__ import annotations` line 1.
+    - Empty body is acceptable; OR, if Plan A test files do not explicitly mark themselves with `@pytest.mark.unit`, add a `pytest_collection_modifyitems(items)` hook that auto-applies the `unit` mark to any test under `tests/unit/` that has neither `integration` nor `acceptance`. This makes the addopts `-m 'unit'` default work even on unmarked tests.
+
+    Run `uv run pytest` (with no args; default = unit + coverage gate); expect exit 0 only if Plan D has merged AND coverage is 100%. If Plan D has not merged when this task executes, BLOCK the task and surface the dependency to the orchestrator — do NOT relax the gate. This is the formal precedence: Plan D must merge before Plan B's Task B1.
+  </action>
+  <verify>
+    <automated>uv run pytest -q</automated>
+  </verify>
+  <done>
+    `uv run pytest` (no args) exits 0; coverage report shows 100% line + 100% branch on every module under `src/aws_eks_helm_deploy/` excluding the omit list; `tests/conftest.py` exists; the `-m 'unit' --cov-fail-under=100` invariant is in `pyproject.toml`.
+  </done>
+</task>
+
+<task type="auto" tdd="true">
+  <name>Task B2: Integration tier — kind fixture + helm smoke (TOOL-07)</name>
+  <files>tests/integration/__init__.py, tests/integration/conftest.py, tests/integration/test_helm_smoke.py</files>
+  <read_first>
+    - .planning/phases/01-toolchain-spine/01-RESEARCH.md (Environment Availability table — kind/helm fallback behavior; Code Examples — integration conftest + smoke test)
+    - .planning/phases/01-toolchain-spine/01-PATTERNS.md (tests/integration/conftest.py target shape; tests/integration/test_helm_smoke.py target shape)
+  </read_first>
+  <behavior>
+    - `tests/integration/conftest.py` defines a `session`-scoped fixture `kind_cluster` that: (a) `pytest.skip`s if `shutil.which("kind") is None`, (b) `subprocess.run(["kind", "create", "cluster", "--name", "test-pipe-integration"], check=True)`, (c) `yield`s the cluster name, (d) on teardown `subprocess.run(["kind", "delete", "cluster", "--name", "test-pipe-integration"], check=False)`.
+    - `tests/integration/test_helm_smoke.py::test_helm_version_in_cluster` is marked `@pytest.mark.integration`; takes the `kind_cluster` fixture; calls `subprocess.run(["helm", "version", "--short"], capture_output=True, text=True)`; asserts `returncode == 0` and `"v3."` in stdout.
+    - The integration tier is opt-in: `pytest -m integration` runs it; default `pytest` (which uses `-m 'unit'`) does NOT.
+    - On a host without `kind` AND/OR `helm`, the test gracefully skips with a clear reason; on a host with both, it actually creates a cluster and runs.
+  </behavior>
+  <action>
+    Create `tests/integration/__init__.py` (empty package marker).
+
+    Create `tests/integration/conftest.py` per the PATTERNS.md / RESEARCH.md target shape:
+    - `from __future__ import annotations`
+    - imports: `subprocess`, `shutil`, `pytest`, `from collections.abc import Iterator`
+    - fixture `kind_cluster() -> Iterator[str]` with `scope="session"`:
+      - skip if `kind` not on PATH
+      - skip if `helm` not on PATH (the smoke test needs it too)
+      - create cluster with `subprocess.run([...], check=True)`; on `CalledProcessError`, `pytest.skip` with the stderr
+      - `yield "test-pipe-integration"`
+      - in finally: `subprocess.run(["kind", "delete", "cluster", "--name", "test-pipe-integration"], check=False)`
+
+    Create `tests/integration/test_helm_smoke.py`:
+    - `from __future__ import annotations`
+    - `import subprocess`, `import pytest`
+    - `@pytest.mark.integration` on `test_helm_version_in_cluster(kind_cluster: str) -> None`:
+      - run `helm version --short`, capture stdout
+      - assert exit 0
+      - assert `"v3."` in stdout
+      - (cluster connectivity is not yet exercised at the helm-on-cluster level in Phase 1; this proves the binary works and the kind cluster exists. Real `helm install` lands in Phase 3.)
+
+    Note explicitly in a test docstring: "Phase 1 smoke — proves kind+helm wiring is operational. Real helm-on-cluster deploys land in Phase 3 (CHART-01)."
+
+    Stub call-out: This integration tier is intentionally minimal — one smoke test only. Phase 3's `UpgradeAction` will populate it with real chart deploys.
+  </action>
+  <verify>
+    <automated>uv run pytest -m integration -q --no-cov</automated>
+  </verify>
+  <done>
+    On a host with `kind` + `helm`: integration test passes after creating and tearing down the kind cluster. On a host without `kind`: test skips with reason "kind not installed". Cluster is deleted on teardown even if the test fails.
+  </done>
+</task>
+
+<task type="auto" tdd="true">
+  <name>Task B3: Acceptance tier + Makefile (TOOL-08 + DX surface)</name>
+  <files>tests/acceptance/__init__.py, tests/acceptance/conftest.py, tests/acceptance/test_image_smoke.py, Makefile</files>
+  <read_first>
+    - .planning/phases/01-toolchain-spine/01-RESEARCH.md (Code Examples: acceptance conftest + smoke; TOOL-08 description; Pattern 5 Dockerfile shape to know the build context)
+    - .planning/phases/01-toolchain-spine/01-PATTERNS.md (tests/acceptance/test_image_smoke.py target shape; Makefile target list)
+    - .planning/phases/01-toolchain-spine/01-PLAN-C-dockerfile.md (Dockerfile is Plan C's deliverable; acceptance tier consumes it)
+    - test/acceptance/ (existing v1 acceptance suite — reference for what behaviors v1 tested; the v2 tier is a fresh port, not a literal copy)
+  </read_first>
+  <behavior>
+    - `tests/acceptance/conftest.py` defines a `session`-scoped fixture `built_image` that:
+      (a) skips if `docker` not on PATH,
+      (b) runs `docker build -t aws-eks-helm-deploy:acceptance-test .` from the repo root,
+      (c) yields the image tag,
+      (d) optional teardown: `docker rmi aws-eks-helm-deploy:acceptance-test` (best-effort, ignore failures).
+    - `tests/acceptance/test_image_smoke.py::test_image_runs_as_nonroot` (marked `@pytest.mark.acceptance`): runs `docker run --rm <img> python -c "import os; assert os.getuid() != 0"`, asserts exit 0.
+    - `tests/acceptance/test_image_smoke.py::test_image_uid_is_at_least_10000` (marked `@pytest.mark.acceptance`): runs `docker run --rm <img> id -u`, asserts stdout `int >= 10000` (IMAGE-03 belongs to Plan C but this is the assertion that closes the IMAGE-03 loop end-to-end).
+    - `tests/acceptance/test_image_smoke.py::test_help_exits_without_traceback` (marked `@pytest.mark.acceptance`): runs `docker run --rm <img>` with no env vars; expects a non-zero exit (no CLUSTER_NAME/CHART set) but no Python `Traceback (most recent call last):` on stderr — i.e., `cli.main()` catches the error and surfaces via `pipe.fail()`.
+    - `Makefile` exposes the documented developer workflow: `make bootstrap` installs uv + syncs all-extras + installs pre-commit hooks; `make lint` runs ruff check + format-check; `make type-check` runs mypy strict; `make unit` runs the unit tier with the coverage gate; `make integration` and the `make integration-test` alias both run `pytest -m integration`; `make acceptance` and `make acceptance-test` alias both run `pytest -m acceptance`.
+  </behavior>
+  <action>
+    Create `tests/acceptance/__init__.py` (empty).
+
+    Create `tests/acceptance/conftest.py`:
+    - `from __future__ import annotations`
+    - imports: `shutil`, `subprocess`, `pytest`, `from collections.abc import Iterator`, `from pathlib import Path`
+    - fixture `built_image() -> Iterator[str]` with `scope="session"`:
+      - skip if `docker` not on PATH
+      - resolve repo root via `Path(__file__).resolve().parents[2]` (tests/acceptance/../.. = repo root)
+      - `image_tag = "aws-eks-helm-deploy:acceptance-test"`
+      - run `subprocess.run(["docker", "build", "-t", image_tag, str(repo_root)], check=True, capture_output=True, text=True)`; if `CalledProcessError`, pytest.skip with stderr contents (the image build is a dependency on Plan C; the test tier should not hard-fail when running in CI BEFORE Plan C has merged).
+      - `yield image_tag`
+      - in finally: `subprocess.run(["docker", "rmi", image_tag], check=False, capture_output=True)`
+
+    Create `tests/acceptance/test_image_smoke.py`:
+    - `from __future__ import annotations`
+    - `import subprocess`, `import pytest`
+    - `@pytest.mark.acceptance` on each of the three tests in the behavior section.
+    - For `test_image_uid_is_at_least_10000`: parse `result.stdout.strip()` as int and assert `>= 10000`.
+    - For `test_help_exits_without_traceback`: do NOT assert specific exit code (Phase 1 cli returns 0 from the placeholder success path; Phase 2+ may return non-zero once required env-var validation lands) — instead assert: `"Traceback" not in result.stderr`. Document in the docstring that this guarantees clean error surfacing rather than a specific exit code.
+
+    Create `Makefile` per the PATTERNS.md target list, expanded with the requested aliases:
+    ```
+    .PHONY: bootstrap lint type-check unit integration integration-test acceptance acceptance-test all
+
+    bootstrap:
+    	@command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
+    	uv sync --all-extras
+    	uv run pre-commit install --install-hooks
+
+    lint:
+    	uv run ruff check src tests
+    	uv run ruff format --check src tests
+
+    type-check:
+    	uv run mypy --strict src
+
+    unit:
+    	uv run pytest
+
+    integration:
+    	uv run pytest -m integration --no-cov
+
+    integration-test: integration
+
+    acceptance:
+    	uv run pytest -m acceptance --no-cov
+
+    acceptance-test: acceptance
+
+    all: lint type-check unit
+    ```
+    (Use TABs for recipe indentation as required by make.)
+
+    Stub call-out: The acceptance tier deliberately uses a minimal three-test smoke (non-root, uid>=10000, no-traceback). Phase 2+ extends it with auth/helm action smoke tests; Phase 6 wires it into GitHub Actions as a required CI gate.
+  </action>
+  <verify>
+    <automated>uv run pytest -m acceptance -q --no-cov &amp;&amp; make -n integration-test &amp;&amp; make -n acceptance-test</automated>
+  </verify>
+  <done>
+    On a host with `docker`: three acceptance tests pass (after building the Plan C image). On a host without `docker`: tests skip with a clear reason. `make -n` dry-runs print the expected `uv run pytest -m ...` lines for both aliases. The Makefile exposes every documented developer-workflow target.
+  </done>
+</task>
+
+</tasks>
+
+<threat_model>
+## Trust Boundaries
+
+| Boundary | Description |
+|----------|-------------|
+| `pytest` → host CLI tools (kind / helm / docker) | Tests shell out; subprocess inputs are entirely test-author-controlled, not consumer-controlled (Phase 1 has no end-user-supplied input here). |
+| Acceptance `docker build` → Plan C Dockerfile | The same supply-chain surface that Plan C closes; Plan B inherits it without re-mitigating. |
+| `kind create cluster` → Docker daemon | kind needs Docker socket; CI must run on a Docker-in-Docker or rootless-runner host. |
+
+## STRIDE Threat Register
+
+| Threat ID | Category | Component | Disposition | Mitigation Plan |
+|-----------|----------|-----------|-------------|-----------------|
+| T-01-B-01 | Tampering | `kind_cluster` fixture fail-open | mitigate | Fixture explicitly `subprocess.run(..., check=True)` on create; if creation fails partway, the teardown `kind delete cluster` runs regardless (no-check on the delete side handles the "never created" case cleanly). |
+| T-01-B-02 | DoS | Acceptance `docker build` runs every test session | accept | `scope="session"` builds the image exactly once per pytest invocation; CI cache (Phase 6) will memoize layers. Not a Phase 1 concern at the gate level. |
+| T-01-B-03 | Information Disclosure | Acceptance `test_help_exits_without_traceback` captures stderr | mitigate | We capture stderr in the test but never log it back beyond the assertion. No credentials are in scope in Phase 1 (Plan A `cli.main()` never touches credentials). |
+| T-01-B-04 | Elevation of Privilege | Tests assert uid != 0 and uid >= 10000 inside the image | mitigate | `test_image_runs_as_nonroot` + `test_image_uid_is_at_least_10000` is the gate that catches a regression where someone removes `USER pipe` from the Dockerfile in a future plan. |
+| T-01-B-SC | Tampering | Test infrastructure depends only on pytest-cov, pytest-mock, kind, helm — all pinned via Plan A's `pyproject.toml` (audited in `01-RESEARCH.md ## Package Legitimacy Audit`) and host-installed CLIs (kind/helm/docker) which are out of repo's supply-chain scope (DX dependencies, not runtime). | mitigate | Plan A audited; no new packages added in Plan B. |
+</threat_model>
+
+<verification>
+- `uv run pytest -q` (default = unit + coverage gate) — exits 0; coverage 100% line + branch on the modules produced by Plans A and D.
+- `uv run pytest -m integration -q --no-cov` — passes on a host with `kind` + `helm`; skips cleanly otherwise.
+- `uv run pytest -m acceptance -q --no-cov` — passes on a host with `docker` AND the Plan C image building cleanly; skips otherwise.
+- `make bootstrap`, `make lint`, `make type-check`, `make unit`, `make integration-test`, `make acceptance-test` all dry-run-print without errors (`make -n`).
+- TOOL-06 verified by `grep cov-fail-under=100 pyproject.toml`.
+- TOOL-07 verified by the integration smoke green on the developer's machine (acceptance is informational at this stage; the CI gate lands in Phase 6).
+- TOOL-08 verified by the acceptance smoke green after Plan C's Dockerfile merges.
+</verification>
+
+<success_criteria>
+- TOOL-06: `pytest --cov=src/aws_eks_helm_deploy --cov-branch --cov-fail-under=100` exits 0 on the unit tier.
+- TOOL-07: `make integration-test` (or `uv run pytest tests/integration`) provisions kind, runs helm smoke, tears down.
+- TOOL-08: `make acceptance-test` builds the Docker image and runs `docker run` against it with non-root + clean-error assertions.
+- Three pytest markers (`unit`, `integration`, `acceptance`) are respected.
+- Default `pytest` invocation gates the unit tier; integration/acceptance are opt-in.
+- Stubs explicitly named: integration tier ships ONE smoke test (helm-version-only); acceptance tier ships THREE smoke tests (non-root, uid>=10000, no-traceback). Real action/chart smokes land in Phases 2–5.
+</success_criteria>
+
+<artifacts>
+## Artifacts this phase produces (Plan B scope)
+
+**Files (new):**
+- `tests/conftest.py` — top-level pytest config (default-marker hook, if needed).
+- `tests/integration/__init__.py`, `tests/integration/conftest.py`, `tests/integration/test_helm_smoke.py`.
+- `tests/acceptance/__init__.py`, `tests/acceptance/conftest.py`, `tests/acceptance/test_image_smoke.py`.
+- `Makefile`.
+
+**Files (modified):**
+- `pyproject.toml` — `[tool.pytest.ini_options].addopts` now ends in `--cov-fail-under=100`.
+
+**New pytest fixtures:**
+- `tests/integration/conftest.py::kind_cluster` (session scope, str yield).
+- `tests/acceptance/conftest.py::built_image` (session scope, str yield).
+
+**New pytest tests:**
+- `tests/integration/test_helm_smoke.py::test_helm_version_in_cluster`.
+- `tests/acceptance/test_image_smoke.py::test_image_runs_as_nonroot`.
+- `tests/acceptance/test_image_smoke.py::test_image_uid_is_at_least_10000`.
+- `tests/acceptance/test_image_smoke.py::test_help_exits_without_traceback`.
+
+**New Makefile targets:**
+- `bootstrap`, `lint`, `type-check`, `unit`, `integration`, `integration-test`, `acceptance`, `acceptance-test`, `all`.
+
+**Stubs (explicitly called out):**
+- Integration tier: one smoke test only (helm-version). Phase 3 adds real chart-deploy tests.
+- Acceptance tier: three smoke tests only. Phase 2+ adds auth/chart action smoke tests; Phase 6 wires it into GHA.
+</artifacts>
+
+<output>
+On completion, create `.planning/phases/01-toolchain-spine/01-02-SUMMARY.md` recording:
+- Whether the coverage gate (100% line+branch) was achieved on the first run.
+- Any coverage gaps that surfaced (and which Plan A/D module produced them).
+- Which integration/acceptance tests were exercised on the developer's machine vs skipped.
+</output>

@@ -1,0 +1,352 @@
+---
+phase: 01-toolchain-spine
+plan: C
+type: execute
+wave: 2
+depends_on:
+  - 01-A-toolchain-bootstrap
+files_modified:
+  - Dockerfile
+  - .dockerignore
+  - docs/build.md
+autonomous: true
+requirements:
+  - IMAGE-01
+  - IMAGE-02
+  - IMAGE-03
+  - IMAGE-05
+tags:
+  - docker
+  - oci
+  - helm
+  - helm-diff
+  - multi-stage
+
+must_haves:
+  truths:
+    - "`docker build -t aws-eks-helm-deploy:dev .` produces a `linux/amd64` image from `python:3.13-slim-bookworm` (NOT alpine)."
+    - "The runtime image contains `/usr/local/bin/helm` (Helm 3.18.x exact patch verified at build time) and the helm-diff plugin (3.10.x) installed at `/home/pipe/.local/share/helm/plugins`."
+    - "`docker run --rm <img> id -u` reports a uid >= 10000 (the `pipe` user)."
+    - "`docker run --rm <img> helm diff version` exits 0 (helm-diff plugin reachable as the pipe user)."
+    - "`docker buildx imagetools inspect <img>` shows the six OCI annotations: `source`, `revision`, `version`, `licenses=Apache-2.0`, `title`, `description` — applied via `--annotation manifest:org.opencontainers.image.*=...` flags (NOT `LABEL`)."
+    - "`docs/build.md` documents the exact `docker buildx build --annotation ...` invocation so consumers and Phase 6's GH Actions release pipeline have the canonical command to mirror."
+  artifacts:
+    - path: "Dockerfile"
+      provides: "Multi-stage: (1) python:3.13-slim-bookworm builder w/ uv → /opt/venv; (2) debian:bookworm-slim helm-fetch stage; (3) python:3.13-slim-bookworm runtime w/ USER pipe, helm, helm-diff."
+      contains: "FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime"
+      min_lines: 45
+    - path: ".dockerignore"
+      provides: "Excludes `.venv/`, `.git/`, `.planning/`, `tests/`, `.ruff_cache/`, `.mypy_cache/`, `.pytest_cache/`, `htmlcov/`, `*.pyc`, `__pycache__/`, `.changes/`, `RELEASING.md`, `logo.*`, etc."
+    - path: "docs/build.md"
+      provides: "Canonical `docker buildx build --annotation ...` command + the rationale for `manifest:` prefix vs `LABEL`."
+      contains: "buildx --annotation"
+  key_links:
+    - from: "Dockerfile builder stage"
+      to: "pyproject.toml + uv.lock"
+      via: "COPY pyproject.toml uv.lock README.md ./ + uv sync --frozen --no-dev --compile-bytecode"
+      pattern: "uv sync --frozen"
+    - from: "Dockerfile runtime stage"
+      to: "src/aws_eks_helm_deploy/"
+      via: "COPY --from=builder /build/.venv /opt/venv (transitively packages the wheel-installed src into the venv site-packages)"
+      pattern: "COPY --from=builder /build/.venv /opt/venv"
+    - from: "Dockerfile runtime stage USER pipe"
+      to: "helm plugin install"
+      via: "USER pipe before RUN helm plugin install (critical sequence — see RESEARCH Pitfall 4)"
+      pattern: "USER pipe\\nRUN helm plugin install"
+    - from: "docs/build.md buildx command"
+      to: "Phase 6 .github/workflows/release.yml"
+      via: "docs/build.md is the source-of-truth that GH Actions mirrors via docker/metadata-action + docker/build-push-action"
+      pattern: "manifest:org.opencontainers.image"
+---
+
+<objective>
+Replace the v1 alpine-based Dockerfile with a multi-stage build producing a slim, non-root, helm+helm-diff-enabled `linux/amd64` image, and document the OCI annotation command. After this plan: `docker build` produces a runtime image with `python:3.13-slim-bookworm` base, Helm 3.18.x and helm-diff 3.10.x both reachable as the `pipe` user (uid 10001), and a documented `docker buildx build --annotation ...` invocation that attaches the six required OCI annotations to the manifest (not as labels).
+
+Purpose: Plan C closes IMAGE-01 (slim-bookworm base), IMAGE-02 (multi-stage + Helm 3.18 + helm-diff 3.10), IMAGE-03 (non-root pipe user, uid >= 10000), IMAGE-05 (OCI annotations via `--annotation`). Multi-arch (IMAGE-04) and the cold-start benchmark (IMAGE-06) are explicitly Phase 6 scope and out of Plan C. This plan is INDEPENDENT of Plans B and D but shares a wave with them (no file overlap; sequencing is purely via the orchestrator's wave logic). It depends on Plan A because the multi-stage builder `COPY`s `pyproject.toml`, `uv.lock`, and `src/` from the build context.
+
+Output:
+- `Dockerfile` — multi-stage build per RESEARCH Pattern 5.
+- `.dockerignore` — keeps the build context small and excludes `.planning/`, `tests/`, etc.
+- `docs/build.md` — canonical `docker buildx build --annotation ...` invocation + rationale.
+</objective>
+
+<execution_context>
+@$HOME/.claude/gsd-core/workflows/execute-plan.md
+@$HOME/.claude/gsd-core/templates/summary.md
+</execution_context>
+
+<context>
+@.planning/PROJECT.md
+@.planning/ROADMAP.md
+@.planning/REQUIREMENTS.md
+@.planning/phases/01-toolchain-spine/01-RESEARCH.md
+@.planning/phases/01-toolchain-spine/01-PATTERNS.md
+@.planning/phases/01-toolchain-spine/01-01-SUMMARY.md
+@.planning/phases/01-toolchain-spine/01-PLAN-A-toolchain-bootstrap.md
+@Dockerfile
+@.dockerignore
+</context>
+
+<tasks>
+
+<task type="auto" tdd="true">
+  <name>Task C1: Multi-stage Dockerfile (slim-bookworm + Helm 3.18.x + helm-diff 3.10.x + USER pipe)</name>
+  <files>Dockerfile</files>
+  <read_first>
+    - .planning/phases/01-toolchain-spine/01-RESEARCH.md (Pattern 5: multi-stage Dockerfile; Pitfall 4: helm-diff plugin install as root vs pipe user; Open Questions 2 + 3: Helm 3.18 exact patch and helm-diff 3.10 compat verification; Assumptions A3, A4)
+    - .planning/phases/01-toolchain-spine/01-PATTERNS.md (Dockerfile target shape; v1 anti-patterns 3 + 4)
+    - Dockerfile (v1 17-line shape to replace entirely)
+    - .planning/phases/01-toolchain-spine/01-PLAN-A-toolchain-bootstrap.md (pyproject.toml + uv.lock layout the builder stage `COPY`s)
+  </read_first>
+  <behavior>
+    - Three stages: `builder` (uv-driven `uv sync --frozen --no-dev --compile-bytecode` produces `/build/.venv`), `helm-fetch` (debian-slim + curl, downloads + extracts `helm-v${HELM_VERSION}-linux-amd64.tar.gz` from `get.helm.sh`), `runtime` (slim-bookworm + git + ca-certificates + COPY venv from builder + COPY /helm from helm-fetch + addgroup/adduser pipe:10001 + USER pipe + RUN helm plugin install).
+    - Base image is `python:${PYTHON_VERSION}-slim-bookworm` where `PYTHON_VERSION=3.13` (ARG default).
+    - Helm version is pinned via `ARG HELM_VERSION=<verified latest 3.18.x at build time>`. Executor MUST verify https://github.com/helm/helm/releases/latest at task execution time and pin the exact patch. If the latest 3.18.x has changed since research (3.18.3), update the ARG to that patch. Do NOT use a floating tag.
+    - helm-diff version is pinned via `ARG HELM_DIFF_VERSION=<verified 3.10.x>`. Executor MUST verify https://github.com/databus23/helm-diff/releases at task execution time; verify the release notes mention Helm 3.18 compat (or test by inspection). If 3.10.0 is incompatible with the chosen Helm 3.18.x patch, pick the highest 3.10.x that is, and document the choice in the SUMMARY.
+    - `USER pipe` is set BEFORE `RUN helm plugin install` (per RESEARCH Pitfall 4 — otherwise the plugin lands in `/root/.local/share/helm/plugins` and `helm diff` fails at runtime as `pipe`).
+    - `ENV HELM_PLUGINS=/home/pipe/.local/share/helm/plugins` is set so helm finds the plugin under the pipe-user's home.
+    - `ENTRYPOINT ["python", "-m", "aws_eks_helm_deploy"]` — replaces v1's flat `ENTRYPOINT ["python"] CMD ["/opt/pipe/pipe.py"]`.
+    - NO `LABEL org.opencontainers.image.*` directives in the Dockerfile. OCI annotations are added at `docker buildx build --annotation` time per IMAGE-05 (handled in Task C3 via docs/build.md).
+    - Build succeeds on `linux/amd64`: `docker build -t aws-eks-helm-deploy:dev .` exits 0 on a host with Docker 27+ buildx available.
+    - The runtime image has `python --version` reporting 3.13.x; `helm version --short` reporting `v3.18.x`; `helm diff version` exits 0 (plugin reachable); `id -u` reports 10001; `whoami` reports `pipe`.
+    - Multi-arch build (linux/arm64) is OUT OF SCOPE for Plan C — Phase 6 wires the matrix build with native runners (IMAGE-04). The Phase 1 Dockerfile is single-arch.
+  </behavior>
+  <action>
+    Replace the v1 Dockerfile entirely with the target shape from `01-PATTERNS.md` Dockerfile section (which mirrors `01-RESEARCH.md` Pattern 5). Begin with `# syntax=docker/dockerfile:1.7` on line 1.
+
+    ARG block (top-level, before any FROM):
+    - `ARG PYTHON_VERSION=3.13`
+    - `ARG HELM_VERSION=<verified latest 3.18.x>` — verify at execution time
+    - `ARG HELM_DIFF_VERSION=<verified latest 3.10.x compat with chosen Helm>` — verify at execution time
+
+    Stage 1 — `builder`:
+    - `FROM python:${PYTHON_VERSION}-slim-bookworm AS builder`
+    - `COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/` — pulls uv from the official Astral image; no curl needed.
+    - `WORKDIR /build`
+    - `COPY pyproject.toml uv.lock README.md ./`
+    - `COPY src ./src`
+    - `RUN uv sync --frozen --no-dev --compile-bytecode` — strict lockfile, no dev tools, pre-compile .pyc.
+
+    Stage 2 — `helm-fetch`:
+    - `FROM debian:bookworm-slim AS helm-fetch`
+    - `RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*`
+    - `ARG HELM_VERSION`
+    - `RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" | tar -xz -C /tmp && mv /tmp/linux-amd64/helm /helm && chmod +x /helm`
+
+    Stage 3 — `runtime`:
+    - `FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime`
+    - `ARG HELM_DIFF_VERSION`
+    - `RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*` — git is required by helm-diff's plugin installer.
+    - `RUN addgroup --gid 10001 pipe && adduser --uid 10001 --gid 10001 --disabled-password --gecos "" pipe`
+    - `COPY --from=builder /build/.venv /opt/venv`
+    - `COPY --from=helm-fetch /helm /usr/local/bin/helm`
+    - `ENV PATH="/opt/venv/bin:${PATH}" HELM_PLUGINS=/home/pipe/.local/share/helm/plugins PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONFAULTHANDLER=1`
+    - `USER pipe` — CRITICAL: must precede `helm plugin install`
+    - `RUN helm plugin install https://github.com/databus23/helm-diff --version "v${HELM_DIFF_VERSION}"`
+    - `WORKDIR /home/pipe`
+    - `ENTRYPOINT ["python", "-m", "aws_eks_helm_deploy"]`
+
+    Do NOT add `LABEL` directives. Add a trailing comment in the Dockerfile noting: `# OCI annotations are attached via 'docker buildx build --annotation manifest:org.opencontainers.image.*=...' — see docs/build.md`.
+
+    Verification at the end of the Dockerfile: optionally add `RUN helm diff version` as the very last RUN to fail the build if helm-diff is not reachable. (Trade-off: this makes builds slower by ~1s and adds a layer; do it because Pitfall 4 is the highest-blast-radius runtime bug in this plan.)
+
+    Stub call-out: Helm 3.18.x exact patch and helm-diff 3.10.x compat are [ASSUMED] in the research and MUST be re-verified at execution time (RESEARCH.md Open Questions 2 + 3). If verification reveals incompatibility, the executor escalates as a blocker — do not silently pin to a different major.
+  </action>
+  <verify>
+    <automated>docker build -t aws-eks-helm-deploy:dev . &amp;&amp; docker run --rm aws-eks-helm-deploy:dev python -c "import os; assert os.getuid() == 10001, f'uid={os.getuid()}'" &amp;&amp; docker run --rm --entrypoint helm aws-eks-helm-deploy:dev version --short &amp;&amp; docker run --rm --entrypoint helm aws-eks-helm-deploy:dev diff version</automated>
+  </verify>
+  <done>
+    `docker build` exits 0; image runs as uid 10001; `helm version --short` reports v3.18.x; `helm diff version` exits 0 (plugin reachable from the `pipe` user). No `LABEL org.opencontainers.image.*` in the Dockerfile.
+  </done>
+</task>
+
+<task type="auto" tdd="true">
+  <name>Task C2: .dockerignore — keep the build context lean</name>
+  <files>.dockerignore</files>
+  <read_first>
+    - Dockerfile (Task C1 output — to know which paths the builder stage actually `COPY`s)
+    - .dockerignore (existing v1, 17 bytes — almost certainly insufficient)
+    - .gitignore (Plan A output — many of the same exclusions apply)
+  </read_first>
+  <behavior>
+    - `docker build` context excludes: `.venv/`, `.git/`, `.planning/`, `tests/`, `.ruff_cache/`, `.mypy_cache/`, `.pytest_cache/`, `htmlcov/`, `.coverage`, `*.pyc`, `__pycache__/`, `dist/`, `*.egg-info/`, `.changes/` (v1 semversioner directory — not used in v2), `RELEASING.md` (v1-specific), `logo.png`, `logo.pxd`, `bitbucket-pipelines.yml` (Phase 6 owns CI — Pipe image doesn't need it baked in), `CHANGELOG.md` (Phase 6 owns), `LICENSE.txt` (kept in repo but not COPYd by Dockerfile; .dockerignore preserves the smaller context but the file remains available if a future stage decides to COPY it).
+    - The build context size is dominated by `src/` + `pyproject.toml` + `uv.lock` + `README.md` (the four paths the builder COPYs).
+    - `docker build` succeeds with the leaner context.
+  </behavior>
+  <action>
+    Overwrite `.dockerignore` with the exclusion list. Include a leading comment block explaining the policy: "Only paths that the multi-stage Dockerfile explicitly COPYs need to enter the build context."
+
+    Add an explicit `!Dockerfile` re-include if any of the patterns might catch it (defensive; not strictly necessary).
+
+    Do NOT exclude `pipe/` even though it's the v1 source directory — leave it in the context so a developer with a hybrid checkout can still rebuild; the Dockerfile doesn't COPY it so it's a no-op. (Phase 3+ deletes v1 `pipe/` entirely — out of Plan C scope.)
+  </action>
+  <verify>
+    <automated>docker build -t aws-eks-helm-deploy:ctx-test . &amp;&amp; docker rmi aws-eks-helm-deploy:ctx-test</automated>
+  </verify>
+  <done>
+    `docker build` succeeds with the new `.dockerignore`; build context transfer is smaller than before (informational, observe `Sending build context to Docker daemon: <size>` line).
+  </done>
+</task>
+
+<task type="auto" tdd="true">
+  <name>Task C3: docs/build.md — canonical `docker buildx build --annotation` command (IMAGE-05)</name>
+  <files>docs/build.md</files>
+  <read_first>
+    - .planning/phases/01-toolchain-spine/01-RESEARCH.md (Pattern 6: OCI annotations via --annotation vs LABEL; the full buildx command + GH Actions equivalent)
+    - .planning/phases/01-toolchain-spine/01-PATTERNS.md (Dockerfile section anti-pattern: do not use LABEL)
+  </read_first>
+  <behavior>
+    - `docs/build.md` documents the canonical `docker buildx build --annotation manifest:org.opencontainers.image.*=...` invocation for local dev builds.
+    - Six annotations are listed exactly: `source`, `revision`, `version`, `licenses` (= `Apache-2.0`), `title`, `description`.
+    - The `manifest:` prefix is explained: "applies to the image manifest, not the OCI index or a layer."
+    - The rationale for `--annotation` over `LABEL` is documented (one paragraph): LABEL lands in image config; --annotation lands on the OCI manifest where `org.opencontainers.image.*` is supposed to live; `docker buildx imagetools inspect` surfaces annotations, not labels.
+    - The doc cross-references Phase 6's GH Actions pattern (`docker/metadata-action@v5` + `docker/build-push-action@v6` with `annotations: ${{ steps.meta.outputs.annotations }}`) but does NOT prescribe Phase 6 implementation — it just notes "Phase 6 wires this via docker/metadata-action."
+    - Running the documented command produces annotations visible via `docker buildx imagetools inspect aws-eks-helm-deploy:dev`.
+  </behavior>
+  <action>
+    Create `docs/build.md`. Markdown structure:
+
+    ```
+    # Building the v2.0 image (local dev)
+
+    ## Quick command
+
+    docker buildx build \
+      --platform linux/amd64 \
+      --annotation "manifest:org.opencontainers.image.source=https://github.com/yves-vogl/aws-eks-helm-deploy" \
+      --annotation "manifest:org.opencontainers.image.revision=$(git rev-parse HEAD)" \
+      --annotation "manifest:org.opencontainers.image.version=2.0.0-dev" \
+      --annotation "manifest:org.opencontainers.image.licenses=Apache-2.0" \
+      --annotation "manifest:org.opencontainers.image.title=AWS EKS Helm Deploy" \
+      --annotation "manifest:org.opencontainers.image.description=Deploy Helm charts to AWS EKS from Bitbucket Pipelines" \
+      --load \
+      -t aws-eks-helm-deploy:dev \
+      .
+
+    ## Why `--annotation` instead of `LABEL` (IMAGE-05)
+
+    [paragraph from RESEARCH Pattern 6 — LABEL lands in image config; --annotation lands on the OCI manifest; imagetools inspect surfaces annotations.]
+
+    ## Why the `manifest:` prefix
+
+    [paragraph — applies to the image manifest, not the OCI index or a layer.]
+
+    ## Verifying the annotations
+
+    docker buildx imagetools inspect aws-eks-helm-deploy:dev
+
+    The output's `Annotations:` block must contain all six fields.
+
+    ## Multi-arch (Phase 6)
+
+    Phase 1 ships a single-arch `linux/amd64` image. Phase 6 introduces the multi-arch matrix build via native ARM runners (no QEMU — see PITFALLS.md #5). When Phase 6 lands, the annotation mechanics are reproduced via `docker/metadata-action@v5` → `docker/build-push-action@v6` with `annotations: ${{ steps.meta.outputs.annotations }}`.
+    ```
+
+    Include a fenced shell block (` ``` `) for each command. Use the exact six annotation strings — they are the IMAGE-05 contract.
+
+    Include in the doc a closing "Acceptance check" section pointing to `tests/acceptance/test_image_smoke.py` (Plan B) which gates the image-level smokes, and noting that the `--annotation` invocation is NOT yet covered by an automated test in Phase 1 (the inspect-output assertion is too brittle for Phase 1 — Phase 6's release pipeline gates it definitively). This is the only Phase 1 acceptance gap and it's explicitly deferred.
+
+    Stub call-out: docs/build.md is dev-loop documentation only; the README rewrite (DOC-01) is Phase 7. The Phase 6 release pipeline will reference `docs/build.md` rather than duplicate the annotation list.
+  </action>
+  <verify>
+    <automated>grep -q 'manifest:org.opencontainers.image.source' docs/build.md &amp;&amp; grep -q 'manifest:org.opencontainers.image.licenses=Apache-2.0' docs/build.md &amp;&amp; grep -q 'manifest:org.opencontainers.image.title' docs/build.md &amp;&amp; grep -c 'manifest:org.opencontainers.image' docs/build.md | awk '$1 >= 6 {exit 0} {exit 1}'</automated>
+  </verify>
+  <done>
+    `docs/build.md` exists; all six annotation fields are documented; the `--annotation` vs `LABEL` rationale is present; the cross-reference to Phase 6's multi-arch GH Actions implementation is noted; running the documented `buildx build` command attaches the annotations (manual verification — `docker buildx imagetools inspect` should show them).
+  </done>
+</task>
+
+</tasks>
+
+<threat_model>
+## Trust Boundaries
+
+| Boundary | Description |
+|----------|-------------|
+| Dockerfile build → get.helm.sh | TLS-protected curl ingress; we trust the official Helm distribution domain. |
+| Dockerfile build → github.com/databus23/helm-diff | helm plugin install pulls the plugin from GitHub at build time. |
+| Build context → builder stage | Anything not in `.dockerignore` enters the build context; secrets in repo would leak. |
+| Runtime container → consumer-provided env vars | Phase 2+ surface; out of Plan C scope. |
+
+## STRIDE Threat Register
+
+| Threat ID | Category | Component | Disposition | Mitigation Plan |
+|-----------|----------|-----------|-------------|-----------------|
+| T-01-C-01 | Tampering | Helm binary download via curl | mitigate | TLS endpoint (`get.helm.sh`); Phase 6 adds SHA256 checksum verification + Cosign verification of the Helm release. Phase 1 accepts the bare TLS trust. Pinning to an exact `HELM_VERSION` patch prevents floating-tag substitution. |
+| T-01-C-02 | Tampering | helm-diff plugin installation from GitHub | mitigate | Pinned to `--version "v${HELM_DIFF_VERSION}"`; plugin source is the canonical maintainer's repo (databus23). Phase 6 may add a vendor mirror; Phase 1 accepts GitHub trust. |
+| T-01-C-03 | Information Disclosure | Build context leaking secrets | mitigate | `.dockerignore` excludes `.git/`, `.planning/`, `.changes/`. No credentials are in repo (none in `.env`-style files; the runtime gets them via env vars from Bitbucket Pipelines, not from the image). |
+| T-01-C-04 | Elevation of Privilege | Container runs as root | mitigate | `addgroup --gid 10001 pipe && adduser --uid 10001 ...; USER pipe`. Tested by Plan B's `test_image_runs_as_nonroot` + `test_image_uid_is_at_least_10000`. |
+| T-01-C-05 | Tampering | uv resolver pulling unpinned transitive deps in builder | mitigate | `uv sync --frozen` enforces the committed `uv.lock`; `--no-dev` excludes dev-only tools from the runtime image. |
+| T-01-C-06 | Information Disclosure | OCI annotations leaking commit metadata into a public image | accept | `image.revision=$(git rev-parse HEAD)` is intentional supply-chain provenance; commit SHAs are public on a public-repo Pipe. No PII/secrets in commit metadata. |
+| T-01-C-SC | Tampering | apt-get install in helm-fetch + runtime stages | mitigate | Pinned to `debian:bookworm-slim` (Stage 2) and `python:3.13-slim-bookworm` (Stage 3); both pull from Debian's signed apt index. `--no-install-recommends` minimizes attack surface. Phase 6 adds Trivy scanning on every PR. |
+</threat_model>
+
+<verification>
+- `docker build -t aws-eks-helm-deploy:dev .` exits 0.
+- `docker run --rm aws-eks-helm-deploy:dev python --version` reports `Python 3.13.x`.
+- `docker run --rm --entrypoint helm aws-eks-helm-deploy:dev version --short` reports the exact `v3.18.x` pinned in `HELM_VERSION` ARG.
+- `docker run --rm --entrypoint helm aws-eks-helm-deploy:dev diff version` exits 0 (Pitfall 4 guard).
+- `docker run --rm --entrypoint id aws-eks-helm-deploy:dev -u` reports `10001`.
+- `docker run --rm --entrypoint whoami aws-eks-helm-deploy:dev` reports `pipe`.
+- The Dockerfile contains no `LABEL org.opencontainers.image.*` directive (`grep -i 'LABEL org.opencontainers' Dockerfile` reports nothing).
+- Running the `docs/build.md` documented `buildx build --annotation ...` command attaches the six annotations (verified manually with `docker buildx imagetools inspect`).
+</verification>
+
+<success_criteria>
+- IMAGE-01: Base is `python:3.13-slim-bookworm`; alpine is not used anywhere.
+- IMAGE-02: Multi-stage Dockerfile (3 stages); Helm 3.18.x and helm-diff 3.10.x are both runtime-reachable.
+- IMAGE-03: Runtime user is `pipe` with uid 10001 (≥ 10000).
+- IMAGE-05: OCI annotations are attached via `buildx --annotation` per `docs/build.md`, not via `LABEL`.
+- The Dockerfile's USER-then-plugin sequence is verified — `RUN helm plugin install` runs as the `pipe` user, not root (Pitfall 4 closed).
+- Multi-arch (IMAGE-04) and cold-start benchmark (IMAGE-06) are explicitly deferred to Phase 6 — documented in `docs/build.md`.
+</success_criteria>
+
+<artifacts>
+## Artifacts this phase produces (Plan C scope)
+
+**Files (new):**
+- `docs/build.md` — canonical `docker buildx build --annotation ...` command + rationale.
+
+**Files (modified — REPLACED):**
+- `Dockerfile` — v1 17-line alpine shape entirely replaced by the multi-stage slim-bookworm pattern.
+- `.dockerignore` — expanded exclusion list.
+
+**New Docker image stages:**
+- `builder` (python:3.13-slim-bookworm + uv + `/build/.venv`).
+- `helm-fetch` (debian:bookworm-slim + curl + extracted `helm` binary at `/helm`).
+- `runtime` (python:3.13-slim-bookworm + git + ca-certificates + pipe user + venv + helm + helm-diff plugin + ENTRYPOINT).
+
+**New Docker ARGs:**
+- `PYTHON_VERSION=3.13`
+- `HELM_VERSION=<verified at build time, 3.18.x>`
+- `HELM_DIFF_VERSION=<verified at build time, 3.10.x>`
+
+**New runtime env vars set inside the image:**
+- `PATH=/opt/venv/bin:$PATH`
+- `HELM_PLUGINS=/home/pipe/.local/share/helm/plugins`
+- `PYTHONDONTWRITEBYTECODE=1`
+- `PYTHONUNBUFFERED=1`
+- `PYTHONFAULTHANDLER=1`
+
+**New image-level metadata (applied at `buildx --annotation` time, not inside Dockerfile):**
+- `org.opencontainers.image.source`
+- `org.opencontainers.image.revision`
+- `org.opencontainers.image.version`
+- `org.opencontainers.image.licenses` (= `Apache-2.0`)
+- `org.opencontainers.image.title`
+- `org.opencontainers.image.description`
+
+**Stubs (explicitly deferred):**
+- Multi-arch matrix build (IMAGE-04) — Phase 6.
+- Cold-start benchmark (IMAGE-06) — Phase 6.
+- README image-build documentation rewrite (DOC-01) — Phase 7; `docs/build.md` is the dev-loop interim doc.
+- Automated annotation-presence test (`docker buildx imagetools inspect | grep org.opencontainers`) — Phase 6 release pipeline gate.
+</artifacts>
+
+<output>
+On completion, create `.planning/phases/01-toolchain-spine/01-03-SUMMARY.md` recording:
+- Exact `HELM_VERSION` and `HELM_DIFF_VERSION` pinned (post-verification of latest releases).
+- Whether helm-diff version is compatible with the chosen Helm version (per release notes inspection).
+- Runtime image size (informational; baseline for Phase 6's cold-start benchmark).
+- Confirmation that `helm diff version` exits 0 as the `pipe` user (Pitfall 4 closed).
+</output>
