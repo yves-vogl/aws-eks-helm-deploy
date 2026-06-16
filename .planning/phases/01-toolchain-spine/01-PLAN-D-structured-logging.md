@@ -1,0 +1,322 @@
+---
+phase: 01-toolchain-spine
+plan: D
+type: execute
+wave: 2
+depends_on:
+  - 01-A-toolchain-bootstrap
+files_modified:
+  - src/aws_eks_helm_deploy/logging.py
+  - src/aws_eks_helm_deploy/cli.py
+  - tests/unit/test_logging.py
+  - tests/unit/test_cli.py
+autonomous: true
+requirements:
+  - OBS-01
+  - OBS-02
+tags:
+  - structlog
+  - logging
+  - observability
+  - credentials
+
+must_haves:
+  truths:
+    - "With `LOG_FORMAT=json` set, every line the pipe emits on stderr parses as a JSON object with stable keys: `event`, `timestamp`, `level` (and any bound context keys: `action`, `cluster`, `release`, `namespace`, `chart_source`, `auth_strategy`, `duration_ms`)."
+    - "With `LOG_FORMAT` unset or `human`, the pipe emits human-readable colored output on stderr (structlog `ConsoleRenderer`)."
+    - "With `DEBUG=true`, the logger threshold is `DEBUG`; with `DEBUG=false`, threshold is `INFO`."
+    - "`configure_logging(settings)` is idempotent — calling it twice in a single process does not duplicate handlers."
+    - "No credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, OIDC tokens, `BITBUCKET_TOKEN`, `REGISTRY_PASSWORD`) can be bound to structlog context — `bind_safe_context` raises `ValueError` if a blocklisted key is passed."
+    - "`cli.main()` calls `configure_logging(settings)` AFTER `Settings()` and BEFORE any action dispatch."
+    - "`tests/unit/test_logging.py` brings `src/aws_eks_helm_deploy/logging.py` to 100% line + branch coverage so Plan B's gate stays green."
+  artifacts:
+    - path: "src/aws_eks_helm_deploy/logging.py"
+      provides: "configure_logging + get_logger + STABLE_FIELDS + CREDENTIAL_BLOCKLIST + bind_safe_context."
+      contains: "def configure_logging"
+      min_lines: 40
+    - path: "src/aws_eks_helm_deploy/cli.py"
+      provides: "main() now calls configure_logging(settings) immediately after Settings() instantiation."
+      contains: "configure_logging(settings)"
+    - path: "tests/unit/test_logging.py"
+      provides: "Tests for human/json output, DEBUG raising the level, credential-guard, idempotency, get_logger."
+      contains: "test_log_format_json_emits_parseable_json"
+  key_links:
+    - from: "src/aws_eks_helm_deploy/cli.py"
+      to: "src/aws_eks_helm_deploy/logging.py"
+      via: "from aws_eks_helm_deploy.logging import configure_logging"
+      pattern: "from aws_eks_helm_deploy.logging import configure_logging"
+    - from: "src/aws_eks_helm_deploy/logging.py"
+      to: "src/aws_eks_helm_deploy/settings.py"
+      via: "configure_logging(settings: Settings) reads settings.log_format and settings.debug"
+      pattern: "settings.log_format"
+    - from: "tests/unit/test_logging.py"
+      to: "Plan B coverage gate"
+      via: "100% line+branch on logging.py so Plan B's --cov-fail-under=100 stays green"
+      pattern: "test_log_format_json_emits_parseable_json"
+---
+
+<objective>
+Add the structured-logging skeleton that closes OBS-01 (dual human/JSON renderer with stable field names on stderr) and OBS-02 (DEBUG raises verbosity without leaking credentials). Focused commit so observability lands together with its full coverage rather than being smuggled into Plan A. After this plan: `configure_logging(settings)` is wired into `cli.main()` and is fully tested for both renderers, both verbosity modes, idempotency, and the credential-guard invariant.
+
+Purpose: Plan D closes OBS-01 and OBS-02 — the only behaviorally rich Phase 1 modules. Depends on Plan A's `Settings` (must already exist to type-check `configure_logging(settings: Settings)`) and on Plan A's `cli.py` (extended to call `configure_logging` between `Settings()` and the placeholder dispatch). INDEPENDENT of Plans B and C. MUST merge before Plan B's Task B1, because Plan B's coverage gate is `--cov-fail-under=100` and `logging.py` only exists once Plan D merges.
+
+Output:
+- `src/aws_eks_helm_deploy/logging.py` — structlog `configure_logging` + `get_logger` + `STABLE_FIELDS` + `CREDENTIAL_BLOCKLIST` + `bind_safe_context`.
+- `src/aws_eks_helm_deploy/cli.py` — extended to call `configure_logging(settings)`.
+- `tests/unit/test_logging.py` — 100% line + branch.
+- `tests/unit/test_cli.py` — extended with one test asserting `configure_logging` is invoked.
+</objective>
+
+<execution_context>
+@$HOME/.claude/gsd-core/workflows/execute-plan.md
+@$HOME/.claude/gsd-core/templates/summary.md
+</execution_context>
+
+<context>
+@.planning/PROJECT.md
+@.planning/ROADMAP.md
+@.planning/REQUIREMENTS.md
+@.planning/phases/01-toolchain-spine/01-RESEARCH.md
+@.planning/phases/01-toolchain-spine/01-PATTERNS.md
+@.planning/phases/01-toolchain-spine/01-01-SUMMARY.md
+@.planning/phases/01-toolchain-spine/01-PLAN-A-toolchain-bootstrap.md
+@src/aws_eks_helm_deploy/settings.py
+@src/aws_eks_helm_deploy/cli.py
+</context>
+
+<tasks>
+
+<task type="auto" tdd="true">
+  <name>Task D1: src/aws_eks_helm_deploy/logging.py — configure_logging + get_logger + credential guard</name>
+  <files>src/aws_eks_helm_deploy/logging.py</files>
+  <read_first>
+    - .planning/phases/01-toolchain-spine/01-RESEARCH.md (Pattern 3: structlog configure_logging target shape; OBS-01 stable field name list; OBS-02 credential guard rule)
+    - .planning/phases/01-toolchain-spine/01-PATTERNS.md (logging.py target shape; credential guard reminder)
+    - src/aws_eks_helm_deploy/settings.py (Plan A output — confirm fields `log_format` and `debug` are present)
+  </read_first>
+  <behavior>
+    - `configure_logging(settings: Settings) -> None` reads `settings.log_format` (`"human"` or `"json"`) and `settings.debug` (bool); configures structlog accordingly.
+    - `log_level = logging.DEBUG if settings.debug else logging.INFO`.
+    - `shared_processors` includes: `structlog.contextvars.merge_contextvars`, `structlog.stdlib.add_logger_name`, `structlog.stdlib.add_log_level`, `structlog.processors.TimeStamper(fmt="iso")`.
+    - When `log_format == "json"`: append `structlog.processors.dict_tracebacks` + `structlog.processors.JSONRenderer()`.
+    - When `log_format != "json"` (default human): append `structlog.dev.ConsoleRenderer(colors=True)`.
+    - Output stream is `sys.stderr` in both modes (`PrintLoggerFactory(file=sys.stderr)`).
+    - `wrapper_class = structlog.make_filtering_bound_logger(log_level)`.
+    - `cache_logger_on_first_use = True`.
+    - Module-level constant `STABLE_FIELDS: tuple[str, ...] = ("action", "cluster", "release", "namespace", "chart_source", "auth_strategy", "duration_ms")` exposed (OBS-01 contract).
+    - Module-level constant `CREDENTIAL_BLOCKLIST: frozenset[str] = frozenset({"aws_access_key_id", "aws_secret_access_key", "aws_session_token", "session_token", "bitbucket_step_oidc_token", "bitbucket_token", "registry_password"})` (OBS-02 guard).
+    - Public function `bind_safe_context(**kwargs: object) -> None`: for each key, if `key.lower() in CREDENTIAL_BLOCKLIST`, raise `ValueError(f"Credential leak: {key!r} is blocklisted")`; else delegate to `structlog.contextvars.bind_contextvars(**kwargs)`.
+    - `get_logger(name: str) -> structlog.BoundLogger` returns `structlog.get_logger(name)`.
+    - `configure_logging` is idempotent — `structlog.configure(...)` replaces previous config (the desired semantics).
+  </behavior>
+  <action>
+    Create `src/aws_eks_helm_deploy/logging.py` using the target shape from `01-PATTERNS.md` logging.py section (which mirrors `01-RESEARCH.md` Pattern 3), extended with `STABLE_FIELDS`, `CREDENTIAL_BLOCKLIST`, and `bind_safe_context` per the behavior section.
+
+    Imports:
+    - `from __future__ import annotations`
+    - `import logging`
+    - `import sys`
+    - `import structlog`
+    - `from aws_eks_helm_deploy.settings import Settings`
+
+    Type discipline:
+    - Annotate every parameter and return value (ruff ANN is on; mypy strict is on).
+    - `shared_processors` and `processors` are annotated `list[structlog.types.Processor]`.
+    - No `# type: ignore` directives — structlog 26.x has full typing.
+
+    Docstring at module top: "Structured logging for the pipe. OBS-01: stable field names listed in STABLE_FIELDS. OBS-02: credential blocklist enforced by bind_safe_context()."
+
+    Stub call-out: `bind_safe_context` is the only PUBLIC wrapper added in Phase 1. The `STABLE_FIELDS` keys are not bound automatically by Phase 1 — they become contract for Phase 2 (action dispatch will bind them at the top of each action). Document this in the module docstring.
+  </action>
+  <verify>
+    <automated>uv run mypy --strict src/aws_eks_helm_deploy/logging.py &amp;&amp; uv run python -c "from aws_eks_helm_deploy.logging import configure_logging, get_logger, STABLE_FIELDS, CREDENTIAL_BLOCKLIST, bind_safe_context; from aws_eks_helm_deploy.settings import Settings; configure_logging(Settings()); assert 'action' in STABLE_FIELDS; assert 'aws_access_key_id' in CREDENTIAL_BLOCKLIST"</automated>
+  </verify>
+  <done>
+    `mypy --strict` exits 0 on `logging.py`; all five public names import cleanly; `STABLE_FIELDS` has all seven names from OBS-01; `CREDENTIAL_BLOCKLIST` has all seven credential names; `configure_logging(Settings())` executes without error.
+  </done>
+</task>
+
+<task type="auto" tdd="true">
+  <name>Task D2: tests/unit/test_logging.py — 100% line+branch on logging.py</name>
+  <files>tests/unit/test_logging.py</files>
+  <read_first>
+    - src/aws_eks_helm_deploy/logging.py (Task D1 output)
+    - .planning/phases/01-toolchain-spine/01-RESEARCH.md (OBS-01 and OBS-02 behavior specs; Pitfall 3 on placeholder-module coverage gotchas)
+    - .planning/phases/01-toolchain-spine/01-PATTERNS.md (test marker discipline; from __future__ import annotations contract)
+  </read_first>
+  <behavior>
+    Test list (all in `tests/unit/test_logging.py`, all unmarked → default `unit` marker via the conftest hook):
+
+    - `test_configure_logging_human_default(capsys, monkeypatch)`: Plain `Settings()`; call `configure_logging`; emit a log via `get_logger("test").info("hello")`; capture stderr; assert it contains `"hello"` AND does NOT parse as JSON. This proves the human renderer is active when `LOG_FORMAT` is unset.
+
+    - `test_configure_logging_json_emits_parseable_json(capsys, monkeypatch)`: Set `LOG_FORMAT=json`; build `Settings()`; call `configure_logging`; emit `get_logger("test").info("hello", action="upgrade")`; capture stderr; load each line with `json.loads`; assert at least one line has `event == "hello"`, `action == "upgrade"`, and a `timestamp` key with ISO-8601 format (presence; do not assert exact value).
+
+    - `test_debug_true_lowers_threshold(capsys, monkeypatch)`: Set `DEBUG=true`; configure; emit `get_logger("test").debug("dbg")`; assert `"dbg"` appears in captured stderr. Then with `DEBUG` unset (re-instantiate Settings), assert `debug` calls do NOT appear.
+
+    - `test_debug_false_blocks_debug_lines(capsys)`: `Settings()` with no DEBUG; configure; emit `get_logger("test").debug("dbg")`; assert `"dbg"` does NOT appear in stderr.
+
+    - `test_configure_logging_is_idempotent(capsys)`: Call `configure_logging` twice; emit one log; assert exactly one rendered occurrence appears (no duplication).
+
+    - `test_bind_safe_context_blocks_aws_access_key_id`: Call `bind_safe_context(aws_access_key_id="AKIA...")`; assert `ValueError` is raised; assert the error message contains `"aws_access_key_id"`.
+
+    - `test_bind_safe_context_blocks_all_credentials`: parametrize over each member of `CREDENTIAL_BLOCKLIST`; assert `ValueError` for each.
+
+    - `test_bind_safe_context_case_insensitive`: Call `bind_safe_context(AWS_SECRET_ACCESS_KEY="...")` (uppercase key); assert `ValueError` raised (the guard does `key.lower()` per Task D1 contract).
+
+    - `test_bind_safe_context_passes_safe_keys(mocker)`: Mock `structlog.contextvars.bind_contextvars`; call `bind_safe_context(action="upgrade", cluster="prod")`; assert the mock was called with `action="upgrade", cluster="prod"`.
+
+    - `test_get_logger_returns_bound_logger`: `logger = get_logger("foo")`; assert `hasattr(logger, "info")` and `hasattr(logger, "debug")`.
+
+    - `test_stable_fields_contains_obs01_contract`: assert `STABLE_FIELDS == ("action", "cluster", "release", "namespace", "chart_source", "auth_strategy", "duration_ms")` exact tuple (regression guard against accidental field removal/reorder).
+
+    Coverage outcome:
+    - 100% line + 100% branch on `src/aws_eks_helm_deploy/logging.py`.
+    - The two if/else branches in `configure_logging` (`log_format == "json"` vs not) are both exercised.
+    - The if branch in `bind_safe_context` (blocked) and the else branch (delegated) are both exercised.
+  </behavior>
+  <action>
+    Create `tests/unit/test_logging.py`. Begin with `from __future__ import annotations`. Use `capsys` for stderr capture and `monkeypatch` for env var manipulation.
+
+    For JSON parsing test: import `json` from stdlib; iterate `captured.err.splitlines()`; `json.loads` each non-empty line; check the asserted keys on at least one line. Use a try/except to skip lines that aren't JSON (Phase 1 only emits structlog lines on stderr; there should be exactly one matching).
+
+    For the parametrized credential-blocklist test: use `pytest.mark.parametrize` over `sorted(CREDENTIAL_BLOCKLIST)` to give deterministic test IDs.
+
+    For the mocker-based safe-keys test: use `pytest-mock`'s `mocker.patch("aws_eks_helm_deploy.logging.structlog.contextvars.bind_contextvars")` or equivalent — patch the symbol at the point it's used inside `logging.py` (the `as imported into logging` rule).
+
+    Re-set structlog config between tests via a `autouse=True` fixture if needed:
+    ```
+    @pytest.fixture(autouse=True)
+    def reset_structlog() -> Iterator[None]:
+        yield
+        structlog.reset_defaults()
+        structlog.contextvars.clear_contextvars()
+    ```
+    Add `from collections.abc import Iterator` import for that fixture.
+
+    Run `uv run pytest tests/unit/test_logging.py -q --no-cov` first to confirm green; then run `uv run pytest --cov=src/aws_eks_helm_deploy/logging --cov-branch -q tests/unit/test_logging.py` to confirm 100% line+branch on the target module.
+  </action>
+  <verify>
+    <automated>uv run pytest tests/unit/test_logging.py -q --no-cov &amp;&amp; uv run coverage report --include='src/aws_eks_helm_deploy/logging.py' --fail-under=100</automated>
+  </verify>
+  <done>
+    All ~10 tests green; `coverage report --include='src/aws_eks_helm_deploy/logging.py' --fail-under=100` exits 0; the credential-guard invariant is locked in by a parametrized test over every member of `CREDENTIAL_BLOCKLIST`.
+  </done>
+</task>
+
+<task type="auto" tdd="true">
+  <name>Task D3: cli.py wiring + test_cli.py extension — configure_logging called between Settings() and dispatch</name>
+  <files>src/aws_eks_helm_deploy/cli.py, tests/unit/test_cli.py</files>
+  <read_first>
+    - src/aws_eks_helm_deploy/cli.py (Plan A output — current shape; this task is the documented extension point)
+    - src/aws_eks_helm_deploy/logging.py (Task D1 output — confirm `configure_logging` signature)
+    - tests/unit/test_cli.py (Plan A tests — to extend, not replace)
+    - .planning/phases/01-toolchain-spine/01-PATTERNS.md (cli.py target shape — Plan A's version is the unwired baseline; this task wires `configure_logging` per the Architecture diagram in RESEARCH)
+  </read_first>
+  <behavior>
+    - `cli.main()` invokes `configure_logging(settings)` exactly once, AFTER `Settings()` returns and BEFORE the placeholder `pipe.success(...)` call.
+    - The PipeError handler and bare-Exception handler from Plan A are preserved exactly.
+    - `tests/unit/test_cli.py` gets one new test: `test_main_calls_configure_logging(mocker)`: patch `aws_eks_helm_deploy.cli.configure_logging`; call `main()`; assert `configure_logging.call_count == 1`; assert the argument is a `Settings` instance.
+    - Existing Plan A tests in `test_cli.py` (placeholder success, PipeError caught, bare Exception caught, module-runs) still pass unchanged.
+    - `mypy --strict src` exits 0 on the extended `cli.py`.
+    - The 100% coverage gate (Plan B will enforce it) still passes on `cli.py` — the new `configure_logging(settings)` line is exercised by every existing Plan A test that calls `main()`.
+  </behavior>
+  <action>
+    Modify `src/aws_eks_helm_deploy/cli.py`:
+    - Add `from aws_eks_helm_deploy.logging import configure_logging` import at the top of the module (alongside the existing `from aws_eks_helm_deploy.errors import PipeError`).
+    - In `main()`, after the line that constructs `settings = Settings()` and before the line that constructs `pipe = PipeIO()`, add `configure_logging(settings)`.
+    - Do not change the try/except structure; do not change the return-code branches.
+    - Preserve `# pragma: no cover` on the `if __name__ == "__main__"` guard.
+
+    Extend `tests/unit/test_cli.py`:
+    - Add `def test_main_calls_configure_logging(mocker: MockerFixture) -> None:` (import `from pytest_mock import MockerFixture` at the top).
+    - `mock_cfg = mocker.patch("aws_eks_helm_deploy.cli.configure_logging")`.
+    - Also patch `aws_eks_helm_deploy.cli.PipeIO` to avoid touching the toolkit: `mocker.patch("aws_eks_helm_deploy.cli.PipeIO")`.
+    - Call `from aws_eks_helm_deploy.cli import main; assert main() == 0`.
+    - Assert `mock_cfg.call_count == 1`.
+    - Assert `isinstance(mock_cfg.call_args.args[0], Settings)` (import Settings at top of test file).
+
+    Verify no regression in the existing Plan A tests in `test_cli.py` by running `uv run pytest tests/unit/test_cli.py -v --no-cov`.
+
+    Stub call-out: This is a tightly scoped wire-up. Real action dispatch (which will use `get_logger("aws_eks_helm_deploy.cli")` and `bind_safe_context(action=..., cluster=...)` per the OBS-01 contract) lands in Phase 3+.
+  </action>
+  <verify>
+    <automated>uv run pytest tests/unit/test_cli.py -q --no-cov &amp;&amp; uv run mypy --strict src &amp;&amp; uv run ruff check src tests</automated>
+  </verify>
+  <done>
+    `cli.py` calls `configure_logging(settings)` exactly once between `Settings()` and `PipeIO()`; the new test asserts the call count and arg type; all existing Plan A tests in `test_cli.py` remain green; mypy strict and ruff check both exit 0.
+  </done>
+</task>
+
+</tasks>
+
+<threat_model>
+## Trust Boundaries
+
+| Boundary | Description |
+|----------|-------------|
+| Pipe runtime → stderr | Structured log output is consumed by Bitbucket Pipelines' log aggregator (and any downstream CloudWatch/Datadog forwarder). Anything bound to structlog context becomes log payload. |
+| Source modules → `bind_safe_context` | The credential guard is the last-mile defense before context-bound data reaches the JSON renderer. |
+| `configure_logging` → `structlog.configure` | structlog 26.x reconfigures global state; multi-call semantics matter. |
+
+## STRIDE Threat Register
+
+| Threat ID | Category | Component | Disposition | Mitigation Plan |
+|-----------|----------|-----------|-------------|-----------------|
+| T-01-D-01 | Information Disclosure | Credential binding via `structlog.contextvars.bind_contextvars` | mitigate | `bind_safe_context` is the only sanctioned wrapper; it raises `ValueError` on any blocklisted key. Direct `bind_contextvars` calls remain possible but are ruled out by convention; Phase 5 SEC-06 adds repo-wide ruff/grep guard against direct calls. |
+| T-01-D-02 | Information Disclosure | Bare `bind_contextvars` usage bypassing the guard | accept (Phase 1) | Convention only in Phase 1; reviewed in code review. SEC-06 (Phase 5) adds a lint rule banning direct `structlog.contextvars.bind_contextvars` imports. Document this in the module docstring as a Phase 5 follow-up. |
+| T-01-D-03 | Tampering | `LOG_FORMAT` env-var injection forcing the human renderer in production | mitigate | The runtime contract per OBS-01 says "JSON on stderr WHEN `LOG_FORMAT=json`" — there is no security expectation that the renderer cannot be downgraded. Documented as a consumer choice. |
+| T-01-D-04 | Repudiation | Missing `timestamp` field on log lines | mitigate | `structlog.processors.TimeStamper(fmt="iso")` is always added to shared_processors in both branches; the JSON test asserts the `timestamp` key exists. |
+| T-01-D-05 | DoS | `DEBUG=true` floods stderr in production | accept | Documented in v1 (`DEBUG` is parity behavior); consumer's choice. |
+| T-01-D-SC | Tampering | structlog 26.x supply chain | mitigate | structlog is in `01-RESEARCH.md ## Package Legitimacy Audit` with verdict OK. Pinned via `~= 26.0` in `pyproject.toml`. No new packages introduced by Plan D. |
+</threat_model>
+
+<verification>
+- `uv run mypy --strict src` exits 0.
+- `uv run pytest tests/unit/test_logging.py tests/unit/test_cli.py -q --no-cov` — all tests green.
+- `uv run coverage report --include='src/aws_eks_helm_deploy/logging.py,src/aws_eks_helm_deploy/cli.py' --fail-under=100` exits 0.
+- `LOG_FORMAT=json uv run python -m aws_eks_helm_deploy 2>&1 | head -1 | uv run python -c "import sys, json; json.loads(sys.stdin.read())"` — exits 0 (line one parses as JSON).
+- `DEBUG=true uv run python -m aws_eks_helm_deploy 2>&1` — runs without error.
+- `uv run python -c "from aws_eks_helm_deploy.logging import bind_safe_context; bind_safe_context(aws_access_key_id='leak')"` — raises ValueError (exit 1).
+</verification>
+
+<success_criteria>
+- OBS-01: With `LOG_FORMAT=json`, stderr emits parseable JSON with stable field names. Without `LOG_FORMAT=json`, human-readable colored output.
+- OBS-02: `DEBUG=true` lowers the threshold to `DEBUG`; the credential guard (`bind_safe_context`) blocks every member of `CREDENTIAL_BLOCKLIST` with a clear `ValueError`.
+- `configure_logging` is wired into `cli.main()` between `Settings()` and `PipeIO()`.
+- 100% line + branch coverage on `logging.py` and on the new line(s) in `cli.py`.
+- Stubs explicitly named: `STABLE_FIELDS` is the contract but no action binds them yet (Phase 2+ wires bindings); the convention against direct `bind_contextvars` is reviewed-by-convention in Phase 1 and lint-enforced in Phase 5 (SEC-06).
+</success_criteria>
+
+<artifacts>
+## Artifacts this phase produces (Plan D scope)
+
+**Files (new):**
+- `src/aws_eks_helm_deploy/logging.py`.
+- `tests/unit/test_logging.py`.
+
+**Files (modified):**
+- `src/aws_eks_helm_deploy/cli.py` — adds `configure_logging(settings)` call + import.
+- `tests/unit/test_cli.py` — adds `test_main_calls_configure_logging`.
+
+**New Python symbols (importable from `aws_eks_helm_deploy.logging`):**
+- `configure_logging(settings: Settings) -> None`
+- `get_logger(name: str) -> structlog.BoundLogger`
+- `bind_safe_context(**kwargs: object) -> None`
+- `STABLE_FIELDS: tuple[str, ...]` — `("action", "cluster", "release", "namespace", "chart_source", "auth_strategy", "duration_ms")`
+- `CREDENTIAL_BLOCKLIST: frozenset[str]` — seven credential-bearing env-var names
+
+**New env-var consumption (already declared in Plan A `settings.py` — Plan D adds the consumer):**
+- `LOG_FORMAT` (consumed in `configure_logging` branch)
+- `DEBUG` (consumed in `configure_logging` log-level selection)
+
+**Stubs (explicitly called out):**
+- No automatic binding of `STABLE_FIELDS` in Phase 1 — Phase 2+ binds them at the top of each action.
+- No lint enforcement of "use `bind_safe_context` not `bind_contextvars`" in Phase 1 — Phase 5 (SEC-06) adds that lint rule.
+</artifacts>
+
+<output>
+On completion, create `.planning/phases/01-toolchain-spine/01-04-SUMMARY.md` recording:
+- Final shape of `STABLE_FIELDS` and `CREDENTIAL_BLOCKLIST` as committed.
+- Whether the JSON test asserted on `event` or `msg` (structlog 26.x normalizes the message under the `event` key; reaffirm at execution time).
+- Confirmation that Plan B's 100% gate is achievable once Plan D and Plan A have both merged.
+</output>
