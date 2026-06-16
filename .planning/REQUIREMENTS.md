@@ -78,7 +78,7 @@ Two consumer-side personas drive the requirements: **(M)** the maintainer of a d
 
 - [ ] **CI-01**: A GitHub Actions workflow (`.github/workflows/ci.yml`) runs `ruff`, `mypy`, `pytest --cov`, `trivy`, and `pip-audit` on every PR; required status checks gate merge into `main`.
 - [ ] **CI-02**: A GitHub Actions workflow (`.github/workflows/release.yml`) is driven by `release-please` (v4, `release-type: python`); a release-PR updates `pyproject.toml`, `CHANGELOG.md`, and `pipe.yml` image-tag in a single commit.
-- [ ] **CI-03**: On `main` after a release-PR merge, the workflow builds the multi-arch image, signs it with Cosign, attaches SBOM + provenance, and pushes to **both** `ghcr.io/yves-vogl/aws-eks-helm-deploy` and `docker.io/yvogl/aws-eks-helm-deploy`.
+- [ ] **CI-03**: On `main` after a release-PR merge, the workflow builds the multi-arch image, signs it with Cosign, attaches SBOM + provenance, and pushes to `ghcr.io/yves-vogl/aws-eks-helm-deploy`. **GitHub Container Registry is the only v2.0 publish target**; Docker Hub is no longer used (rationale: native OIDC push from GitHub Actions eliminates `DOCKER_HUB_PAT` as a long-lived CI secret, and SLSA provenance + Cosign keyless run end-to-end inside a single trust domain).
 - [ ] **CI-04**: A separate, minimal `bitbucket-pipelines.yml` continues to publish the Bitbucket Pipe Marketplace listing on tagged releases; GitHub Actions is the source-of-truth for image builds.
 - [ ] **CI-05**: Dependabot (`.github/dependabot.yml`) is configured for `pip`, `docker`, and `github-actions`; auto-merge is enabled for all updates (including majors) once CI passes — tests are the gate.
 - [ ] **CI-06**: Every commit on `main` is GPG-signed (verified on GitHub); branch protection enforces signed commits.
@@ -109,7 +109,7 @@ Two consumer-side personas drive the requirements: **(M)** the maintainer of a d
 
 ### Migration v1 → v2 (MIG)
 
-- [ ] **MIG-01**: The Docker Hub `:latest` tag is **frozen at v1.3.0** before the first v2.0 image is published; a documented `:2` rolling tag is introduced for v2 consumers who want major-version-pinned auto-updates.
+- [ ] **MIG-01**: The Docker Hub `yvogl/aws-eks-helm-deploy` repository is **frozen at v1.3.0** as the final v1.x image (no v2 image is pushed there); a documented `:2` rolling tag is introduced on `ghcr.io/yves-vogl/aws-eks-helm-deploy` for v2 consumers who want major-version-pinned auto-updates. The Docker Hub README is updated with a deprecation note pointing to GHCR.
 - [ ] **MIG-02**: The first v2.0 image emits a loud one-time deprecation warning at startup if it detects v1-only env-var names (`SET`/`VALUES` in the older positional format, or charts referencing `.Values.bitbucket.*` without `INJECT_BITBUCKET_METADATA=true`).
 - [ ] **MIG-03**: An `examples/migration-v1-to-v2/` directory contains a before/after `bitbucket-pipelines.yml` diff with line-level explanations of every required change.
 

@@ -2,10 +2,9 @@
 
 [![License](https://img.shields.io/github/license/yves-vogl/aws-eks-helm-deploy)](LICENSE.txt)
 [![GitHub release](https://img.shields.io/github/v/release/yves-vogl/aws-eks-helm-deploy?label=release&sort=semver)](https://github.com/yves-vogl/aws-eks-helm-deploy/releases)
-[![Docker Image Version](https://img.shields.io/docker/v/yvogl/aws-eks-helm-deploy?sort=semver&label=docker%20image)](https://hub.docker.com/r/yvogl/aws-eks-helm-deploy)
-[![Docker Pulls](https://img.shields.io/docker/pulls/yvogl/aws-eks-helm-deploy)](https://hub.docker.com/r/yvogl/aws-eks-helm-deploy)
 [![GitHub stars](https://img.shields.io/github/stars/yves-vogl/aws-eks-helm-deploy?style=flat)](https://github.com/yves-vogl/aws-eks-helm-deploy/stargazers)
 [![Open issues](https://img.shields.io/github/issues/yves-vogl/aws-eks-helm-deploy)](https://github.com/yves-vogl/aws-eks-helm-deploy/issues)
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/yves-vogl)
 
 Deploy [Helm](https://helm.sh) charts to [AWS Elastic Kubernetes Service (EKS)](https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html) from [Bitbucket Pipelines](https://bitbucket.org/product/features/pipelines) — a thin, opinionated wrapper around `helm upgrade --install` that handles EKS authentication for you.
 
@@ -22,7 +21,7 @@ Deploy [Helm](https://helm.sh) charts to [AWS Elastic Kubernetes Service (EKS)](
 
 This pipe is purpose-built for **Bitbucket Pipelines**. For GitHub Actions, use upstream actions such as [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials) combined with a Helm action.
 
-> **Status:** v1.3.0 is the current stable release. **v2.0 is in active development** — see [Milestone `v2.0.0`](https://github.com/yves-vogl/aws-eks-helm-deploy/milestones) for tracked work (OIDC/IRSA, OCI chart support, history pruning, dry-run, signed images, ADRs, 100% test coverage).
+> **Status:** v1.3.0 is the current stable release, published on Docker Hub (`yvogl/aws-eks-helm-deploy`). **v2.0 is in active development** and will publish exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`) — see [Milestone `v2.0.0`](https://github.com/yves-vogl/aws-eks-helm-deploy/milestones) for tracked work (OIDC/IRSA, OCI chart support, history pruning, dry-run, signed images, ADRs, 100% test coverage). Docker Hub is frozen at v1.3.0 as the v1.x archive.
 
 ---
 
@@ -171,10 +170,11 @@ The **[v2.0.0 milestone](https://github.com/yves-vogl/aws-eks-helm-deploy/milest
 - Helm OCI registry and `repo://` chart support
 - `helm --history-max` integration for release history pruning ([#17](https://github.com/yves-vogl/aws-eks-helm-deploy/issues/17))
 - Opt-out for injected Bitbucket metadata ([#16](https://github.com/yves-vogl/aws-eks-helm-deploy/issues/16))
-- Multi-architecture image (linux/amd64 + linux/arm64)
-- Cosign-signed images + SBOM
-- 100% test coverage (unit + integration)
-- GitHub Actions release pipeline
+- Multi-architecture image (`linux/amd64` + `linux/arm64`), native ARM runners
+- Cosign keyless signing + SBOM (SPDX + CycloneDX) + SLSA provenance
+- 100% test coverage (unit + integration + acceptance tiers)
+- GitHub Actions release pipeline (release-please v4)
+- **Published exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`)** — Docker Hub frozen at v1.3.0 as the v1.x archive
 
 ---
 
@@ -184,7 +184,11 @@ The **[v2.0.0 milestone](https://github.com/yves-vogl/aws-eks-helm-deploy/milest
 - **Security reports** → please report privately rather than via a public issue; see `SECURITY.md` once available (tracked for v2.0).
 - **Pull requests welcome** — contribution guidelines (`CONTRIBUTING.md`) and PR template are tracked for v2.0.
 
-Maintained by [Yves Vogl](https://github.com/yves-vogl).
+## Sponsor
+
+If this pipe saves you time or production headaches, consider [sponsoring the work on GitHub Sponsors](https://github.com/sponsors/yves-vogl). Sponsorships fund v2.0 modernization (OIDC, multi-arch, Cosign keyless, 100% test coverage, versioned docs) and ongoing v1.x security maintenance.
+
+Maintained by [Yves Vogl](https://github.com/yves-vogl) · [Sponsor](https://github.com/sponsors/yves-vogl).
 
 ---
 

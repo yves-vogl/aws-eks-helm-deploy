@@ -54,7 +54,7 @@
 
 - [ ] GitHub Actions release pipeline as the new source-of-truth (Bitbucket Pipelines becomes a thin mirror that only re-publishes the Pipe Marketplace listing)
 - [ ] Conventional-Commits → automatic SemVer via `release-please` (replaces `semversioner` + `.changes/`)
-- [ ] Docker images pushed to **both** Docker Hub (`yvogl/aws-eks-helm-deploy`) and GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`)
+- [ ] v2.0 Docker images pushed to **GitHub Container Registry only** (`ghcr.io/yves-vogl/aws-eks-helm-deploy`); Docker Hub (`yvogl/aws-eks-helm-deploy`) stays frozen at v1.3.0 as the v1.x archive
 - [ ] Image signed with **Cosign** (keyless, GitHub Actions OIDC); SBOM published as image attestation (Syft + SPDX or CycloneDX)
 - [ ] **Trivy / Grype** vulnerability scan as a CI gate on every build
 - [ ] **pip-audit** dependency scan as a CI gate
@@ -137,6 +137,7 @@
 | Bundle `helm-diff` plugin in the image for dry-run support | Required for the `DRY_RUN` feature; small footprint | — Pending |
 | Documentation site (`mkdocs-material` vs. GitHub Pages from README only) | TBD by research phase | — Pending |
 | Multi-arch image (`linux/amd64` + `linux/arm64`) | Apple Silicon developers can pull the image locally; some EKS Graviton runners; cost negligible with `docker buildx` | — Pending |
+| **GitHub Container Registry (`ghcr.io`) as the sole v2.0 publish target** (Docker Hub frozen at v1.3.0, no v2 image pushed there) | Eliminates `DOCKER_HUB_PAT` as a long-lived CI secret (OIDC push from GH Actions); keeps SLSA provenance + Cosign keyless inside a single trust domain; no anonymous-pull rate limit; Bitbucket Pipelines can pull from GHCR without auth | — Pending (decided 2026-06-16) |
 
 ## Evolution
 
