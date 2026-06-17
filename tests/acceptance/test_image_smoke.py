@@ -108,3 +108,47 @@ def test_curl_purged_from_runtime_image(built_image: str) -> None:
         timeout=10,
     )
     assert result.returncode != 0, "curl should not be present in the runtime image"
+
+
+@pytest.mark.acceptance
+def test_git_purged_from_runtime_image(built_image: str) -> None:
+    """git must not be present in the runtime image (sec-14).
+
+    helm-diff plugin updates (helm plugin install / helm plugin update) are
+    BUILD-TIME operations — the runtime pipe only calls ``helm diff``, which
+    does not exec git.  git is therefore attack surface with no runtime value.
+    """
+    result = subprocess.run(
+        ["docker", "run", "--rm", "--entrypoint", "which", built_image, "git"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode != 0, "git should not be present in the runtime image"
+
+
+@pytest.mark.acceptance
+def test_helm_diff_works_without_git(built_image: str) -> None:
+    """helm diff version must succeed even after git is purged (sec-14 regression guard).
+
+    Verifies that the helm-diff plugin, installed into the user-scoped plugin
+    directory at build time, remains functional at runtime without git present.
+    """
+    result = subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--entrypoint",
+            "helm",
+            built_image,
+            "diff",
+            "version",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, (
+        f"helm diff version failed after git removal — plugin broken:\n{result.stderr}"
+    )

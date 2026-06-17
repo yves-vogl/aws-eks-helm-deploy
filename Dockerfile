@@ -90,10 +90,11 @@ RUN helm plugin install \
 # Verify helm-diff is reachable as pipe user — build fails early if Pitfall 4 recurs
 RUN helm diff version
 
-# Purge curl — no longer needed after plugin install (sec-02)
-# ca-certificates and git are retained: git is used by helm-diff for plugin updates
+# Purge curl and git — neither is needed at runtime (sec-02, sec-14).
+# helm-diff plugin updates are a BUILD-TIME operation (helm plugin install above);
+# the runtime pipe only calls `helm diff` which does not exec git.
 USER root
-RUN apt-get purge -y curl \
+RUN apt-get purge -y curl git \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 USER pipe
