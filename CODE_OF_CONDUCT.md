@@ -4,7 +4,7 @@ This project adopts the [Contributor Covenant](https://www.contributor-covenant.
 
 ## Reporting
 
-Concerns about conduct in this project's spaces should be reported to the maintainer at <yves@kadenz.live>. Reports are handled confidentially.
+Concerns about conduct in this project's spaces should be reported to the maintainer at <yves.vogl@mac.com>. Reports are handled confidentially.
 
 ## Enforcement
 
