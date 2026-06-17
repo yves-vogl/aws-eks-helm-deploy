@@ -32,6 +32,7 @@ repos:
         files: ^(src|tests)/
       - id: check-yaml
         files: ^(src|tests)/|^\.pre-commit-config\.yaml$
+        exclude: ^tests/fixtures/charts/.*/templates/
       - id: check-toml
         files: ^pyproject\.toml$
       - id: check-merge-conflict
