@@ -1,0 +1,43 @@
+# Interim CI gate (Phase 1.5) — full CI lands in Phase 6 per SEC-04/SEC-05/CI-01.
+# This workflow enforces the existing pre-commit suite server-side so --no-verify
+# cannot ship lint/test/secrets violations.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-commit:
+    name: pre-commit (lint + typecheck + unit + secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0  # gitleaks needs full history
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3.2.4
+        with:
+          version: "0.11.21"  # pinned to match Dockerfile
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --all-extras --frozen
+
+      - name: Run pre-commit
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
+      - name: Run pre-push hooks (pip-audit)
+        run: uv run pre-commit run --hook-stage pre-push --all-files

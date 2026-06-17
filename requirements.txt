@@ -1,5 +1,0 @@
-awscli~=1.32
-bitbucket-pipes-toolkit~=4.4
-docker~=7.1
-Jinja2~=3.1
-MarkupSafe~=2.1

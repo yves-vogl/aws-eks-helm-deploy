@@ -1,0 +1,63 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.17
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^(src|tests)/
+      - id: ruff-format
+        files: ^(src|tests)/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.1.0
+    hooks:
+      - id: mypy
+        args: [--strict, src]
+        # Do not pass individual filenames — mypy checks the full src tree
+        pass_filenames: false
+        files: ^src/
+        additional_dependencies:
+          - bitbucket-pipes-toolkit
+          - boto3-stubs[eks,sts]
+          - pydantic-settings
+          - structlog
+          - types-PyYAML
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+        files: ^(src|tests)/|^(pyproject\.toml|\.pre-commit-config\.yaml|\.python-version|\.gitignore)$
+      - id: trailing-whitespace
+        files: ^(src|tests)/
+      - id: check-yaml
+        files: ^(src|tests)/|^\.pre-commit-config\.yaml$
+      - id: check-toml
+        files: ^pyproject\.toml$
+      - id: check-merge-conflict
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.3
+    hooks:
+      - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: pytest-quick
+        name: pytest (unit, no-cov)
+        entry: uv run pytest -q -m unit --no-cov
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: pip-audit
+        name: pip-audit (dependency CVE scan with stale-ignore detection)
+        # Two-pass strategy (see scripts/pip-audit-with-stale-check.sh):
+        #   Pass 1: run with active suppressions — fail on any NEW CVE.
+        #   Pass 2: verify each suppressed CVE is still detected — fail if a
+        #           suppression is stale (upstream dependency fixed), so
+        #           suppressions expire automatically instead of piling up silently.
+        entry: bash scripts/pip-audit-with-stale-check.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

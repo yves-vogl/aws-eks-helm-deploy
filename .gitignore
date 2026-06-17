@@ -1,3 +1,37 @@
-__pycache__
-.venv
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Virtual environments
+.venv/
+
+# Tool caches
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Coverage
+htmlcov/
+.coverage
+
+# Distribution
+dist/
+
+# macOS
 .DS_Store
+
+# Secrets — defense in depth (gitleaks is the primary gate)
+.env
+.env.*
+*.pem
+*.key
+*.crt
+id_rsa
+id_rsa.*
+id_ecdsa
+id_ecdsa.*
+id_ed25519
+id_ed25519.*
+.aws/credentials
+.aws/config

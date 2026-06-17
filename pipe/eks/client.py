@@ -12,26 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class EKSClientFactory(object):
-    def __init__(self, session):
-      self._session = session
 
-    def get_eks_client(self, region_name=None, role_arn=None, role_session_name='EKSClientFactory'):
-      client_kwargs = {
-        'region_name': region_name
-      }
-      if role_arn is not None:
-        creds = self._get_role_credentials(region_name, role_arn, role_session_name)
-        client_kwargs['aws_access_key_id'] = creds['AccessKeyId']
-        client_kwargs['aws_secret_access_key'] = creds['SecretAccessKey']
-        client_kwargs['aws_session_token'] = creds['SessionToken']
-      eks = self._session.create_client('eks', **client_kwargs)
-      return eks
+class EKSClientFactory:
+    def __init__(self, session):
+        self._session = session
+
+    def get_eks_client(self, region_name=None, role_arn=None, role_session_name="EKSClientFactory"):
+        client_kwargs = {"region_name": region_name}
+        if role_arn is not None:
+            creds = self._get_role_credentials(region_name, role_arn, role_session_name)
+            client_kwargs["aws_access_key_id"] = creds["AccessKeyId"]
+            client_kwargs["aws_secret_access_key"] = creds["SecretAccessKey"]
+            client_kwargs["aws_session_token"] = creds["SessionToken"]
+        eks = self._session.create_client("eks", **client_kwargs)
+        return eks
 
     def _get_role_credentials(self, region_name, role_arn, role_session_name):
-      sts = self._session.create_client('sts', region_name)
+        sts = self._session.create_client("sts", region_name)
 
-      return sts.assume_role(
-          RoleArn=role_arn,
-          RoleSessionName=role_session_name
-      )['Credentials']
+        return sts.assume_role(RoleArn=role_arn, RoleSessionName=role_session_name)["Credentials"]

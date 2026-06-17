@@ -1,2 +1,50 @@
-__pycache__
-.git
+# .dockerignore — keep the Docker build context small and exclude secrets/dev artifacts.
+#
+# Policy: only paths the multi-stage Dockerfile explicitly COPYs need to enter
+# the build context. The builder stage copies:
+#   - pyproject.toml
+#   - uv.lock
+#   - README.md
+#   - src/
+# Everything else is either not needed or should not enter the image for
+# security reasons (secrets, git history, planning docs, test artifacts).
+
+# --- Python dev artifacts ---
+.venv/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+*.pyc
+__pycache__/
+dist/
+*.egg-info/
+
+# --- Git history (avoids leaking commit metadata into build context) ---
+.git/
+
+# --- Planning and docs (not needed in image; some may contain sensitive context) ---
+.planning/
+
+# --- Test suite (never in runtime image) ---
+tests/
+
+# --- v1 semversioner artifacts ---
+.changes/
+
+# --- v1-only files not used in v2 image build ---
+RELEASING.md
+CHANGELOG.md
+
+# --- Logo assets ---
+logo.png
+logo.pxd
+
+# --- CI configuration (Phase 6 owns the GH Actions release pipeline) ---
+bitbucket-pipelines.yml
+
+# Not COPYd by Dockerfile (v1 legacy, dev tooling, design docs)
+docs/
+Makefile
+pipe/
