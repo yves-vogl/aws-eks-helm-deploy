@@ -22,7 +22,7 @@ jobs:
           fetch-depth: 0  # gitleaks needs full history
 
       - name: Install uv
-        uses: astral-sh/setup-uv@c7f87aa956e4c323abf06d5dec078e358f6b4d04 # v5.4.1 — re-verify SHA before merge
+        uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3.2.4
         with:
           version: "0.11.21"  # pinned to match Dockerfile
 
