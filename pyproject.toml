@@ -26,6 +26,7 @@ dev = [
     "ruff ~= 0.15",
     "mypy ~= 2.1",
     "boto3-stubs[eks,sts]",
+    "types-PyYAML",
     "pytest ~= 9.1",
     "pytest-cov ~= 7.1",
     "pytest-mock ~= 3.15",
