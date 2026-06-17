@@ -88,3 +88,18 @@ def test_main_calls_configure_logging(mocker: MockerFixture) -> None:
     assert main() == 0
     assert mock_cfg.call_count == 1
     assert isinstance(mock_cfg.call_args.args[0], Settings)
+
+
+@pytest.mark.unit
+def test_main_settings_error_returns_nonzero(capsys: pytest.CaptureFixture[str]) -> None:
+    """main() returns non-zero and writes to stderr when Settings() raises."""
+    from unittest.mock import patch
+
+    from aws_eks_helm_deploy.cli import main
+
+    with patch("aws_eks_helm_deploy.cli.Settings", side_effect=RuntimeError("bad env")):
+        result = main()
+
+    assert result != 0
+    captured = capsys.readouterr()
+    assert "Traceback" not in captured.err

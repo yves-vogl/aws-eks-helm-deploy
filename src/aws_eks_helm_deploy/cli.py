@@ -9,6 +9,8 @@ and returns exit code 0. Real ACTION dispatch (upgrade/diff/rollback) lands in P
 
 from __future__ import annotations
 
+import sys
+
 from aws_eks_helm_deploy.errors import PipeError
 from aws_eks_helm_deploy.logging import configure_logging
 from aws_eks_helm_deploy.pipe_io import PipeIO
@@ -22,9 +24,14 @@ def main(argv: list[str] | None = None) -> int:
         argv: Optional argument list (reserved for future flag parsing).
 
     Returns:
-        0 on success, exc.exit_code on PipeError, 99 on unexpected Exception.
+        0 on success, 1 on Settings construction failure, exc.exit_code on PipeError,
+        99 on unexpected Exception.
     """
-    settings = Settings()
+    try:
+        settings = Settings()
+    except Exception as exc:  # noqa: BLE001
+        sys.stderr.write(f"Configuration error: {exc}\n")
+        return 1
     configure_logging(settings)
     pipe = PipeIO()
     try:
@@ -41,6 +48,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    import sys
-
     sys.exit(main())
