@@ -48,3 +48,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: pip-audit
+        name: pip-audit (dependency CVE scan)
+        # CVE-2026-25645 ignored: requests<2.33 pinned by bitbucket-pipes-toolkit==6.2.0;
+        # unblocked when bpt releases >=6.3.0 (see uv tree). Remove once resolved.
+        entry: uv run pip-audit --skip-editable --ignore-vuln CVE-2026-25645
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
