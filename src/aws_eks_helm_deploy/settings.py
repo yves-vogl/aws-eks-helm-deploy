@@ -101,7 +101,10 @@ class Settings(BaseSettings):
     set_values: list[str] = Field(default_factory=list, alias="SET")
     values_files: list[str] = Field(default_factory=list, alias="VALUES")
     wait: bool = Field(default=False, alias="WAIT")
-    timeout: str = Field(default="5m", alias="TIMEOUT")
+    # CONTEXT D2: 600s default per Phase 3 corrections #5 (was "5m")
+    timeout: str = Field(default="600s", alias="TIMEOUT")
+    # CONTEXT D4 / closes #17: unset=no flag; 0=unlimited; N>=1=passthrough; ge=0 rejects negatives
+    history_max: int | None = Field(default=None, ge=0, alias="HISTORY_MAX")
 
     # Action dispatch (v2 new fields)
     action: Literal["upgrade"] = Field(default="upgrade", alias="ACTION")
