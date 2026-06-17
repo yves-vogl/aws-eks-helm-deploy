@@ -1,0 +1,65 @@
+# Security Policy
+
+## Supported versions
+
+| Version | Supported              |
+|---------|------------------------|
+| 2.x     | Yes (active development on `main`) |
+| 1.x     | No (frozen on Docker Hub; security-only patches at maintainer's discretion) |
+
+## Reporting a vulnerability
+
+**Please do not open a public issue for security findings.** GitHub Private Vulnerability Reporting is the canonical disclosure channel for this repository.
+
+To report a vulnerability:
+
+1. Go to the [Security tab](https://github.com/yves-vogl/aws-eks-helm-deploy/security) of this repository.
+2. Click **Report a vulnerability**.
+3. Provide the details (affected version, reproduction steps, impact assessment, proposed mitigation if known).
+
+The maintainer will acknowledge receipt within 5 working days and provide an initial assessment within 14 days.
+
+## Disclosure timeline
+
+We follow a coordinated disclosure model:
+
+- **Day 0:** report received, acknowledgement sent.
+- **Day 0–14:** triage, severity assessment, reproducer confirmation.
+- **Day 14–60:** patch development and testing in a private branch.
+- **Day 60–90:** coordinated disclosure window. Reporter is informed of the fix timeline and credited (unless they request otherwise).
+- **Day 90 (max):** public disclosure via [GitHub Security Advisory](https://github.com/yves-vogl/aws-eks-helm-deploy/security/advisories), CHANGELOG.md entry, and patch release.
+
+If the issue is being actively exploited in the wild, the disclosure window collapses to "as fast as a fix can be safely shipped."
+
+## Scope
+
+In scope:
+
+- The Pipe runtime image published to GHCR (`ghcr.io/yves-vogl/aws-eks-helm-deploy`) for v2.x.
+- The source code in `src/aws_eks_helm_deploy/`, the `Dockerfile`, and CI/CD workflows under `.github/workflows/`.
+- Documented configuration interfaces (environment variables, `pipe.yml`).
+- The build supply chain (`pyproject.toml`, `uv.lock`, `Dockerfile` base-image pins, helm/helm-diff version pins).
+
+Out of scope:
+
+- The v1.x image on Docker Hub (frozen; report v1 issues against the corresponding Bitbucket repository).
+- Vulnerabilities in upstream Helm, Kubernetes, or AWS services themselves (please report to their respective security teams).
+- Consumer misconfiguration (e.g. overly permissive IAM policies on the consumer side).
+- Findings that require physical access to a developer's machine.
+
+## What we do automatically
+
+This repository runs several automated security gates that may catch issues before a manual report is needed:
+
+- **gitleaks** as a pre-commit hook (every commit + every CI run).
+- **pip-audit** on every push (Python dependency CVE scan with stale-ignore detection).
+- **CodeQL** (planned, Tier-2 Scorecard sprint).
+- **OpenSSF Scorecard** weekly (planned, Tier-2 Scorecard sprint).
+- **Trivy** image scanning at build time and on a scheduled cadence (planned, Phase 6).
+- **Dependabot** for `pip`, `docker`, and `github-actions` ecosystems.
+
+If your finding is something one of these tools should have caught and didn't, please mention that in the report — it helps us improve the gate.
+
+## Acknowledgements
+
+Security researchers who report valid issues will be credited in the GitHub Security Advisory and the CHANGELOG.md patch entry (unless they request anonymity).

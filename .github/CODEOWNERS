@@ -1,0 +1,5 @@
+# Code owners for aws-eks-helm-deploy.
+# See https://docs.github.com/en/repositories/managing-your-repositories-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner — applies to everything not covered by a more specific rule below.
+* @yves-vogl
