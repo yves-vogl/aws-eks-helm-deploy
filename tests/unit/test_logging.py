@@ -200,7 +200,7 @@ def test_bind_safe_context_blocks_all_credentials(cred_key: str) -> None:
 def test_bind_safe_context_case_insensitive() -> None:
     """bind_safe_context guard is case-insensitive (AWS_SECRET_ACCESS_KEY blocked)."""
     with pytest.raises(ValueError):
-        bind_safe_context(AWS_SECRET_ACCESS_KEY="secret")  # noqa: S106
+        bind_safe_context(AWS_SECRET_ACCESS_KEY="secret")
 
 
 @pytest.mark.unit
