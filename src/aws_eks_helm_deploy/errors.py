@@ -10,6 +10,7 @@ Exit code reference:
     4  — ChartResolutionError
     5  — HelmError
     6  — HelmTimeoutError
+    7  — KubeconfigError
 """
 
 from __future__ import annotations
@@ -77,3 +78,9 @@ class EksTokenError(PipeError):
     """
 
     exit_code = 3
+
+
+class KubeconfigError(PipeError):
+    """Failed to write the EKS kubeconfig tempfile (disk full, permissions, etc.). Exit code 7."""
+
+    exit_code = 7
