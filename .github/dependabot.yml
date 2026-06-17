@@ -1,0 +1,72 @@
+version: 2
+
+# Commit-message prefix convention — see .planning/REQUIREMENTS.md SEC-08.
+# Using `prefix: "fix"` so that a base-image digest bump or a transitive dep
+# patch becomes `fix(deps): bump ...`, which release-please reads as a patch
+# bump and triggers a fresh release publishing a freshly-scanned image.
+# `prefix-development` covers dev-only group bumps (no production impact).
+
+updates:
+  # Python dependencies (pyproject.toml + uv.lock).
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "fix"
+      prefix-development: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "python"
+    groups:
+      python-runtime:
+        applies-to: version-updates
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      python-dev:
+        applies-to: version-updates
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Dockerfile base images and build-stage references (including digest pins
+  # once SEC-03 / Tier-2 lands).
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "fix"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "docker"
+
+  # GitHub Actions used by .github/workflows/*.yml — pinned to SHA digests
+  # per the sec-13 Round-3 audit finding; Dependabot keeps the pins current.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "ci"
