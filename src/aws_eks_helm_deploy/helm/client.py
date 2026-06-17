@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Final
 from aws_eks_helm_deploy.errors import HelmExecutionError, HelmTimeoutError
 
 if TYPE_CHECKING:
-    from aws_eks_helm_deploy.chart.local import ResolvedChart  # type: ignore[import-untyped]
+    from aws_eks_helm_deploy.chart.local import ResolvedChart
 
 # ---------------------------------------------------------------------------
 # Module constants
