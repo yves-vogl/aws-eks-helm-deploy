@@ -31,10 +31,14 @@ RUN apt-get update \
 ARG HELM_VERSION
 
 # linux/amd64 explicitly for Phase 1; multi-arch native-runner matrix lands in Phase 6
-RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
-    | tar -xz -C /tmp \
+# Download Helm tarball + SHA256 checksum and verify integrity before extraction (sec-14)
+RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" -o /tmp/helm.tar.gz \
+    && curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" -o /tmp/helm.sha256 \
+    && cd /tmp && sha256sum -c helm.sha256 \
+    && tar -xz -C /tmp -f helm.tar.gz \
     && mv /tmp/linux-amd64/helm /helm \
-    && chmod +x /helm
+    && chmod +x /helm \
+    && rm -rf /tmp/helm.tar.gz /tmp/helm.sha256 /tmp/linux-amd64
 
 # ── Stage 3: Runtime image ────────────────────────────────────────────────────
 FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
