@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1.7
 ARG PYTHON_VERSION=3.13
+ARG UV_VERSION=0.11.21
 ARG HELM_VERSION=3.18.6
 ARG HELM_DIFF_VERSION=3.10.0
 
@@ -7,7 +8,7 @@ ARG HELM_DIFF_VERSION=3.10.0
 FROM python:${PYTHON_VERSION}-slim-bookworm AS builder
 
 # Copy uv from the official Astral image — no curl/install needed
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /uvx /bin/
 
 WORKDIR /build
 

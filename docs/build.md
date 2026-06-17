@@ -157,6 +157,12 @@ required annotation keys rather than duplicating the list.
 
 ---
 
+## uv version pin
+
+uv is pinned to a specific minor for reproducibility; Dependabot bumps in Phase 6 will keep it current.
+
+---
+
 ## Acceptance check
 
 The automated image smoke tests live in `tests/acceptance/test_image_smoke.py` (Plan B).
