@@ -1,0 +1,410 @@
+"""subprocess-mocked tests for HelmClient.upgrade_install + HelmClient.history.
+
+Covers exit-code mapping (HelmExecutionError exit=5, HelmTimeoutError exit=6),
+32 KB stderr truncation, REVISION:\\s*(\\d+) parsing, helm history JSON parsing,
+and subprocess argv contract. Uses pytest-mock's ``mocker`` fixture.
+
+Patch target: ``aws_eks_helm_deploy.helm.client.subprocess.run`` — patches the
+subprocess module as imported inside helm/client.py (more reliable than patching
+the global ``subprocess.run``).
+"""
+
+from __future__ import annotations
+
+import pathlib
+import subprocess
+from subprocess import CompletedProcess
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
+
+from aws_eks_helm_deploy.errors import HelmExecutionError, HelmTimeoutError
+from aws_eks_helm_deploy.helm.client import (
+    STDERR_MAX_BYTES,
+    TRUNCATION_MARKER,
+    HelmClient,
+    HelmRevision,
+    _parse_timeout,
+)
+
+_PATCH_TARGET = "aws_eks_helm_deploy.helm.client.subprocess.run"
+
+
+def _client() -> HelmClient:
+    return HelmClient(kubeconfig_path=pathlib.Path("/tmp/test-kubeconfig.yaml"))
+
+
+def _stub_chart(source_path: str = "/charts/minimal") -> Any:
+    """Duck-typed substitute for ResolvedChart (lands in Plan 03-03)."""
+    return SimpleNamespace(
+        name="minimal",
+        version="0.1.0",
+        source_path=pathlib.Path(source_path),
+    )
+
+
+# ---------------------------------------------------------------------------
+# upgrade_install — happy path + revision parsing
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_upgrade_install_returns_helm_result_with_revision(mocker: Any) -> None:
+    """Happy path: returncode=0 parses REVISION from stdout into HelmResult."""
+    stdout = (
+        'Release "r" has been upgraded. Happy Helming!\n'
+        "NAME: r\n"
+        "NAMESPACE: default\n"
+        "REVISION: 3\n"
+        "STATUS: deployed"
+    )
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout=stdout, stderr=""),
+    )
+    result = _client().upgrade_install("r", _stub_chart(), "default", [], [], None, "600s")
+    assert result.returncode == 0
+    assert result.revision == 3
+    assert "Release" in result.stdout
+    assert result.stderr == ""
+
+
+@pytest.mark.unit
+def test_upgrade_install_revision_none_when_not_in_stdout(mocker: Any) -> None:
+    """If stdout has no REVISION: line, HelmResult.revision is None."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[], returncode=0, stdout="some output without REVISION line", stderr=""
+        ),
+    )
+    result = _client().upgrade_install("r", _stub_chart(), "default", [], [], None, "600s")
+    assert result.revision is None
+
+
+# ---------------------------------------------------------------------------
+# upgrade_install — non-zero returncode
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_upgrade_install_non_zero_returncode_raises_helm_execution_error(mocker: Any) -> None:
+    """returncode=1 raises HelmExecutionError with exit_code=5 and message details."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[],
+            returncode=1,
+            stdout="",
+            stderr="Error: UPGRADE FAILED: template error",
+        ),
+    )
+    with pytest.raises(HelmExecutionError) as exc_info:
+        _client().upgrade_install("r", _stub_chart(), "default", [], [], None, "600s")
+    assert exc_info.value.exit_code == 5
+    assert "returned 1" in str(exc_info.value)
+    assert "template error" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_upgrade_install_returncode_2_also_raises(mocker: Any) -> None:
+    """Any non-zero returncode raises HelmExecutionError (covers the branch broadly)."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=2, stdout="", stderr="Error: bad"),
+    )
+    with pytest.raises(HelmExecutionError):
+        _client().upgrade_install("r", _stub_chart(), "default", [], [], None, "600s")
+
+
+# ---------------------------------------------------------------------------
+# upgrade_install — timeout
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_upgrade_install_timeout_raises_helm_timeout_error(mocker: Any) -> None:
+    """subprocess.TimeoutExpired maps to HelmTimeoutError with exit_code=6."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(cmd=["helm"], timeout=600),
+    )
+    with pytest.raises(HelmTimeoutError) as exc_info:
+        _client().upgrade_install("r", _stub_chart(), "default", [], [], None, "600s")
+    assert exc_info.value.exit_code == 6
+    assert "600" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_upgrade_install_timeout_includes_partial_stderr_when_present(mocker: Any) -> None:
+    """When TimeoutExpired.stderr has bytes, they appear in the HelmTimeoutError message."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(
+            cmd=["helm"],
+            timeout=60,
+            output=None,
+            stderr=b"partial error log line",
+        ),
+    )
+    with pytest.raises(HelmTimeoutError) as exc_info:
+        _client().upgrade_install("r", _stub_chart(), "default", [], [], None, "60s")
+    assert "partial error log line" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_upgrade_install_timeout_with_none_stderr_does_not_crash(mocker: Any) -> None:
+    """TimeoutExpired with stderr=None raises HelmTimeoutError without secondary exception."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(cmd=["helm"], timeout=600, stderr=None),
+    )
+    with pytest.raises(HelmTimeoutError):
+        _client().upgrade_install("r", _stub_chart(), "default", [], [], None, "600s")
+
+
+# ---------------------------------------------------------------------------
+# upgrade_install — 32 KB stderr truncation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_upgrade_install_truncates_stderr_when_over_32kb(mocker: Any) -> None:
+    """stderr > 32 KB is truncated to last 32 KB with TRUNCATION_MARKER prefix."""
+    big_stderr = "x" * (33 * 1024)
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="OK\nREVISION: 1",
+            stderr=big_stderr,
+        ),
+    )
+    result = _client().upgrade_install("r", _stub_chart(), "default", [], [], None, "600s")
+    assert result.stderr.startswith(TRUNCATION_MARKER)
+    assert len(result.stderr) <= STDERR_MAX_BYTES + len(TRUNCATION_MARKER)
+
+
+@pytest.mark.unit
+def test_upgrade_install_does_not_truncate_when_stderr_under_32kb(mocker: Any) -> None:
+    """Short stderr is returned unchanged (no TRUNCATION_MARKER)."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[], returncode=0, stdout="OK\nREVISION: 2", stderr="short"
+        ),
+    )
+    result = _client().upgrade_install("r", _stub_chart(), "default", [], [], None, "600s")
+    assert result.stderr == "short"
+
+
+@pytest.mark.unit
+def test_upgrade_install_truncates_stderr_on_error_path_too(mocker: Any) -> None:
+    """Truncation applies on failure path too (returncode=1 with big stderr)."""
+    big_stderr = "y" * (33 * 1024)
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=1, stdout="", stderr=big_stderr),
+    )
+    with pytest.raises(HelmExecutionError) as exc_info:
+        _client().upgrade_install("r", _stub_chart(), "default", [], [], None, "600s")
+    assert TRUNCATION_MARKER in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# upgrade_install — subprocess argv contract
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_upgrade_install_invokes_subprocess_run_with_correct_argv(mocker: Any) -> None:
+    """subprocess.run is called with the exact argv, timeout, and flags."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="REVISION: 1", stderr=""),
+    )
+    _client().upgrade_install("rel", _stub_chart(), "ns", ["v.yaml"], ["k=v"], 5, "300s")
+    expected_argv = [
+        "helm",
+        "upgrade",
+        "rel",
+        "/charts/minimal",
+        "--install",
+        "--namespace",
+        "ns",
+        "--kubeconfig",
+        "/tmp/test-kubeconfig.yaml",
+        "--timeout",
+        "300s",
+        "--values",
+        "v.yaml",
+        "--set-string",
+        "k=v",
+        "--history-max",
+        "5",
+    ]
+    assert mock_run.call_args.args[0] == expected_argv
+    assert mock_run.call_args.kwargs["timeout"] == 300
+    assert mock_run.call_args.kwargs["check"] is False
+    assert mock_run.call_args.kwargs["capture_output"] is True
+    assert mock_run.call_args.kwargs["text"] is True
+
+
+@pytest.mark.unit
+def test_upgrade_install_passes_env_os_environ_copy(
+    mocker: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """subprocess.run receives env=os.environ.copy() including test-injected vars."""
+    monkeypatch.setenv("MY_TEST_VAR", "testvalue42")
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="REVISION: 1", stderr=""),
+    )
+    _client().upgrade_install("r", _stub_chart(), "default", [], [], None, "600s")
+    env_passed = mock_run.call_args.kwargs["env"]
+    assert isinstance(env_passed, dict)
+    assert "MY_TEST_VAR" in env_passed
+    assert env_passed["MY_TEST_VAR"] == "testvalue42"
+
+
+# ---------------------------------------------------------------------------
+# _parse_timeout helper
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_parse_timeout_seconds_only() -> None:
+    assert _parse_timeout("600s") == 600
+
+
+@pytest.mark.unit
+def test_parse_timeout_minutes_only() -> None:
+    assert _parse_timeout("10m") == 600
+
+
+@pytest.mark.unit
+def test_parse_timeout_hours_only() -> None:
+    assert _parse_timeout("1h") == 3600
+
+
+@pytest.mark.unit
+def test_parse_timeout_combined() -> None:
+    assert _parse_timeout("5m30s") == 330
+
+
+@pytest.mark.unit
+def test_parse_timeout_hours_minutes() -> None:
+    assert _parse_timeout("1h30m") == 5400
+
+
+@pytest.mark.unit
+def test_parse_timeout_invalid_raises_value_error() -> None:
+    with pytest.raises(ValueError, match="invalid timeout"):
+        _parse_timeout("garbage")
+
+
+@pytest.mark.unit
+def test_parse_timeout_empty_raises_value_error() -> None:
+    with pytest.raises(ValueError, match="invalid timeout"):
+        _parse_timeout("")
+
+
+@pytest.mark.unit
+def test_parse_timeout_zero_raises_value_error() -> None:
+    """A duration that sums to zero seconds is invalid (e.g. "0s")."""
+    with pytest.raises(ValueError, match="invalid timeout"):
+        _parse_timeout("0s")
+
+
+# ---------------------------------------------------------------------------
+# history method
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_history_parses_json_into_helm_revision_list(mocker: Any) -> None:
+    """helm history -o json is parsed into a list[HelmRevision]."""
+    json_stdout = (
+        '[{"revision": 1, "status": "superseded", "chart": "minimal-0.1.0", '
+        '"description": "Install", "updated": "2026-01-01T00:00:00Z", "app_version": ""},'
+        ' {"revision": 2, "status": "deployed", "chart": "minimal-0.1.0", '
+        '"description": "Upgrade", "updated": "2026-01-02T00:00:00Z", "app_version": ""}]'
+    )
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout=json_stdout, stderr=""),
+    )
+    result = _client().history("rel", "ns")
+    assert len(result) == 2
+    assert result[0].revision == 1
+    assert result[0].status == "superseded"
+    assert result[1].status == "deployed"
+
+
+@pytest.mark.unit
+def test_history_invokes_correct_argv(mocker: Any) -> None:
+    """helm history is called with the exact argv."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="[]", stderr=""),
+    )
+    _client().history("rel", "ns")
+    expected_argv = [
+        "helm",
+        "history",
+        "rel",
+        "-n",
+        "ns",
+        "-o",
+        "json",
+        "--kubeconfig",
+        "/tmp/test-kubeconfig.yaml",
+    ]
+    assert mock_run.call_args.args[0] == expected_argv
+
+
+@pytest.mark.unit
+def test_history_non_zero_returncode_raises_helm_execution_error(mocker: Any) -> None:
+    """returncode=1 from helm history raises HelmExecutionError with exit_code=5."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="Error: release: not found"
+        ),
+    )
+    with pytest.raises(HelmExecutionError) as exc_info:
+        _client().history("rel", "ns")
+    assert exc_info.value.exit_code == 5
+
+
+@pytest.mark.unit
+def test_history_empty_list(mocker: Any) -> None:
+    """stdout=[] returns an empty list without error."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="[]", stderr=""),
+    )
+    result = _client().history("rel", "ns")
+    assert result == []
+
+
+@pytest.mark.unit
+def test_history_returns_helm_revision_instances(mocker: Any) -> None:
+    """Each item in the returned list is a HelmRevision frozen dataclass instance."""
+    json_stdout = (
+        '[{"revision": 5, "status": "deployed", "chart": "app-1.2.3",'
+        ' "description": "Upgrade complete", "updated": "2026-01-01T00:00:00Z",'
+        ' "app_version": "1.0"}]'
+    )
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout=json_stdout, stderr=""),
+    )
+    result = _client().history("rel", "default")
+    assert len(result) == 1
+    assert isinstance(result[0], HelmRevision)
+    assert result[0].revision == 5
+    assert result[0].chart == "app-1.2.3"
+    assert result[0].description == "Upgrade complete"
