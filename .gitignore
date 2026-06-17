@@ -20,3 +20,18 @@ dist/
 
 # macOS
 .DS_Store
+
+# Secrets — defense in depth (gitleaks is the primary gate)
+.env
+.env.*
+*.pem
+*.key
+*.crt
+id_rsa
+id_rsa.*
+id_ecdsa
+id_ecdsa.*
+id_ed25519
+id_ed25519.*
+.aws/credentials
+.aws/config
