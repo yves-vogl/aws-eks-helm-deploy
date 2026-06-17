@@ -8,7 +8,7 @@ Exit code reference:
     2  — AuthenticationError
     3  — ClusterAccessError / EksTokenError (shared — both are EKS-reach failures)
     4  — ChartResolutionError
-    5  — HelmError
+    5  — HelmExecutionError (alias: HelmError)
     6  — HelmTimeoutError
     7  — KubeconfigError
 """
@@ -56,8 +56,11 @@ class ChartResolutionError(PipeError):
     exit_code = 4
 
 
-class HelmError(PipeError):
-    """helm exited non-zero. Exit code 5."""
+class HelmExecutionError(PipeError):
+    """helm subprocess exited non-zero. Exit code 5.
+
+    Canonical name; ``HelmError`` is retained as a backward-compat alias.
+    """
 
     exit_code = 5
 
@@ -84,3 +87,8 @@ class KubeconfigError(PipeError):
     """Failed to write the EKS kubeconfig tempfile (disk full, permissions, etc.). Exit code 7."""
 
     exit_code = 7
+
+
+# Backward-compat alias: any existing import `from aws_eks_helm_deploy.errors import HelmError`
+# continues to resolve to the same class object. `HelmError is HelmExecutionError` is True.
+HelmError = HelmExecutionError

@@ -18,6 +18,7 @@ from aws_eks_helm_deploy.errors import (
     ConfigurationError,
     EksTokenError,
     HelmError,
+    HelmExecutionError,
     HelmTimeoutError,
     KubeconfigError,
     PipeError,
@@ -74,3 +75,16 @@ def test_kubeconfig_error_exit_code() -> None:
 def test_kubeconfig_error_custom_exit_code() -> None:
     """A custom exit_code passed to KubeconfigError overrides the class default."""
     assert KubeconfigError("x", exit_code=42).exit_code == 42
+
+
+@pytest.mark.unit
+def test_helm_execution_error_exit_code() -> None:
+    """HelmExecutionError carries exit code 5 and is a PipeError subclass."""
+    assert HelmExecutionError("x").exit_code == 5
+    assert isinstance(HelmExecutionError("x"), PipeError)
+
+
+@pytest.mark.unit
+def test_helm_error_alias_identity() -> None:
+    """HelmError is the backward-compat alias for HelmExecutionError (same class object)."""
+    assert HelmError is HelmExecutionError
