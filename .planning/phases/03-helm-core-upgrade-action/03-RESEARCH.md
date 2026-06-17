@@ -1278,7 +1278,7 @@ def test_upgrade_argv_full(snapshot):
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **HELM_TIMEOUT as public pipe variable?**
    - What we know: Phase 2/1 already use `TIMEOUT=5m` in Settings for a different field (`settings.timeout: str`). Phase 3 adds `helm_timeout: str = Field(default="600s", alias="HELM_TIMEOUT")`.
