@@ -74,6 +74,14 @@ RUN helm plugin install \
 # Verify helm-diff is reachable as pipe user — build fails early if Pitfall 4 recurs
 RUN helm diff version
 
+# Purge curl — no longer needed after plugin install (sec-02)
+# ca-certificates and git are retained: git is used by helm-diff for plugin updates
+USER root
+RUN apt-get purge -y curl \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+USER pipe
+
 WORKDIR /home/pipe
 
 # OCI annotations are attached via 'docker buildx build --annotation manifest:org.opencontainers.image.*=...'

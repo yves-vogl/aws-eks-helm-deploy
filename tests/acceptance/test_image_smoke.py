@@ -96,3 +96,15 @@ def test_help_exits_without_traceback(built_image: str) -> None:
     assert "Traceback" not in result.stderr, (
         f"Python traceback found on stderr — cli.main() must catch all exceptions:\n{result.stderr}"
     )
+
+
+@pytest.mark.acceptance
+def test_curl_purged_from_runtime_image(built_image: str) -> None:
+    """curl must not be present in the runtime image (sec-02)."""
+    result = subprocess.run(
+        ["docker", "run", "--rm", "--entrypoint", "which", built_image, "curl"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode != 0, "curl should not be present in the runtime image"
