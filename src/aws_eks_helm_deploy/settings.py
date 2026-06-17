@@ -21,7 +21,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 from pydantic.fields import FieldInfo
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 from pydantic_settings.sources.providers.env import EnvSettingsSource
 
 
@@ -66,6 +66,7 @@ class Settings(BaseSettings):
         env_file=None,
         case_sensitive=True,
         extra="ignore",
+        populate_by_name=True,
     )
 
     # AWS credentials (required at runtime in Phase 2+; optional in Phase 1 skeleton)
@@ -100,10 +101,18 @@ class Settings(BaseSettings):
     inject_bitbucket_metadata: bool = Field(default=False, alias="INJECT_BITBUCKET_METADATA")
 
     @classmethod
-    def settings_customise_sources(  # type: ignore[override]
+    def settings_customise_sources(
         cls,
         settings_cls: type[BaseSettings],
-        **kwargs: Any,  # noqa: ANN401
-    ) -> tuple[Any, ...]:
-        """Replace EnvSettingsSource with _CommaListEnvSource."""
-        return (_CommaListEnvSource(settings_cls),)
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        """Replace EnvSettingsSource with _CommaListEnvSource; restore all standard sources."""
+        return (
+            init_settings,
+            _CommaListEnvSource(settings_cls),
+            dotenv_settings,
+            file_secret_settings,
+        )

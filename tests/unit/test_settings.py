@@ -168,6 +168,13 @@ def test_comma_list_env_source_passes_through_non_string_value() -> None:
 
 
 @pytest.mark.unit
+def test_settings_accepts_init_kwargs() -> None:
+    """Settings(aws_region='us-west-2') honors the kwarg even without env var."""
+    s = Settings(aws_region="us-west-2")
+    assert s.aws_region == "us-west-2"
+
+
+@pytest.mark.unit
 def test_settings_namespace_v1_bug_fixed() -> None:
     """Regression: NAMESPACE default must be 'default', not 'kube-public'.
 
