@@ -1,4 +1,4 @@
-FROM alpine/helm:3.15.1 as helm
+FROM alpine/helm:4.2.1 as helm
 RUN chown root:root /usr/bin/helm
 
 FROM python:3-alpine
