@@ -17,6 +17,7 @@ repos:
         pass_filenames: false
         files: ^src/
         additional_dependencies:
+          - bitbucket-pipes-toolkit
           - boto3-stubs[eks,sts]
           - pydantic-settings
           - structlog
