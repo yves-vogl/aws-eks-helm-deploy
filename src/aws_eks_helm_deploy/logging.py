@@ -41,6 +41,8 @@ CREDENTIAL_BLOCKLIST: frozenset[str] = frozenset(
         "bitbucket_step_oidc_token",
         "bitbucket_token",
         "registry_password",
+        "registry_username",
+        "role_arn",  # not a credential but discloses AWS account topology
     }
 )
 
