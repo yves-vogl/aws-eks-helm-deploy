@@ -180,6 +180,22 @@ def test_comma_list_source_handles_optional_list_str() -> None:
 
 
 @pytest.mark.unit
+def test_set_values_handles_bracket_prefixed_csv(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SET='[a,b]' falls back to CSV split when json.loads fails."""
+    monkeypatch.setenv("SET", "[a,b]")
+    s = Settings()
+    assert s.set_values == ["[a", "b]"]
+
+
+@pytest.mark.unit
+def test_set_values_handles_invalid_quoted_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SET='["a"' (unclosed JSON array) falls through to CSV split."""
+    monkeypatch.setenv("SET", '["a"')
+    s = Settings()
+    assert s.set_values == ['["a"']
+
+
+@pytest.mark.unit
 def test_settings_accepts_init_kwargs() -> None:
     """Settings(aws_region='us-west-2') honors the kwarg even without env var."""
     s = Settings(aws_region="us-west-2")

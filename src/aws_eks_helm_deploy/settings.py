@@ -62,7 +62,10 @@ class _CommaListEnvSource(EnvSettingsSource):
                 if value == "":
                     return []
                 if value.startswith("["):
-                    return json.loads(value)
+                    try:
+                        return json.loads(value)
+                    except json.JSONDecodeError:
+                        pass
                 return [item.strip() for item in value.split(",") if item.strip()]
             return super().decode_complex_value(field_name, field, value)
         # Non-string values (e.g. already-parsed lists) are passed through as-is.
