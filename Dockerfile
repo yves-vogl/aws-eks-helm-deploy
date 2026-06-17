@@ -4,13 +4,21 @@ ARG UV_VERSION=0.11.21
 ARG HELM_VERSION=3.18.6
 ARG HELM_DIFF_VERSION=3.10.0
 
+# Base image digests — pinned for reproducible builds and supply-chain safety.
+# Dependabot's `docker` ecosystem (.github/dependabot.yml) keeps these current
+# weekly; bumps land as `fix(deps):` commits which release-please reads as a
+# patch bump and triggers a fresh image publish.
+# Resolve via: docker buildx imagetools inspect <image>:<tag>
+ARG PYTHON_BASE_DIGEST=sha256:05b95397cac02b060ff1251afaa78087d92d7034369afbc8eb765631cada8257
+ARG DEBIAN_BASE_DIGEST=sha256:96e378d7e6531ac9a15ad505478fcc2e69f371b10f5cdf87857c4b8188404716
+
 # ── Stage 0: uv binary source ────────────────────────────────────────────────
 # Named stage required: Docker does not support ARG interpolation in COPY --from
 # when referencing an external image directly (only stage names are interpolated).
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv-source
 
 # ── Stage 1: Python dependency builder ───────────────────────────────────────
-FROM python:${PYTHON_VERSION}-slim-bookworm AS builder
+FROM python:${PYTHON_VERSION}-slim-bookworm@${PYTHON_BASE_DIGEST} AS builder
 
 # Copy uv from the named uv-source stage — ARG-safe and BuildKit-compatible
 COPY --from=uv-source /uv /uvx /bin/
@@ -27,7 +35,7 @@ COPY src ./src
 RUN uv sync --frozen --no-dev --no-editable --compile-bytecode
 
 # ── Stage 2: Helm binary fetch ────────────────────────────────────────────────
-FROM debian:bookworm-slim AS helm-fetch
+FROM debian:bookworm-slim@${DEBIAN_BASE_DIGEST} AS helm-fetch
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates \
@@ -53,7 +61,7 @@ RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
               linux-amd64
 
 # ── Stage 3: Runtime image ────────────────────────────────────────────────────
-FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
+FROM python:${PYTHON_VERSION}-slim-bookworm@${PYTHON_BASE_DIGEST} AS runtime
 
 ARG HELM_DIFF_VERSION
 

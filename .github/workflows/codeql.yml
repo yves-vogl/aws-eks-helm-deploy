@@ -1,0 +1,48 @@
+# CodeQL static analysis — covers Python source under src/.
+# Findings appear in the Security tab → Code scanning alerts.
+# Weekly schedule catches new CodeQL queries; on-push catches regressions.
+name: codeql
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Mondays 07:00 UTC — separate hour from scorecard.yml to avoid collision.
+    - cron: '0 7 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+  # actions: read needed for CodeQL to find workflows when analysing actions.
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: analyze (python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
+        with:
+          languages: python
+          # default + security-extended for stricter coverage; matches Scorecard
+          # expectation that SAST runs on every PR.
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
+        with:
+          category: "/language:python"

@@ -1,0 +1,59 @@
+# OpenSSF Scorecard — supply-chain hygiene gate, scores 18 checks.
+# Results upload to GitHub Code Scanning (Security tab) and to the public
+# Scorecard API at https://api.securityscorecards.dev so the README badge
+# renders a live score.
+#
+# Target: >=9/10 at v2.0 tag-cut (see .planning/proposals/scorecard-hardening-sprint.md).
+name: scorecard
+
+on:
+  branch_protection_rule:
+  push:
+    branches: [main]
+  schedule:
+    # Mondays 06:00 UTC — runs before codeql.yml to avoid runner contention.
+    - cron: '0 6 * * 1'
+
+# Scorecard needs id-token for OIDC publishing to the Scorecard API
+# (without it, the score isn't published publicly).
+permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analysis:
+    name: scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write
+      id-token: write
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard analysis
+        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Publish to api.securityscorecards.dev so the README badge resolves.
+          publish_results: true
+
+      - name: Upload SARIF artifact (workflow viewable)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: scorecard-sarif
+          path: results.sarif
+          retention-days: 7
+
+      - name: Upload SARIF to Code Scanning
+        uses: github/codeql-action/upload-sarif@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
+        with:
+          sarif_file: results.sarif
