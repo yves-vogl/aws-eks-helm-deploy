@@ -14,12 +14,13 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pytest_mock import MockerFixture
 
 from aws_eks_helm_deploy.pipe_io import PipeIO
 
 
 @pytest.mark.unit
-def test_success_delegates_to_toolkit(mocker: MagicMock) -> None:
+def test_success_delegates_to_toolkit(mocker: MockerFixture) -> None:
     """PipeIO.success() calls the toolkit Pipe.success() with the correct message."""
     mock_pipe_instance = MagicMock()
     mocker.patch(
@@ -34,7 +35,7 @@ def test_success_delegates_to_toolkit(mocker: MagicMock) -> None:
 
 
 @pytest.mark.unit
-def test_fail_delegates_to_toolkit(mocker: MagicMock) -> None:
+def test_fail_delegates_to_toolkit(mocker: MockerFixture) -> None:
     """PipeIO.fail() calls the toolkit Pipe.fail() with the correct message."""
     mock_pipe_instance = MagicMock()
     mocker.patch(
@@ -49,7 +50,7 @@ def test_fail_delegates_to_toolkit(mocker: MagicMock) -> None:
 
 
 @pytest.mark.unit
-def test_pipe_lazy_init(mocker: MagicMock) -> None:
+def test_pipe_lazy_init() -> None:
     """Pipe is only instantiated on first call, not at PipeIO.__init__."""
     with patch("aws_eks_helm_deploy.pipe_io.Pipe") as mock_pipe_cls:
         mock_pipe_cls.return_value = MagicMock()
