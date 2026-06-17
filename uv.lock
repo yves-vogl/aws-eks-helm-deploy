@@ -71,6 +71,7 @@ dependencies = [
 [package.dev-dependencies]
 acceptance = [
     { name = "pytest" },
+    { name = "pytest-timeout" },
 ]
 dev = [
     { name = "boto3-stubs", extra = ["eks", "sts"] },
@@ -89,6 +90,7 @@ dev = [
 integration = [
     { name = "pytest" },
     { name = "pytest-mock" },
+    { name = "pytest-timeout" },
 ]
 
 [package.metadata]
@@ -102,7 +104,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-acceptance = [{ name = "pytest", specifier = "~=9.1" }]
+acceptance = [
+    { name = "pytest", specifier = "~=9.1" },
+    { name = "pytest-timeout", specifier = "~=2.4" },
+]
 dev = [
     { name = "boto3-stubs", extras = ["eks", "sts"] },
     { name = "coverage", extras = ["toml"], specifier = "~=7.14" },
@@ -120,6 +125,7 @@ dev = [
 integration = [
     { name = "pytest", specifier = "~=9.1" },
     { name = "pytest-mock", specifier = "~=3.15" },
+    { name = "pytest-timeout", specifier = "~=2.4" },
 ]
 
 [[package]]
