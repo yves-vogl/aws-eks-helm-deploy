@@ -45,6 +45,7 @@ def built_image() -> Iterator[str]:
             check=True,
             capture_output=True,
             text=True,
+            timeout=600,
         )
     except subprocess.CalledProcessError as exc:
         pytest.skip(f"docker build failed (Dockerfile may not be available yet): {exc.stderr}")
@@ -56,4 +57,5 @@ def built_image() -> Iterator[str]:
             ["docker", "rmi", _IMAGE_TAG],
             check=False,
             capture_output=True,
+            timeout=60,
         )

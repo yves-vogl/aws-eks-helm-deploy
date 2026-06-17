@@ -48,6 +48,7 @@ def test_image_runs_as_nonroot(built_image: str) -> None:
         ],
         capture_output=True,
         text=True,
+        timeout=30,
     )
     assert result.returncode == 0, f"Expected non-root uid — got:\n{result.stderr}"
 
@@ -65,6 +66,7 @@ def test_image_uid_is_at_least_10000(built_image: str) -> None:
         ["docker", "run", "--rm", "--entrypoint", "id", built_image, "-u"],
         capture_output=True,
         text=True,
+        timeout=30,
     )
     assert result.returncode == 0, f"id -u failed:\n{result.stderr}"
     uid = int(result.stdout.strip())
@@ -89,6 +91,7 @@ def test_help_exits_without_traceback(built_image: str) -> None:
         ["docker", "run", "--rm", built_image],
         capture_output=True,
         text=True,
+        timeout=30,
     )
     assert "Traceback" not in result.stderr, (
         f"Python traceback found on stderr — cli.main() must catch all exceptions:\n{result.stderr}"

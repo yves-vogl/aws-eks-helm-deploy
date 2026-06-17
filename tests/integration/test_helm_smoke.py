@@ -33,6 +33,7 @@ def test_helm_version_in_cluster(kind_cluster: str) -> None:
         ["helm", "version", "--short"],
         capture_output=True,
         text=True,
+        timeout=30,
     )
     assert result.returncode == 0, f"helm version --short failed:\n{result.stderr}"
     assert "v3." in result.stdout, f"Expected 'v3.' in helm version output, got: {result.stdout!r}"

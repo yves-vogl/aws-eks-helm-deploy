@@ -40,6 +40,7 @@ def kind_cluster() -> Iterator[str]:
             check=True,
             capture_output=True,
             text=True,
+            timeout=180,
         )
     except subprocess.CalledProcessError as exc:
         pytest.skip(f"kind cluster creation failed: {exc.stderr}")
@@ -51,4 +52,5 @@ def kind_cluster() -> Iterator[str]:
             ["kind", "delete", "cluster", "--name", _CLUSTER_NAME],
             check=False,
             capture_output=True,
+            timeout=60,
         )
