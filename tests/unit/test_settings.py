@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from aws_eks_helm_deploy.settings import Settings
+from aws_eks_helm_deploy.settings import Settings, _CommaListEnvSource
 
 
 @pytest.mark.unit
@@ -126,6 +126,45 @@ def test_invalid_action_raises_validation_error(monkeypatch: pytest.MonkeyPatch)
         Settings()
     # pydantic reports the alias (ACTION) in the error message
     assert "ACTION" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_comma_list_env_source_falls_through_for_non_list_annotation() -> None:
+    """_CommaListEnvSource.decode_complex_value delegates to super() for non-list fields.
+
+    When field.annotation.__origin__ is not list (e.g., a dict field or a plain
+    string-typed field), the custom source must not intercept the value and must
+    delegate to the parent EnvSettingsSource.decode_complex_value.
+    """
+    from unittest.mock import MagicMock
+
+    source = _CommaListEnvSource(Settings)
+    # Simulate a field whose annotation has __origin__ == dict (not list)
+    field = MagicMock()
+    field.annotation = dict[str, str]
+
+    # dict values are expected to be JSON-parseable; a plain JSON dict string
+    # should fall through to the parent implementation (json.loads)
+    result = source.decode_complex_value("some_field", field, '{"a": "b"}')
+    assert result == {"a": "b"}
+
+
+@pytest.mark.unit
+def test_comma_list_env_source_passes_through_non_string_value() -> None:
+    """_CommaListEnvSource.decode_complex_value returns non-string values unchanged.
+
+    When the value is already a list (e.g., from explode_env_vars), the custom
+    source must bypass all str-splitting logic and return the value as-is.
+    """
+    from unittest.mock import MagicMock
+
+    source = _CommaListEnvSource(Settings)
+    # list[str] annotation — but value is already a list, not a str
+    field = MagicMock()
+    field.annotation = list[str]
+
+    result = source.decode_complex_value("set_values", field, ["already", "parsed"])
+    assert result == ["already", "parsed"]
 
 
 @pytest.mark.unit
