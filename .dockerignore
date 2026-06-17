@@ -43,3 +43,8 @@ logo.pxd
 
 # --- CI configuration (Phase 6 owns the GH Actions release pipeline) ---
 bitbucket-pipelines.yml
+
+# Not COPYd by Dockerfile (v1 legacy, dev tooling, design docs)
+docs/
+Makefile
+pipe/
