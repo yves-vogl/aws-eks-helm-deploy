@@ -17,7 +17,8 @@ Breaking change from v1:
 from __future__ import annotations
 
 import json
-from typing import Any, Literal
+import types
+from typing import Any, Literal, Union, get_args, get_origin
 
 from pydantic import Field
 from pydantic.fields import FieldInfo
@@ -44,11 +45,20 @@ class _CommaListEnvSource(EnvSettingsSource):
         field: FieldInfo,
         value: Any,  # noqa: ANN401
     ) -> Any:  # noqa: ANN401
-        """Decode env value for complex fields, accepting comma-separated lists."""
+        """Decode env value for complex fields, accepting comma-separated lists.
+
+        Handles list[str] and Optional[list[str]] (Union[list[str], None]) field annotations.
+        """
         if isinstance(value, str) and field.annotation is not None:
-            # Resolve annotation (handles `list[str]` and `Optional[list[str]]`)
-            origin = getattr(field.annotation, "__origin__", None)
-            if origin is list:
+            annotation = field.annotation
+            origin = get_origin(annotation)
+            # Unwrap Optional[list[str]]: handles both typing.Union and Python 3.10+ X | Y syntax
+            if origin is Union or isinstance(annotation, types.UnionType):
+                inner_args = get_args(annotation)
+                is_list_field = any(get_origin(a) is list for a in inner_args)
+            else:
+                is_list_field = origin is list
+            if is_list_field:
                 if value == "":
                     return []
                 if value.startswith("["):

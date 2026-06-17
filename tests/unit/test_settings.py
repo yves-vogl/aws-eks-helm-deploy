@@ -168,6 +168,18 @@ def test_comma_list_env_source_passes_through_non_string_value() -> None:
 
 
 @pytest.mark.unit
+def test_comma_list_source_handles_optional_list_str() -> None:
+    """_CommaListEnvSource handles Optional[list[str]] annotation."""
+    from unittest.mock import MagicMock
+
+    source = _CommaListEnvSource(Settings)
+    field = MagicMock()
+    field.annotation = list[str] | None
+    result = source.decode_complex_value("x", field, "a,b")
+    assert result == ["a", "b"]
+
+
+@pytest.mark.unit
 def test_settings_accepts_init_kwargs() -> None:
     """Settings(aws_region='us-west-2') honors the kwarg even without env var."""
     s = Settings(aws_region="us-west-2")
