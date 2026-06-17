@@ -86,6 +86,7 @@ class Settings(BaseSettings):
     aws_region: str = Field(default="eu-central-1", alias="AWS_REGION")
     aws_access_key_id: str | None = Field(default=None, alias="AWS_ACCESS_KEY_ID")
     aws_secret_access_key: str | None = Field(default=None, alias="AWS_SECRET_ACCESS_KEY")
+    aws_session_token: str | None = Field(default=None, alias="AWS_SESSION_TOKEN")
     role_arn: str | None = Field(default=None, alias="ROLE_ARN")
     session_name: str = Field(default="BitbucketPipe", alias="SESSION_NAME")
 

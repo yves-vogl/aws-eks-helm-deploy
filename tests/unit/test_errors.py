@@ -4,6 +4,7 @@ Tests cover:
   - All seven exit codes in the PipeError hierarchy
   - user_message property
   - Custom exit_code constructor argument
+  - EksTokenError (exit code 3, PipeError subclass)
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from aws_eks_helm_deploy.errors import (
     ChartResolutionError,
     ClusterAccessError,
     ConfigurationError,
+    EksTokenError,
     HelmError,
     HelmTimeoutError,
     PipeError,
@@ -45,3 +47,16 @@ def test_pipe_error_custom_exit_code() -> None:
     """A custom exit_code passed to the constructor overrides the class default."""
     e = PipeError("custom error", exit_code=42)
     assert e.exit_code == 42
+
+
+@pytest.mark.unit
+def test_eks_token_error_exit_code() -> None:
+    """EksTokenError carries exit code 3 and is a PipeError subclass."""
+    assert EksTokenError("x").exit_code == 3
+    assert isinstance(EksTokenError("x"), PipeError)
+
+
+@pytest.mark.unit
+def test_eks_token_error_custom_exit_code() -> None:
+    """A custom exit_code passed to EksTokenError overrides the class default."""
+    assert EksTokenError("x", exit_code=42).exit_code == 42

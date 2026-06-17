@@ -6,7 +6,7 @@ PipeError and maps it to a typed exit code. Bare Exception is caught as exit 99.
 Exit code reference:
     1  — PipeError (base) / ConfigurationError
     2  — AuthenticationError
-    3  — ClusterAccessError
+    3  — ClusterAccessError / EksTokenError (shared — both are EKS-reach failures)
     4  — ChartResolutionError
     5  — HelmError
     6  — HelmTimeoutError
@@ -65,3 +65,15 @@ class HelmTimeoutError(PipeError):
     """helm --wait timed out. Exit code 6."""
 
     exit_code = 6
+
+
+class EksTokenError(PipeError):
+    """EKS bearer-token generation via boto3 failed.
+
+    Exit code 3 (shared with ClusterAccessError). Both errors represent
+    EKS-reach failures — a failed token mint and a failed describe-cluster
+    call are surfaced to consumers identically. Observability is provided
+    by the typed exception class name via structlog (not the exit code).
+    """
+
+    exit_code = 3

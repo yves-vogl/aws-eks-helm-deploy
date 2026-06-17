@@ -13,7 +13,7 @@ v2.0 is the state-of-the-art modernization of an existing, in-production Bitbuck
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Toolchain & Spine** - `uv`/`ruff`/`mypy --strict`/`pytest`/`src/` layout, base Dockerfile, settings/logging/errors/pipe_io skeleton
-- [ ] **Phase 2: AWS Layer & Auth Foundation** - drop `awscli`, pure-`boto3` EKS token gen, `AuthStrategy` Protocol with static-keys + assume-role (v1 parity)
+- [x] **Phase 2: AWS Layer & Auth Foundation** - drop `awscli`, pure-`boto3` EKS token gen, `AuthStrategy` Protocol with static-keys + assume-role (v1 parity)
 - [ ] **Phase 3: Helm Core & Upgrade Action** - `HelmClient`, kubeconfig writer, `UpgradeAction`, local-path charts, `HISTORY_MAX`, v1-style metadata injection (v1 feature parity reached)
 - [ ] **Phase 4: OIDC & Chart Source Extensions** - OIDC strategy + IAM trust template, `ChartSource` Protocol with repo + OCI sources + Cosign verify
 - [ ] **Phase 5: Log Masking, Diff, Rollback & Metadata Flip** - `SEC-06` log redaction first, then `DiffAction` + PR-comment poster, `RollbackAction` + `SAFE_UPGRADE`, opt-in metadata default flip with v1 deprecation warning

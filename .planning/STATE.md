@@ -4,13 +4,13 @@ milestone: v2.0
 milestone_name: milestone
 status: completed
 stopped_at: Phase 1 plans created — 4 atomic PLAN files + VALIDATION.md; plan-checker APPROVED
-last_updated: "2026-06-16T23:55:12.847Z"
-last_activity: 2026-06-16 -- Phase 01 marked complete
+last_updated: "2026-06-17T18:32:10.000Z"
+last_activity: 2026-06-17 -- Phase 02 marked complete
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 9
+  completed_plans: 8
   percent: 14
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-16)
 
 **Core value:** A maintainer can ship a Bitbucket Pipelines deployment to AWS EKS from a clean repository in under five minutes — without committing static AWS credentials and without surprises at upgrade time.
-**Current focus:** Phase 01 — toolchain-spine
+**Current focus:** Phase 02 — aws-layer-auth-foundation
 
 ## Current Position
 
-Phase: 01 — COMPLETE
+Phase: 02 — COMPLETE
 Plan: 1 of 4
-Status: Phase 01 complete
-Last activity: 2026-06-16 -- Phase 01 marked complete
+Status: Phase 02 complete
+Last activity: 2026-06-17 -- Phase 02 marked complete
 
 Progress: [░░░░░░░░░░] 0%
 
