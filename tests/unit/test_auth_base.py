@@ -11,6 +11,7 @@ import dataclasses
 from datetime import UTC, datetime
 
 import pytest
+
 from aws_eks_helm_deploy.auth.base import AuthStrategy, AwsCredentials
 
 # ---------------------------------------------------------------------------
