@@ -16,8 +16,45 @@ Breaking change from v1:
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from pydantic import Field
+from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings.sources.providers.env import EnvSettingsSource
+
+
+class _CommaListEnvSource(EnvSettingsSource):
+    """Env source that accepts comma-separated strings for list[str] fields.
+
+    pydantic-settings 2.x tries json.loads() on any "complex" (non-scalar)
+    field value it reads from the environment. For list[str] fields this means
+    only JSON arrays ("["a","b"]") are accepted out of the box.
+
+    This subclass overrides decode_complex_value to also accept:
+      - comma-separated strings  →  "a,b"   →  ["a", "b"]
+      - empty string             →  ""       →  []
+    JSON arrays are still handled first (via super()), so ["a","b"] keeps working.
+    """
+
+    def decode_complex_value(
+        self,
+        field_name: str,
+        field: FieldInfo,
+        value: Any,  # noqa: ANN401
+    ) -> Any:  # noqa: ANN401
+        """Decode env value for complex fields, accepting comma-separated lists."""
+        if isinstance(value, str) and field.annotation is not None:
+            # Resolve annotation (handles `list[str]` and `Optional[list[str]]`)
+            origin = getattr(field.annotation, "__origin__", None)
+            if origin is list:
+                if value == "":
+                    return []
+                if value.startswith("["):
+                    return json.loads(value)
+                return [item.strip() for item in value.split(",") if item.strip()]
+        return super().decode_complex_value(field_name, field, value)
 
 
 class Settings(BaseSettings):
@@ -59,3 +96,12 @@ class Settings(BaseSettings):
 
     # Metadata injection (v2 default=False — breaking change vs v1 which was unconditional)
     inject_bitbucket_metadata: bool = Field(default=False, alias="INJECT_BITBUCKET_METADATA")
+
+    @classmethod
+    def settings_customise_sources(  # type: ignore[override]
+        cls,
+        settings_cls: type[BaseSettings],
+        **kwargs: Any,  # noqa: ANN401
+    ) -> tuple[Any, ...]:
+        """Replace EnvSettingsSource with _CommaListEnvSource."""
+        return (_CommaListEnvSource(settings_cls),)

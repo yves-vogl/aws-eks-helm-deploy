@@ -51,6 +51,62 @@ def test_settings_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.unit
+def test_set_values_accepts_comma_separated(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SET", "image.tag=v1,replica=3")
+    s = Settings()
+    assert s.set_values == ["image.tag=v1", "replica=3"]
+
+
+@pytest.mark.unit
+def test_set_values_accepts_json_array(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SET", '["image.tag=v1","replica=3"]')
+    s = Settings()
+    assert s.set_values == ["image.tag=v1", "replica=3"]
+
+
+@pytest.mark.unit
+def test_set_values_accepts_single_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SET", "image.tag=v1")
+    s = Settings()
+    assert s.set_values == ["image.tag=v1"]
+
+
+@pytest.mark.unit
+def test_set_values_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SET", "")
+    s = Settings()
+    assert s.set_values == []
+
+
+@pytest.mark.unit
+def test_values_files_accepts_comma_separated(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VALUES", "values.yaml,prod.yaml")
+    s = Settings()
+    assert s.values_files == ["values.yaml", "prod.yaml"]
+
+
+@pytest.mark.unit
+def test_values_files_accepts_json_array(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VALUES", '["values.yaml","prod.yaml"]')
+    s = Settings()
+    assert s.values_files == ["values.yaml", "prod.yaml"]
+
+
+@pytest.mark.unit
+def test_values_files_accepts_single_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VALUES", "values.yaml")
+    s = Settings()
+    assert s.values_files == ["values.yaml"]
+
+
+@pytest.mark.unit
+def test_values_files_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VALUES", "")
+    s = Settings()
+    assert s.values_files == []
+
+
+@pytest.mark.unit
 def test_settings_namespace_v1_bug_fixed() -> None:
     """Regression: NAMESPACE default must be 'default', not 'kube-public'.
 
