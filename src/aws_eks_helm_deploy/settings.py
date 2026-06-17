@@ -17,7 +17,7 @@ Breaking change from v1:
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 from pydantic.fields import FieldInfo
@@ -87,11 +87,11 @@ class Settings(BaseSettings):
     timeout: str = Field(default="5m", alias="TIMEOUT")
 
     # Action dispatch (v2 new fields)
-    action: str = Field(default="upgrade", alias="ACTION")
+    action: Literal["upgrade"] = Field(default="upgrade", alias="ACTION")
     dry_run: bool = Field(default=False, alias="DRY_RUN")
 
     # Observability (OBS-01 / OBS-02)
-    log_format: str = Field(default="human", alias="LOG_FORMAT")  # "human" | "json"
+    log_format: Literal["human", "json"] = Field(default="human", alias="LOG_FORMAT")
     debug: bool = Field(default=False, alias="DEBUG")
 
     # Metadata injection (v2 default=False — breaking change vs v1 which was unconditional)

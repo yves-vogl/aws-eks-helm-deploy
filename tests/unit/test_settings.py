@@ -107,6 +107,28 @@ def test_values_files_empty(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.unit
+def test_invalid_log_format_raises_validation_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pydantic import ValidationError
+
+    monkeypatch.setenv("LOG_FORMAT", "jsn")
+    with pytest.raises(ValidationError) as exc_info:
+        Settings()
+    # pydantic reports the alias (LOG_FORMAT) in the error message
+    assert "LOG_FORMAT" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_invalid_action_raises_validation_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pydantic import ValidationError
+
+    monkeypatch.setenv("ACTION", "bogus")
+    with pytest.raises(ValidationError) as exc_info:
+        Settings()
+    # pydantic reports the alias (ACTION) in the error message
+    assert "ACTION" in str(exc_info.value)
+
+
+@pytest.mark.unit
 def test_settings_namespace_v1_bug_fixed() -> None:
     """Regression: NAMESPACE default must be 'default', not 'kube-public'.
 
