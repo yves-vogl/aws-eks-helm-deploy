@@ -4,11 +4,16 @@ ARG UV_VERSION=0.11.21
 ARG HELM_VERSION=3.18.6
 ARG HELM_DIFF_VERSION=3.10.0
 
+# ── Stage 0: uv binary source ────────────────────────────────────────────────
+# Named stage required: Docker does not support ARG interpolation in COPY --from
+# when referencing an external image directly (only stage names are interpolated).
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv-source
+
 # ── Stage 1: Python dependency builder ───────────────────────────────────────
 FROM python:${PYTHON_VERSION}-slim-bookworm AS builder
 
-# Copy uv from the official Astral image — no curl/install needed
-COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /uvx /bin/
+# Copy uv from the named uv-source stage — ARG-safe and BuildKit-compatible
+COPY --from=uv-source /uv /uvx /bin/
 
 WORKDIR /build
 
@@ -31,14 +36,21 @@ RUN apt-get update \
 ARG HELM_VERSION
 
 # linux/amd64 explicitly for Phase 1; multi-arch native-runner matrix lands in Phase 6
-# Download Helm tarball + SHA256 checksum and verify integrity before extraction (sec-14)
-RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" -o /tmp/helm.tar.gz \
-    && curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" -o /tmp/helm.sha256 \
-    && cd /tmp && sha256sum -c helm.sha256 \
-    && tar -xz -C /tmp -f helm.tar.gz \
-    && mv /tmp/linux-amd64/helm /helm \
+# Download Helm tarball + SHA256 checksum and verify integrity before extraction (sec-14).
+# Files are saved under their UPSTREAM names so sha256sum -c can resolve the filename
+# embedded in the .sha256sum file (e.g. "3f43c0aa...  helm-v3.18.6-linux-amd64.tar.gz").
+RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
+        -o "/tmp/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
+    && curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" \
+        -o "/tmp/helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" \
+    && cd /tmp \
+    && sha256sum -c "helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" \
+    && tar -xz -f "helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
+    && mv linux-amd64/helm /helm \
     && chmod +x /helm \
-    && rm -rf /tmp/helm.tar.gz /tmp/helm.sha256 /tmp/linux-amd64
+    && rm -rf "helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
+              "helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" \
+              linux-amd64
 
 # ── Stage 3: Runtime image ────────────────────────────────────────────────────
 FROM python:${PYTHON_VERSION}-slim-bookworm AS runtime
