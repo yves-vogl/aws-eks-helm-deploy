@@ -1,4 +1,4 @@
-awscli~=1.32
+awscli~=1.45
 bitbucket-pipes-toolkit~=4.4
 docker~=7.1
 Jinja2~=3.1
