@@ -128,6 +128,36 @@ def test_git_purged_from_runtime_image(built_image: str) -> None:
 
 
 @pytest.mark.acceptance
+def test_awscli_not_importable(built_image: str) -> None:
+    """awscli must not be importable in the runtime image (Phase 2 SC3 / AUTH-07).
+
+    v1.x had awscli baked in for EKS token generation. v2.0 uses pure boto3.
+    The runtime image must not carry awscli — both because of the >100 MB
+    size delta promised in the ROADMAP and because awscli is an unnecessary
+    attack-surface dependency in production.
+    """
+    result = subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--entrypoint",
+            "python",
+            built_image,
+            "-c",
+            "import awscli",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode != 0, "awscli should not be importable in the runtime image"
+    assert "No module named" in result.stderr, (
+        f"unexpected error format on awscli import attempt: {result.stderr!r}"
+    )
+
+
+@pytest.mark.acceptance
 def test_helm_diff_works_without_git(built_image: str) -> None:
     """helm diff version must succeed even after git is purged (sec-14 regression guard).
 
