@@ -1,10 +1,12 @@
 """Unit tests for aws_eks_helm_deploy.cli.
 
 Tests cover:
-  - main() returns 0 on the Phase 2 placeholder success path (auth strategy selected)
+  - main() dispatches ACTION=upgrade to UpgradeAction (Phase 3)
+  - main() passes strategy from select_strategy to UpgradeAction constructor
+  - main() returns UpgradeAction.run return code (passthrough)
+  - main() catches PipeError from UpgradeAction.run, calls pipe.fail(), returns exc.exit_code
+  - main() catches bare Exception from UpgradeAction.run and returns 99
   - main() catches PipeError from select_strategy and returns exc.exit_code
-  - main() catches PipeError from action dispatch and returns exc.exit_code
-  - main() catches bare Exception and returns 99; calls pipe.fail()
   - __main__ module is runnable via runpy.run_module (SystemExit.code is int)
   - main() calls configure_logging(settings) exactly once
   - main() returns non-zero and writes to stderr when Settings() raises
@@ -20,7 +22,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from aws_eks_helm_deploy.auth.base import AuthStrategy
-from aws_eks_helm_deploy.errors import ConfigurationError
+from aws_eks_helm_deploy.errors import ConfigurationError, HelmExecutionError
 from aws_eks_helm_deploy.settings import Settings
 
 # ---------------------------------------------------------------------------
@@ -42,48 +44,98 @@ def _fake_strategy(mocker: MockerFixture) -> object:
 
 
 # ---------------------------------------------------------------------------
-# Phase 1-style cli flow tests (updated to use _fake_strategy)
+# Phase 3 UpgradeAction dispatch tests
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
-def test_main_placeholder_success(_fake_strategy: object, mocker: MockerFixture) -> None:
-    """main() returns 0 on the Phase 2 placeholder success path."""
+def test_main_dispatches_upgrade_action_on_default_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() instantiates UpgradeAction(settings, strategy=...) and calls .run(pipe)."""
     mock_pipe = mocker.MagicMock()
     mocker.patch("aws_eks_helm_deploy.cli.PipeIO", return_value=mock_pipe)
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.return_value = 0
 
     from aws_eks_helm_deploy.cli import main
 
     result = main()
 
     assert result == 0
-    mock_pipe.success.assert_called_once_with(
-        "Phase 2 skeleton — auth strategy selected; action dispatch lands in Phase 3+"
-    )
+    # UpgradeAction was instantiated (settings as positional, strategy as kwarg)
+    mock_upgrade_cls.assert_called_once()
+    call_args = mock_upgrade_cls.call_args
+    assert isinstance(call_args.args[0], Settings)
+    assert call_args.kwargs["strategy"] is _fake_strategy
+    mock_upgrade_cls.return_value.run.assert_called_once_with(mock_pipe)
 
 
 @pytest.mark.unit
-def test_main_catches_pipe_error(_fake_strategy: object, mocker: MockerFixture) -> None:
-    """main() catches PipeError from action dispatch, calls pipe.fail(), returns exc.exit_code."""
+def test_main_returns_upgrade_action_run_return_code(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() passes through UpgradeAction.run return code (0 or non-zero)."""
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+
+    from aws_eks_helm_deploy.cli import main
+
+    mock_upgrade_cls.return_value.run.return_value = 0
+    assert main() == 0
+
+    mock_upgrade_cls.return_value.run.return_value = 5
+    assert main() == 5
+
+
+@pytest.mark.unit
+def test_main_catches_pipe_error_from_upgrade_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() catches PipeError from UpgradeAction.run -> pipe.fail + exit_code."""
     mock_pipe = mocker.MagicMock()
     mocker.patch("aws_eks_helm_deploy.cli.PipeIO", return_value=mock_pipe)
-    # Make pipe.success raise ConfigurationError to exercise the except branch
-    mock_pipe.success.side_effect = ConfigurationError("CLUSTER_NAME is required")
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.side_effect = HelmExecutionError("helm failed")
 
     from aws_eks_helm_deploy.cli import main
 
     result = main()
 
-    assert result == 1
-    mock_pipe.fail.assert_called_once_with("CLUSTER_NAME is required")
+    assert result == 5  # HelmExecutionError.exit_code
+    mock_pipe.fail.assert_called_once_with("helm failed")
+
+
+@pytest.mark.unit
+def test_main_catches_unexpected_exception_returns_99(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() catches bare Exception from UpgradeAction.run -> pipe.fail + 99."""
+    mock_pipe = mocker.MagicMock()
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO", return_value=mock_pipe)
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.side_effect = RuntimeError("unexpected")
+
+    from aws_eks_helm_deploy.cli import main
+
+    result = main()
+
+    assert result == 99
+    mock_pipe.fail.assert_called_once_with("Unexpected error — see logs")
+
+
+# ---------------------------------------------------------------------------
+# Phase 1-style cli flow tests (kept for regression + bare exception path)
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.unit
 def test_main_catches_bare_exception(_fake_strategy: object, mocker: MockerFixture) -> None:
-    """main() catches bare Exception, calls pipe.fail(), and returns 99."""
+    """main() catches bare Exception from dispatch, calls pipe.fail(), and returns 99."""
     mock_pipe = mocker.MagicMock()
     mocker.patch("aws_eks_helm_deploy.cli.PipeIO", return_value=mock_pipe)
-    mock_pipe.success.side_effect = RuntimeError("something unexpected")
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.side_effect = RuntimeError("something unexpected")
 
     from aws_eks_helm_deploy.cli import main
 
@@ -99,6 +151,8 @@ def test_main_module_runs(_fake_strategy: object, mocker: MockerFixture) -> None
     mock_pipe = mocker.MagicMock()
     mocker.patch("aws_eks_helm_deploy.cli.PipeIO", return_value=mock_pipe)
     mocker.patch("aws_eks_helm_deploy.cli.configure_logging")
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.return_value = 0
 
     with pytest.raises(SystemExit) as exc_info:
         runpy.run_module("aws_eks_helm_deploy", run_name="__main__", alter_sys=True)
@@ -112,6 +166,8 @@ def test_main_calls_configure_logging(_fake_strategy: object, mocker: MockerFixt
     """main() calls configure_logging(settings) exactly once after Settings()."""
     mock_cfg = mocker.patch("aws_eks_helm_deploy.cli.configure_logging")
     mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.return_value = 0
 
     from aws_eks_helm_deploy.cli import main
 
@@ -141,10 +197,15 @@ def test_main_settings_error_returns_nonzero(capsys: pytest.CaptureFixture[str])
 
 
 @pytest.mark.unit
-def test_main_selects_static_keys_strategy(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_selects_static_keys_strategy(
+    monkeypatch: pytest.MonkeyPatch, mocker: MockerFixture
+) -> None:
     """main() calls select_strategy; with valid static keys, returns 0."""
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "AKIAIOSFODNN7EXAMPLE")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
+
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.return_value = 0
 
     from aws_eks_helm_deploy.cli import main
 
@@ -161,6 +222,8 @@ def test_main_selects_assume_role_strategy(
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
     monkeypatch.setenv("ROLE_ARN", "arn:aws:iam::123456789012:role/TestRole")
     mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.return_value = 0
 
     mock_bind = mocker.patch("aws_eks_helm_deploy.cli.bind_safe_context")
 
@@ -200,6 +263,8 @@ def test_main_bind_safe_context_called_with_auth_strategy(
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "AKIAIOSFODNN7EXAMPLE")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
     mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.return_value = 0
 
     mock_bind = mocker.patch("aws_eks_helm_deploy.cli.bind_safe_context")
 
@@ -219,6 +284,8 @@ def test_main_credentials_never_passed_to_bind_safe_context(
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
     monkeypatch.setenv("AWS_SESSION_TOKEN", "some-token")
     mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.return_value = 0
 
     mock_bind = mocker.patch("aws_eks_helm_deploy.cli.bind_safe_context")
 
