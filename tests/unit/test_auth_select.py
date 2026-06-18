@@ -90,8 +90,7 @@ def test_select_role_arn_without_base_raises_configuration_error(
 ) -> None:
     """select_strategy raises ConfigurationError with exit_code=1 when ROLE_ARN set without keys.
 
-    The error message must contain "Phase 4" as a forward-pointer hint for
-    OIDC-based role assumption.
+    The error message must mention both static-keys AND OIDC as alternatives (AUTH-06 revised).
     """
     monkeypatch.setenv("ROLE_ARN", "arn:aws:iam::123456789012:role/TestRole")
 
@@ -101,7 +100,8 @@ def test_select_role_arn_without_base_raises_configuration_error(
         select_strategy(settings)
 
     assert exc_info.value.exit_code == 1
-    assert "Phase 4" in str(exc_info.value)
+    assert "ROLE_ARN requires" in str(exc_info.value)
+    assert "BITBUCKET_STEP_OIDC_TOKEN" in str(exc_info.value)
 
 
 @pytest.mark.unit
