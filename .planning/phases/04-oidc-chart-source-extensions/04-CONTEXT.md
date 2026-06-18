@@ -211,6 +211,7 @@ The action stays well under the 50-LOC budget set by Phase 3.
 2. `sub` condition references both `<BITBUCKET_WORKSPACE_UUID>` and `<BITBUCKET_REPO_UUID>` placeholders.
 3. The action is `sts:AssumeRoleWithWebIdentity`.
 4. The provider URL matches a documented Bitbucket OIDC issuer pattern.
+5. **`sub` condition operator is `StringLike` (NOT `StringEquals`)** — see RESEARCH §2 correction. The literal `*` in `{workspace_uuid}:{repo_uuid}:*` is a wildcard and IAM only treats `*` as a wildcard under `StringLike`. Erratum on the JSON sketch above: replace `StringEquals` with `StringLike` for the `sub` key.
 
 **Optional Terraform companion snippet:** a sibling `docs/guides/oidc-setup-terraform.md` (drafted lightly in Phase 4, polished in Phase 7) shows the same trust policy via `aws_iam_role` + `data.tls_certificate` patterns. Defer if Phase 4 is already heavy — gate is "ships in Phase 7 at latest".
 
