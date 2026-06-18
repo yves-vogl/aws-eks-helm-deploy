@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Toolchain & Spine** - `uv`/`ruff`/`mypy --strict`/`pytest`/`src/` layout, base Dockerfile, settings/logging/errors/pipe_io skeleton
 - [x] **Phase 2: AWS Layer & Auth Foundation** - drop `awscli`, pure-`boto3` EKS token gen, `AuthStrategy` Protocol with static-keys + assume-role (v1 parity)
-- [ ] **Phase 3: Helm Core & Upgrade Action** - `HelmClient`, kubeconfig writer, `UpgradeAction`, local-path charts, `HISTORY_MAX`, v1-style metadata injection (v1 feature parity reached)
+- [x] **Phase 3: Helm Core & Upgrade Action** - `HelmClient`, kubeconfig writer, `UpgradeAction`, local-path charts, `HISTORY_MAX`, v1-style metadata injection (v1 feature parity reached)
 - [ ] **Phase 4: OIDC & Chart Source Extensions** - OIDC strategy + IAM trust template, `ChartSource` Protocol with repo + OCI sources + Cosign verify
 - [ ] **Phase 5: Log Masking, Diff, Rollback & Metadata Flip** - `SEC-06` log redaction first, then `DiffAction` + PR-comment poster, `RollbackAction` + `SAFE_UPGRADE`, opt-in metadata default flip with v1 deprecation warning
 - [ ] **Phase 6: Release Pipeline & Supply Chain** - GitHub Actions CI + release-please, multi-arch native-runner build, Cosign keyless, SBOM, SLSA provenance, Trivy + pip-audit at build, scheduled Trivy rescan + SARIF to Code Scanning, Dependabot with `fix(deps):` prefix for base-image patch releases, GitHub Private Vulnerability Reporting, branch protection, community ops
