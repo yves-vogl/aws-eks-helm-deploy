@@ -30,7 +30,7 @@ def test_settings_defaults() -> None:
     assert s.set_values == []
     assert s.values_files == []
     assert s.wait is False
-    assert s.timeout == "5m"
+    assert s.timeout == "600s"
     assert s.action == "upgrade"
     assert s.dry_run is False
     assert s.log_format == "human"
@@ -200,6 +200,56 @@ def test_settings_accepts_init_kwargs() -> None:
     """Settings(aws_region='us-west-2') honors the kwarg even without env var."""
     s = Settings(aws_region="us-west-2")
     assert s.aws_region == "us-west-2"
+
+
+@pytest.mark.unit
+def test_timeout_default_is_600s() -> None:
+    """Settings().timeout == '600s' per Phase 3 corrections #5 (was '5m' in Phase 2)."""
+    s = Settings()
+    assert s.timeout == "600s"
+
+
+@pytest.mark.unit
+def test_history_max_default_is_none() -> None:
+    """Settings().history_max is None when HISTORY_MAX env var is unset."""
+    s = Settings()
+    assert s.history_max is None
+
+
+@pytest.mark.unit
+def test_history_max_accepts_zero(monkeypatch: pytest.MonkeyPatch) -> None:
+    """HISTORY_MAX=0 is valid; passes --history-max 0 (unlimited) at the helm layer."""
+    monkeypatch.setenv("HISTORY_MAX", "0")
+    s = Settings()
+    assert s.history_max == 0
+
+
+@pytest.mark.unit
+def test_history_max_accepts_positive_integer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """HISTORY_MAX=5 is valid and passes --history-max 5 at the helm layer."""
+    monkeypatch.setenv("HISTORY_MAX", "5")
+    s = Settings()
+    assert s.history_max == 5
+
+
+@pytest.mark.unit
+def test_history_max_rejects_negative_integer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """HISTORY_MAX=-1 raises pydantic ValidationError (ge=0 constraint). Closes #17."""
+    import pydantic
+
+    monkeypatch.setenv("HISTORY_MAX", "-1")
+    with pytest.raises(pydantic.ValidationError):
+        Settings()
+
+
+@pytest.mark.unit
+def test_history_max_rejects_non_integer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """HISTORY_MAX=not-a-number raises pydantic ValidationError (pydantic int coercion)."""
+    import pydantic
+
+    monkeypatch.setenv("HISTORY_MAX", "not-a-number")
+    with pytest.raises(pydantic.ValidationError):
+        Settings()
 
 
 @pytest.mark.unit

@@ -3,9 +3,7 @@
 main(argv) is the console_scripts entry point registered in pyproject.toml.
 It is also called by __main__.py for `python -m aws_eks_helm_deploy`.
 
-Phase 2: instantiates Settings, configures structured logging (OBS-01/02),
-selects the auth strategy via select_strategy(settings), and logs the selection.
-Real ACTION dispatch (upgrade/diff/rollback) lands in Phase 3+.
+Phase 3: ACTION=upgrade dispatches to UpgradeAction. Phase 5+ adds DiffAction + RollbackAction.
 
 Closes Phase 1 OBS-01 PARTIAL gap (SC5): at least one structlog JSON line is now
 emitted on stderr at runtime via logger.info("auth strategy selected", ...).
@@ -15,8 +13,9 @@ from __future__ import annotations
 
 import sys
 
+from aws_eks_helm_deploy.actions.upgrade import UpgradeAction
 from aws_eks_helm_deploy.auth import select_strategy
-from aws_eks_helm_deploy.errors import PipeError
+from aws_eks_helm_deploy.errors import ConfigurationError, PipeError
 from aws_eks_helm_deploy.logging import bind_safe_context, configure_logging, get_logger
 from aws_eks_helm_deploy.pipe_io import PipeIO
 from aws_eks_helm_deploy.settings import Settings
@@ -54,11 +53,10 @@ def main(argv: list[str] | None = None) -> int:
 
     pipe = PipeIO()
     try:
-        # Phase 2 skeleton: strategy selected but not invoked.
-        # ACTION dispatch (upgrade / diff / rollback) lands in Phase 3+.
-        # Phase 3 will call strategy.get_credentials() inside UpgradeAction.run().
-        pipe.success("Phase 2 skeleton — auth strategy selected; action dispatch lands in Phase 3+")
-        return 0
+        if settings.action == "upgrade":
+            return UpgradeAction(settings, strategy=strategy).run(pipe)
+        # pragma: no cover — defensive; reachable once Phase 5 widens Settings.action Literal
+        raise ConfigurationError(f"Unsupported action: {settings.action!r}")  # pragma: no cover
     except PipeError as exc:
         pipe.fail(exc.user_message)
         return exc.exit_code

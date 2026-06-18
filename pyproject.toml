@@ -26,11 +26,14 @@ dev = [
     "ruff ~= 0.15",
     "mypy ~= 2.1",
     "boto3-stubs[eks,sts]",
+    "types-PyYAML",
     "pytest ~= 9.1",
     "pytest-cov ~= 7.1",
     "pytest-mock ~= 3.15",
+    "pytest-rerunfailures ~= 16.3",
     "pytest-timeout ~= 2.4",
     "pytest-xdist ~= 3.8",
+    "syrupy ~= 5.3",
     "moto[eks,sts] ~= 5.2",
     "coverage[toml] ~= 7.14",
     "pre-commit ~= 4.0",
@@ -58,7 +61,7 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "N", "S", "C90", "ANN", "BLE"]
 ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "ANN", "S603", "S607"]
+"tests/**" = ["S101", "ANN", "S603", "S607", "S108", "S106"]
 
 [tool.ruff.format]
 quote-style = "double"

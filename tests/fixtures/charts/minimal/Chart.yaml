@@ -1,0 +1,5 @@
+apiVersion: v2
+name: minimal
+description: Minimal chart for Phase 3 integration tests
+type: application
+version: 0.1.0
