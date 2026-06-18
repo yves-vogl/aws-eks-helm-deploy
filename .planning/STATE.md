@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 4 Plan 04-04 complete
-last_updated: "2026-06-18T13:35:11.197Z"
-last_activity: 2026-06-18 -- Phase 04 Plan 04-04 (Bitbucket OIDC IAM trust-policy template + unit test) complete
+stopped_at: Phase 4 Plan 04-06 complete
+last_updated: "2026-06-18T13:48:00Z"
+last_activity: 2026-06-18 -- Phase 04 Plan 04-06 (RepoChart + HelmClient repo methods + CHART-02) complete
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 24
-  completed_plans: 16
-  percent: 14
+  completed_plans: 17
+  percent: 17
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-16)
 ## Current Position
 
 Phase: 04 — IN PROGRESS
-Plan: 3 of 7 complete (04-01, 04-04 done; 04-02, 04-05 still queued for Wave 1)
-Status: Phase 04 Wave 1 in progress — 04-04 (IAM trust-policy template) complete
-Last activity: 2026-06-18 -- Phase 04 Plan 04-04 (Bitbucket OIDC IAM trust-policy template + unit test) complete
+Plan: 6 of 7 complete (04-01, 04-02, 04-04, 04-05, 04-06 done; 04-07 Wave 3 remaining)
+Status: Phase 04 Wave 2 complete — 04-06 (RepoChart + HelmClient repo methods + CHART-02) shipped
+Last activity: 2026-06-18 -- Phase 04 Plan 04-06 (RepoChart + HelmClient repo methods + CHART-02) complete
 
 Progress: [░░░░░░░░░░] 14%
 
@@ -64,6 +64,7 @@ Recent decisions affecting current work:
 - Roadmap: Log-masking (SEC-06) sequenced before PIPE-03 (PR-comment helm-diff) as hard precondition.
 - Roadmap: Release pipeline + Cosign + SBOM + Trivy + pip-audit + multi-arch consolidated into a single Phase 6 ("Release & Supply Chain") for plan-size economy.
 - AUTH-04 (Phase 4): Strategy precedence mirrors botocore default chain — static keys win over OIDC when both present; one-time WARN log surfaces precedence. "OIDC wins deterministically" wording removed from ROADMAP + REQUIREMENTS (commit 6e28005).
+- CHART-02 (Phase 4 Plan 04-06): HelmClient repo_add/repo_update/pull_repo raise ChartResolutionError (exit=4) not HelmExecutionError (exit=5) — chart-resolution failures semantically distinct from upgrade failures. RepoChart uses placeholder kubeconfig_path for HelmClient constructor (repo ops don't need a kubeconfig).
 
 ### Pending Todos
 
@@ -88,7 +89,7 @@ Items acknowledged and carried forward as v2.1+ (see REQUIREMENTS.md "v2 (Deferr
 
 ## Session Continuity
 
-Last session: 2026-06-18T13:35:11.193Z
-Stopped at: Phase 4 Plan 04-04 complete
-Resume file: .planning/phases/04-oidc-chart-source-extensions/04-04-SUMMARY.md
-Next command: Execute remaining Wave 1 plans (04-02, 04-05) on branch `phase/04-oidc-chart-sources`
+Last session: 2026-06-18T13:48:00Z
+Stopped at: Phase 4 Plan 04-06 complete
+Resume file: .planning/phases/04-oidc-chart-source-extensions/04-06-SUMMARY.md
+Next command: Execute Wave 3 Plan 04-07 (OciChart + Cosign + Dockerfile cosign stage) on branch `phase/04-oidc-chart-sources`
