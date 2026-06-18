@@ -31,8 +31,8 @@ Two consumer-side personas drive the requirements: **(M)** the maintainer of a d
 ### Helm Chart Sources (CHART)
 
 - [ ] **CHART-01**: M can deploy a Helm chart from a local path (parity with v1.x).
-- [ ] **CHART-02**: M can deploy a chart from a Helm repository by setting `CHART=repo://<repo-name>/<chart>`, `REPO_URL=<url>`, optional `CHART_VERSION=<version>`. **(Closes #7.)**
-- [ ] **CHART-03**: M can deploy a chart from an OCI registry by setting `CHART=oci://<registry>/<chart>` with optional `CHART_VERSION` and optional `REGISTRY_USERNAME` + `REGISTRY_PASSWORD`.
+- [x] **CHART-02**: M can deploy a chart from a Helm repository by setting `CHART=repo://<repo-name>/<chart>`, `REPO_URL=<url>`, optional `CHART_VERSION=<version>`. **(Closes #7.)**
+- [x] **CHART-03**: M can deploy a chart from an OCI registry by setting `CHART=oci://<registry>/<chart>` with optional `CHART_VERSION` and optional `REGISTRY_USERNAME` + `REGISTRY_PASSWORD`.
 - [ ] **CHART-04**: M can verify an OCI chart signature by setting `CHART_VERIFY=true` (Cosign verification of the chart artifact); failure aborts the upgrade.
 - [ ] **CHART-05**: The pipe reports the resolved chart name + version in its success message so the consumer's logs are unambiguous.
 
@@ -122,17 +122,21 @@ Two consumer-side personas drive the requirements: **(M)** the maintainer of a d
 These are acknowledged but explicitly **not in the v2.0 scope** — tracked for v2.1+:
 
 ### Auth (v2.1+)
+
 - **AUTH-NEXT-01**: AWS Pod Identity support for self-hosted Bitbucket Pipelines runners on EKS.
 - **AUTH-NEXT-02**: `aws-vault` integration for self-hosted Mac/Linux runners.
 
 ### Pipe Actions (v2.1+)
+
 - **PIPE-NEXT-01**: `ACTION=uninstall` (`helm uninstall`) with `KEEP_HISTORY=true` opt-in.
 - **PIPE-NEXT-02**: `ACTION=lint` (`helm lint`) for PR-time chart validation.
 
 ### Distribution (v2.1+)
+
 - **CI-NEXT-01**: Reusable GitHub Action wrapper so the same pipe code can also be invoked from GitHub Actions (consumer convenience; the project remains Bitbucket-first).
 
 ### Documentation site (v2.1+)
+
 - **DOC-NEXT-01**: Migrate from `mkdocs-material` to `Zensical` once stable (mkdocs-material entered maintenance mode in early 2026).
 
 ## Out of Scope
@@ -177,8 +181,8 @@ Populated by `gsd-roadmapper` on 2026-06-16 — every v1 REQ mapped to exactly o
 | AUTH-06 | Phase 4 | Pending |
 | AUTH-07 | Phase 2 | Pending |
 | CHART-01 | Phase 3 | Pending |
-| CHART-02 | Phase 4 | Pending |
-| CHART-03 | Phase 4 | Pending |
+| CHART-02 | Phase 4 | Complete |
+| CHART-03 | Phase 4 | Complete |
 | CHART-04 | Phase 4 | Pending |
 | CHART-05 | Phase 3 | Pending |
 | PIPE-01 | Phase 3 | Pending |
@@ -234,11 +238,13 @@ Populated by `gsd-roadmapper` on 2026-06-16 — every v1 REQ mapped to exactly o
 | MIG-03 | Phase 7 | Pending |
 
 **Coverage:**
+
 - v1 requirements: **67** total (8 TOOL + 7 AUTH + 5 CHART + 6 PIPE + 2 HISTORY + 3 META + 6 IMAGE + 6 SEC + 7 CI + 2 OBS + 8 DOC + 4 CMN + 3 MIG)
 - Mapped to phases: **67** (100%)
 - Unmapped: **0** ✓
 
 **Distribution per phase:**
+
 - Phase 1 (Toolchain & Spine): 14 REQs — TOOL-01..08, IMAGE-01, IMAGE-02, IMAGE-03, IMAGE-05, OBS-01, OBS-02
 - Phase 2 (AWS Layer & Auth Foundation): 3 REQs — AUTH-01, AUTH-02, AUTH-07
 - Phase 3 (Helm Core & Upgrade Action): 7 REQs — CHART-01, CHART-05, PIPE-01, PIPE-06, HISTORY-01, HISTORY-02, META-01

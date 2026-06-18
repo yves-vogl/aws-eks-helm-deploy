@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: in_progress
-stopped_at: Phase 4 Plan 1 complete
-last_updated: "2026-06-18T13:00:00.000Z"
-last_activity: 2026-06-18 -- Phase 04 Plan 04-01 (ROADMAP+REQUIREMENTS AUTH-04 revision) complete
+status: executing
+stopped_at: Phase 4 Plan 04-04 complete
+last_updated: "2026-06-18T13:35:11.197Z"
+last_activity: 2026-06-18 -- Phase 04 Plan 04-04 (Bitbucket OIDC IAM trust-policy template + unit test) complete
 progress:
   total_phases: 7
   completed_phases: 1
-  total_plans: 15
-  completed_plans: 14
+  total_plans: 24
+  completed_plans: 16
   percent: 14
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-16)
 ## Current Position
 
 Phase: 04 — IN PROGRESS
-Plan: 1 of 7 complete (04-01 done; 04-02, 04-04, 04-05 queued for Wave 1 parallel)
-Status: Phase 04 Wave 1 in progress — atomic precursor commit landed
-Last activity: 2026-06-18 -- Phase 04 Plan 04-01 (AUTH-04 doc revision) complete
+Plan: 3 of 7 complete (04-01, 04-04 done; 04-02, 04-05 still queued for Wave 1)
+Status: Phase 04 Wave 1 in progress — 04-04 (IAM trust-policy template) complete
+Last activity: 2026-06-18 -- Phase 04 Plan 04-04 (Bitbucket OIDC IAM trust-policy template + unit test) complete
 
 Progress: [░░░░░░░░░░] 14%
 
@@ -88,7 +88,7 @@ Items acknowledged and carried forward as v2.1+ (see REQUIREMENTS.md "v2 (Deferr
 
 ## Session Continuity
 
-Last session: 2026-06-18T13:00:00.000Z
-Stopped at: Phase 4 Plan 04-01 complete
-Resume file: .planning/phases/04-oidc-chart-source-extensions/04-01-SUMMARY.md
-Next command: Execute Wave 1 parallel plans (04-02, 04-04, 04-05) on branch `phase/04-oidc-chart-sources`
+Last session: 2026-06-18T13:35:11.193Z
+Stopped at: Phase 4 Plan 04-04 complete
+Resume file: .planning/phases/04-oidc-chart-source-extensions/04-04-SUMMARY.md
+Next command: Execute remaining Wave 1 plans (04-02, 04-05) on branch `phase/04-oidc-chart-sources`
