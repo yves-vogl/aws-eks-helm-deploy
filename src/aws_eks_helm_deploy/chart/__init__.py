@@ -2,7 +2,7 @@
 
 Phase 4 factory: select_chart_source(settings) -> ChartSource routes by settings.chart prefix.
   - oci://   -> OciChart (Plan 04-07; until that lands, forward import raises ImportError)
-  - repo://  -> RepoChart (Plan 04-06; same)
+  - repo://  -> RepoChart (Phase 4 — Plan 04-06 shipped)
   - else     -> LocalChart (degenerate context-manager — Phase 3 + Plan 04-05-02 refactor)
 """
 
@@ -41,7 +41,7 @@ def select_chart_source(settings: Settings) -> ChartSource:
             raise ConfigurationError("CHART=repo:// must be 'repo://<repo-name>/<chart>'")
         if not settings.repo_url:
             raise ConfigurationError("CHART=repo://… requires REPO_URL")
-        return _build_repo_chart(  # pragma: no cover  # Plan 04-06 lifts this pragma
+        return _build_repo_chart(
             name=name,
             chart_name=chart_name,
             repo_url=settings.repo_url,
@@ -67,17 +67,16 @@ def _build_oci_chart(settings: Settings, chart: str) -> ChartSource:  # pragma: 
     )
 
 
-def _build_repo_chart(  # pragma: no cover
+def _build_repo_chart(
     name: str,
     chart_name: str,
     repo_url: str,
     version: str | None,
 ) -> ChartSource:
-    """Construct RepoChart — forward import; Plan 04-06 provides the module."""
-    # Plan 04-06 lifts this pragma and removes the type: ignore comments.
-    from aws_eks_helm_deploy.chart.repo import RepoChart  # type: ignore
+    """Construct RepoChart — shipped in Plan 04-06."""
+    from aws_eks_helm_deploy.chart.repo import RepoChart
 
-    return RepoChart(  # type: ignore
+    return RepoChart(
         name=name,
         chart=chart_name,
         repo_url=repo_url,

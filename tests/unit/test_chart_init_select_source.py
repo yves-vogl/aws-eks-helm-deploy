@@ -87,18 +87,20 @@ def test_select_chart_source_repo_malformed_raises_config_error() -> None:
 
 
 @pytest.mark.unit
-@pytest.mark.skip(reason="Plan 04-06 RepoChart not yet landed in this plan")
 def test_select_chart_source_routes_repo_prefix_to_repo_chart() -> None:
-    # UNSKIP: Plan 04-06 ships RepoChart
     """select_chart_source returns RepoChart for repo:// prefix (Plan 04-06)."""
-    from aws_eks_helm_deploy.chart.repo import RepoChart  # type: ignore[import-not-found]
+    from aws_eks_helm_deploy.chart.repo import RepoChart
 
     s = _make_settings(
-        chart="repo://stable/postgres",
-        repo_url="https://charts.example.com",
+        chart="repo://bitnami/redis",
+        repo_url="https://charts.bitnami.com/bitnami",
+        chart_version="18.5.0",
     )
     source = select_chart_source(s)
     assert isinstance(source, RepoChart)
+    assert source._name == "bitnami"
+    assert source._chart == "redis"
+    assert source._version == "18.5.0"
 
 
 @pytest.mark.unit
