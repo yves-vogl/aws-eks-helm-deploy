@@ -1,7 +1,7 @@
 """chart subpackage — ChartSource Protocol + LocalChart / RepoChart / OciChart resolvers.
 
 Phase 4 factory: select_chart_source(settings) -> ChartSource routes by settings.chart prefix.
-  - oci://   -> OciChart (Plan 04-07; until that lands, forward import raises ImportError)
+  - oci://   -> OciChart (Phase 4 — Plan 04-07 shipped)
   - repo://  -> RepoChart (Phase 4 — Plan 04-06 shipped)
   - else     -> LocalChart (degenerate context-manager — Phase 3 + Plan 04-05-02 refactor)
 """
@@ -32,7 +32,7 @@ def select_chart_source(settings: Settings) -> ChartSource:
     if chart is None:
         raise ConfigurationError("CHART is required (set the chart spec env var)")
 
-    if chart.startswith("oci://"):  # pragma: no cover  # Plan 04-07 lifts this pragma
+    if chart.startswith("oci://"):
         return _build_oci_chart(settings, chart)
 
     if chart.startswith("repo://"):
@@ -51,12 +51,11 @@ def select_chart_source(settings: Settings) -> ChartSource:
     return LocalChart(chart_spec=chart, repo_root=None)
 
 
-def _build_oci_chart(settings: Settings, chart: str) -> ChartSource:  # pragma: no cover
-    """Construct OciChart — forward import; Plan 04-07 provides the module."""
-    # Plan 04-07 lifts this pragma and removes the type: ignore comments.
-    from aws_eks_helm_deploy.chart.oci import OciChart  # type: ignore
+def _build_oci_chart(settings: Settings, chart: str) -> ChartSource:
+    """Construct OciChart — shipped in Plan 04-07."""
+    from aws_eks_helm_deploy.chart.oci import OciChart
 
-    return OciChart(  # type: ignore
+    return OciChart(
         reference=chart.removeprefix("oci://"),
         version=settings.chart_version,
         registry_username=settings.registry_username,

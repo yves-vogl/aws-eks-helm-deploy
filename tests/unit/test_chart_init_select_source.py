@@ -104,15 +104,27 @@ def test_select_chart_source_routes_repo_prefix_to_repo_chart() -> None:
 
 
 @pytest.mark.unit
-@pytest.mark.skip(reason="Plan 04-07 OciChart not yet landed in this plan")
 def test_select_chart_source_routes_oci_prefix_to_oci_chart() -> None:
-    # UNSKIP: Plan 04-07 ships OciChart
     """select_chart_source returns OciChart for oci:// prefix (Plan 04-07)."""
-    from aws_eks_helm_deploy.chart.oci import OciChart  # type: ignore[import-not-found]
+    from pydantic import SecretStr
+
+    from aws_eks_helm_deploy.chart.oci import OciChart
 
     s = _make_settings(
-        chart="oci://ghcr.io/org/chart",
-        chart_version="1.0.0",
+        chart="oci://127.0.0.1:5555/charts/redis",
+        chart_version="0.1.0",
+        registry_username="alice",
+        registry_password="hunter2",
+        chart_verify=True,
+        chart_verify_certificate_identity="alice@example.com",
+        chart_verify_certificate_oidc_issuer="https://accounts.example.com",
     )
     source = select_chart_source(s)
     assert isinstance(source, OciChart)
+    assert source._reference == "127.0.0.1:5555/charts/redis"
+    assert source._version == "0.1.0"
+    assert source._verify is True
+    assert isinstance(source._registry_password, SecretStr)
+    assert source._registry_password.get_secret_value() == "hunter2"
+    assert source._verify_identity == "alice@example.com"
+    assert source._verify_oidc_issuer == "https://accounts.example.com"

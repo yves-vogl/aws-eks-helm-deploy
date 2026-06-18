@@ -3,6 +3,7 @@ ARG PYTHON_VERSION=3.13
 ARG UV_VERSION=0.11.21
 ARG HELM_VERSION=3.18.6
 ARG HELM_DIFF_VERSION=3.10.0
+ARG COSIGN_VERSION=2.6.3
 
 # Base image digests — pinned for reproducible builds and supply-chain safety.
 # Dependabot's `docker` ecosystem (.github/dependabot.yml) keeps these current
@@ -60,6 +61,30 @@ RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
               "helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" \
               linux-amd64
 
+# ── Stage 2.5: Cosign binary fetch ───────────────────────────────────────────
+# R12: this stage is placed BETWEEN helm-fetch and runtime for layer-cache ordering.
+# cosign 2.x keyless is the default (RESEARCH §3); COSIGN_EXPERIMENTAL=1 not needed.
+FROM debian:bookworm-slim@${DEBIAN_BASE_DIGEST} AS cosign-fetch
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG COSIGN_VERSION
+
+# linux/amd64 only — multi-arch lands Phase 6 alongside helm-fetch
+# Downloads cosign-linux-amd64 + cosign_checksums.txt (Sigstore canonical pinning pattern,
+# RESEARCH §6). The checksum file lists ~115 assets; grep filters to the exact file.
+RUN curl -fsSL "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64" \
+        -o "/tmp/cosign-linux-amd64" \
+    && curl -fsSL "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign_checksums.txt" \
+        -o "/tmp/cosign_checksums.txt" \
+    && cd /tmp \
+    && grep "  cosign-linux-amd64$" cosign_checksums.txt | sha256sum -c \
+    && mv cosign-linux-amd64 /cosign \
+    && chmod +x /cosign \
+    && rm -f /tmp/cosign_checksums.txt
+
 # ── Stage 3: Runtime image ────────────────────────────────────────────────────
 FROM python:${PYTHON_VERSION}-slim-bookworm@${PYTHON_BASE_DIGEST} AS runtime
 
@@ -79,6 +104,9 @@ COPY --from=builder /build/.venv /opt/venv
 
 # Copy Helm binary from helm-fetch stage
 COPY --from=helm-fetch /helm /usr/local/bin/helm
+
+# Copy Cosign binary from cosign-fetch stage (CHART-04; R12 ordered after helm)
+COPY --from=cosign-fetch /cosign /usr/local/bin/cosign
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     HELM_PLUGINS=/home/pipe/.local/share/helm/plugins \
