@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 4 context gathered
-last_updated: "2026-06-18T12:25:56.439Z"
-last_activity: 2026-06-18 -- Phase 03 marked complete
+status: in_progress
+stopped_at: Phase 4 Plan 1 complete
+last_updated: "2026-06-18T13:00:00.000Z"
+last_activity: 2026-06-18 -- Phase 04 Plan 04-01 (ROADMAP+REQUIREMENTS AUTH-04 revision) complete
 progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
   percent: 14
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-16)
 
 ## Current Position
 
-Phase: 03 — COMPLETE
-Plan: 1 of 5
-Status: Phase 03 complete
-Last activity: 2026-06-18 -- Phase 03 marked complete
+Phase: 04 — IN PROGRESS
+Plan: 1 of 7 complete (04-01 done; 04-02, 04-04, 04-05 queued for Wave 1 parallel)
+Status: Phase 04 Wave 1 in progress — atomic precursor commit landed
+Last activity: 2026-06-18 -- Phase 04 Plan 04-01 (AUTH-04 doc revision) complete
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [░░░░░░░░░░] 14%
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Recent decisions affecting current work:
 - Roadmap: 7-phase structure derived from SUMMARY.md §6 sequencing and ARCHITECTURE.md 10-phase build order, consolidated into 7 to match `granularity: standard`.
 - Roadmap: Log-masking (SEC-06) sequenced before PIPE-03 (PR-comment helm-diff) as hard precondition.
 - Roadmap: Release pipeline + Cosign + SBOM + Trivy + pip-audit + multi-arch consolidated into a single Phase 6 ("Release & Supply Chain") for plan-size economy.
+- AUTH-04 (Phase 4): Strategy precedence mirrors botocore default chain — static keys win over OIDC when both present; one-time WARN log surfaces precedence. "OIDC wins deterministically" wording removed from ROADMAP + REQUIREMENTS (commit 6e28005).
 
 ### Pending Todos
 
@@ -87,7 +88,7 @@ Items acknowledged and carried forward as v2.1+ (see REQUIREMENTS.md "v2 (Deferr
 
 ## Session Continuity
 
-Last session: 2026-06-18T12:25:56.434Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-oidc-chart-source-extensions/04-CONTEXT.md
-Next command: `/gsd-execute-phase 1` (after this PR merges)
+Last session: 2026-06-18T13:00:00.000Z
+Stopped at: Phase 4 Plan 04-01 complete
+Resume file: .planning/phases/04-oidc-chart-source-extensions/04-01-SUMMARY.md
+Next command: Execute Wave 1 parallel plans (04-02, 04-04, 04-05) on branch `phase/04-oidc-chart-sources`
