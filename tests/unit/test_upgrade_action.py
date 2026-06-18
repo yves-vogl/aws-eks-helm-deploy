@@ -18,14 +18,14 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+from pytest_mock import MockerFixture
+from structlog.testing import capture_logs
+
 from aws_eks_helm_deploy.actions.upgrade import (
     BITBUCKET_META_VARS,
     UpgradeAction,
     build_bitbucket_set_args,
 )
-from pytest_mock import MockerFixture
-from structlog.testing import capture_logs
-
 from aws_eks_helm_deploy.chart.local import ResolvedChart
 from aws_eks_helm_deploy.eks.cluster import ClusterAccess
 from aws_eks_helm_deploy.errors import (
