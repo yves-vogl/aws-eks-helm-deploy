@@ -155,3 +155,46 @@ def test_upgrade_argv_full(snapshot: object) -> None:
         timeout="10m",
     )
     assert argv == snapshot
+
+
+# ---------------------------------------------------------------------------
+# New argv builders for repo_add, repo_update, pull_repo (Plan 04-06)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_repo_add_argv(snapshot: object) -> None:
+    """helm repo add <name> <url> — argv snapshot."""
+    argv = _client()._build_repo_add_argv("bitnami", "https://charts.bitnami.com/bitnami")
+    assert argv == snapshot
+
+
+@pytest.mark.unit
+def test_repo_update_argv(snapshot: object) -> None:
+    """helm repo update <name> — argv snapshot."""
+    argv = _client()._build_repo_update_argv("bitnami")
+    assert argv == snapshot
+
+
+@pytest.mark.unit
+def test_pull_repo_argv_with_version(snapshot: object) -> None:
+    """helm pull <repo>/<chart> with --version flag — argv snapshot."""
+    argv = _client()._build_pull_repo_argv(
+        "bitnami/redis",
+        pathlib.Path("/tmp/dest"),
+        pathlib.Path("/tmp/unpacked"),
+        "18.5.0",
+    )
+    assert argv == snapshot
+
+
+@pytest.mark.unit
+def test_pull_repo_argv_without_version(snapshot: object) -> None:
+    """helm pull <repo>/<chart> without --version flag — argv snapshot."""
+    argv = _client()._build_pull_repo_argv(
+        "bitnami/redis",
+        pathlib.Path("/tmp/dest"),
+        pathlib.Path("/tmp/unpacked"),
+        None,
+    )
+    assert argv == snapshot

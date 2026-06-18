@@ -1,10 +1,11 @@
 """Typed HelmClient — the sole subprocess entry point for the aws-eks-helm-deploy pipe.
 
 REQ traceability:
-    PIPE-01  — upgrade_install invokes ``helm upgrade --install`` with exact argv contract
-    PIPE-06  — typed errors: HelmExecutionError (exit=5) and HelmTimeoutError (exit=6)
+    PIPE-01    — upgrade_install invokes ``helm upgrade --install`` with exact argv contract
+    PIPE-06    — typed errors: HelmExecutionError (exit=5) and HelmTimeoutError (exit=6)
     HISTORY-02 — ``--history-max`` passthrough; None suppresses the flag
-    META-01  — ``--set-string`` for ALL injected key=value pairs (Pitfall 4: curly braces)
+    META-01    — ``--set-string`` for ALL injected key=value pairs (Pitfall 4: curly braces)
+    CHART-02   — repo_add / repo_update / pull_repo typed methods for RepoChart (Phase 4)
 
 Architecture:
     CONTEXT D1 — this is the ONLY module in the codebase that imports ``subprocess``.
@@ -27,7 +28,7 @@ import re
 import subprocess
 from typing import TYPE_CHECKING, Final
 
-from aws_eks_helm_deploy.errors import HelmExecutionError, HelmTimeoutError
+from aws_eks_helm_deploy.errors import ChartResolutionError, HelmExecutionError, HelmTimeoutError
 
 if TYPE_CHECKING:
     from aws_eks_helm_deploy.chart.base import ResolvedChart
@@ -365,3 +366,145 @@ class HelmClient:
             )
             for entry in entries
         ]
+
+    # -----------------------------------------------------------------------
+    # Private argv builders — chart-resolution subcommands (Plan 04-06)
+    # -----------------------------------------------------------------------
+
+    def _build_repo_add_argv(self, name: str, repo_url: str) -> list[str]:
+        """Build ``helm repo add <name> <url>`` argv (pure function — no I/O)."""
+        return ["helm", "repo", "add", name, repo_url]
+
+    def _build_repo_update_argv(self, name: str) -> list[str]:
+        """Build ``helm repo update <name>`` argv (pure function — no I/O)."""
+        return ["helm", "repo", "update", name]
+
+    def _build_pull_repo_argv(
+        self,
+        repo_chart: str,
+        destination: pathlib.Path,
+        untar_dir: pathlib.Path,
+        version: str | None,
+    ) -> list[str]:
+        """Build ``helm pull <repo>/<chart> --destination ... --untar --untar-dir ...`` argv."""
+        argv: list[str] = [
+            "helm",
+            "pull",
+            repo_chart,
+            "--destination",
+            str(destination),
+            "--untar",
+            "--untar-dir",
+            str(untar_dir),
+        ]
+        if version is not None:
+            argv.extend(["--version", version])
+        return argv
+
+    # -----------------------------------------------------------------------
+    # Private helper — shared subprocess runner for chart-resolution commands
+    # -----------------------------------------------------------------------
+
+    def _run_helm_subcommand(
+        self,
+        argv: list[str],
+        *,
+        env: dict[str, str],
+        timeout: int,
+        error_prefix: str,
+    ) -> None:
+        """Run a helm sub-command; raise ChartResolutionError on non-zero returncode.
+
+        Unlike upgrade_install, chart-resolution sub-commands (repo add, repo update, pull)
+        raise ChartResolutionError (exit_code=4), NOT HelmExecutionError (exit_code=5),
+        because the failure surfaces in the CHART RESOLUTION step — before the helm
+        upgrade --install action starts. Consumers reading the exit code can distinguish
+        "couldn't find / pull the chart" (4) from "helm upgrade --install itself failed" (5).
+        """
+        try:
+            result = subprocess.run(  # noqa: S603
+                argv,
+                capture_output=True,
+                text=True,
+                check=False,
+                env=env,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as exc:
+            partial_stderr = ""
+            if exc.stderr is not None:
+                raw: str = (
+                    exc.stderr
+                    if isinstance(exc.stderr, str)
+                    else exc.stderr.decode("utf-8", errors="replace")
+                )
+                partial_stderr = raw[-1024:]
+            msg = f"{error_prefix} timed out after {exc.timeout}s"
+            if partial_stderr:
+                msg += f"; last stderr: {partial_stderr}"
+            raise ChartResolutionError(msg) from exc
+
+        if result.returncode != 0:
+            truncated_stderr = _truncate_stderr(result.stderr)
+            raise ChartResolutionError(
+                f"{error_prefix} returned {result.returncode} — last stderr: {truncated_stderr}"
+            )
+
+    # -----------------------------------------------------------------------
+    # Public chart-resolution methods (Plan 04-06)
+    # -----------------------------------------------------------------------
+
+    def repo_add(self, name: str, repo_url: str, env: dict[str, str]) -> None:
+        """Run ``helm repo add <name> <repo_url>`` in an isolated env.
+
+        Args:
+            name: Repository alias to register (e.g. ``"bitnami"``).
+            repo_url: HTTPS URL of the helm repository index.
+            env: Full subprocess env dict; must contain HELM_REPOSITORY_CONFIG
+                and HELM_REPOSITORY_CACHE for cache isolation (R7).
+
+        Raises:
+            ChartResolutionError: helm exited non-zero or timed out (exit_code=4).
+        """
+        argv = self._build_repo_add_argv(name, repo_url)
+        self._run_helm_subcommand(argv, env=env, timeout=60, error_prefix=f"helm repo add {name}")
+
+    def repo_update(self, name: str, env: dict[str, str]) -> None:
+        """Run ``helm repo update <name>`` to refresh the cached chart index.
+
+        Args:
+            name: Repository alias previously registered via repo_add.
+            env: Full subprocess env dict with HELM_REPOSITORY_CONFIG isolation.
+
+        Raises:
+            ChartResolutionError: helm exited non-zero or timed out (exit_code=4).
+        """
+        argv = self._build_repo_update_argv(name)
+        self._run_helm_subcommand(
+            argv, env=env, timeout=120, error_prefix=f"helm repo update {name}"
+        )
+
+    def pull_repo(
+        self,
+        repo_chart: str,
+        destination: pathlib.Path,
+        untar_dir: pathlib.Path,
+        version: str | None,
+        env: dict[str, str],
+    ) -> None:
+        """Run ``helm pull <repo>/<chart> --destination ... --untar --untar-dir ...``.
+
+        Args:
+            repo_chart: ``"<repo-name>/<chart-name>"`` reference string.
+            destination: Directory where helm writes the ``.tgz`` tarball.
+            untar_dir: Directory where helm extracts the chart (``--untar-dir``).
+            version: Chart version string, or ``None`` to pull the latest.
+            env: Full subprocess env dict with HELM_REPOSITORY_CONFIG isolation.
+
+        Raises:
+            ChartResolutionError: helm exited non-zero or timed out (exit_code=4).
+        """
+        argv = self._build_pull_repo_argv(repo_chart, destination, untar_dir, version)
+        self._run_helm_subcommand(
+            argv, env=env, timeout=600, error_prefix=f"helm pull {repo_chart}"
+        )
