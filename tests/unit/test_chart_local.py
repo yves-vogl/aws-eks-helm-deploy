@@ -1,4 +1,8 @@
-"""Unit tests for ResolvedChart + resolve_local_chart (CHART-01 + CHART-05).
+"""Unit tests for LocalChart class (CHART-01 + CHART-05).
+
+Phase 4 refactor: tests updated from resolve_local_chart() function shape to
+LocalChart(chart_spec, repo_root).resolve() context-manager shape (CONTEXT D3).
+All 15+ branches from Phase 3 are preserved; only the call shape changes.
 
 Uses pytest's tmp_path fixture for filesystem fixtures and
 structlog.testing.capture_logs() for warning assertions.
@@ -13,12 +17,22 @@ import pathlib
 import pytest
 from structlog.testing import capture_logs
 
-from aws_eks_helm_deploy.chart.local import ResolvedChart, resolve_local_chart
+from aws_eks_helm_deploy.chart.base import ResolvedChart
+from aws_eks_helm_deploy.chart.local import LocalChart
 from aws_eks_helm_deploy.errors import ChartResolutionError
 
 # ---------------------------------------------------------------------------
-# Helper
+# Helpers
 # ---------------------------------------------------------------------------
+
+
+def _resolve(
+    chart_spec: str,
+    repo_root: pathlib.Path | None = None,
+) -> ResolvedChart:
+    """Helper: resolve LocalChart via context-manager and return the ResolvedChart."""
+    with LocalChart(chart_spec, repo_root=repo_root).resolve() as resolved:
+        return resolved
 
 
 def _write_chart(
@@ -50,18 +64,41 @@ def _write_chart(
 
 @pytest.mark.unit
 def test_happy_path_full_chart_yaml(tmp_path: pathlib.Path) -> None:
-    """resolve_local_chart returns a populated ResolvedChart from a valid chart dir."""
+    """LocalChart.resolve() returns a populated ResolvedChart from a valid chart dir."""
     chart_dir = tmp_path / "mychart"
     chart_dir.mkdir()
     (chart_dir / "Chart.yaml").write_text(
         "apiVersion: v2\nname: mychart\nversion: 1.2.3\ntype: application\n"
     )
 
-    result = resolve_local_chart(str(chart_dir))
+    result = _resolve(str(chart_dir))
 
     assert result.name == "mychart"
     assert result.version == "1.2.3"
     assert result.source_path == chart_dir.resolve()
+
+
+# ---------------------------------------------------------------------------
+# Class construction
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_local_chart_default_repo_root_is_none(tmp_path: pathlib.Path) -> None:
+    """LocalChart(chart_spec) with no repo_root defaults to None."""
+    chart_dir = tmp_path / "chart"
+    chart_dir.mkdir()
+    (chart_dir / "Chart.yaml").write_text("apiVersion: v2\nname: c\nversion: 0.1.0\n")
+
+    lc = LocalChart(str(chart_dir))
+    assert lc._repo_root is None
+
+
+@pytest.mark.unit
+def test_local_chart_explicit_repo_root(tmp_path: pathlib.Path) -> None:
+    """LocalChart(chart_spec, repo_root=...) stores repo_root."""
+    lc = LocalChart("charts/foo", repo_root=tmp_path)
+    assert lc._repo_root == tmp_path
 
 
 # ---------------------------------------------------------------------------
@@ -71,24 +108,27 @@ def test_happy_path_full_chart_yaml(tmp_path: pathlib.Path) -> None:
 
 @pytest.mark.unit
 def test_repo_prefix_raises_chart_resolution_error() -> None:
-    """resolve_local_chart raises ChartResolutionError for repo:// prefixed specs."""
-    with pytest.raises(ChartResolutionError) as exc_info:
-        resolve_local_chart("repo://stable/postgres")
+    """LocalChart.resolve() raises ChartResolutionError for repo:// prefixed specs."""
+    with (
+        pytest.raises(ChartResolutionError) as exc_info,
+        LocalChart("repo://stable/postgres").resolve(),
+    ):
+        pass
 
     assert exc_info.value.exit_code == 4
     assert "repo://" in str(exc_info.value)
-    assert "Phase 4" in str(exc_info.value)
+    assert "RepoChart" in str(exc_info.value)
 
 
 @pytest.mark.unit
 def test_oci_prefix_raises_chart_resolution_error() -> None:
-    """resolve_local_chart raises ChartResolutionError for oci:// prefixed specs."""
-    with pytest.raises(ChartResolutionError) as exc_info:
-        resolve_local_chart("oci://ghcr.io/x/y")
+    """LocalChart.resolve() raises ChartResolutionError for oci:// prefixed specs."""
+    with pytest.raises(ChartResolutionError) as exc_info, LocalChart("oci://ghcr.io/x/y").resolve():
+        pass
 
     assert exc_info.value.exit_code == 4
     assert "oci://" in str(exc_info.value)
-    assert "Phase 4" in str(exc_info.value)
+    assert "OciChart" in str(exc_info.value)
 
 
 # ---------------------------------------------------------------------------
@@ -103,7 +143,7 @@ def test_relative_path_resolved_against_repo_root(tmp_path: pathlib.Path) -> Non
     chart_dir.mkdir(parents=True)
     (chart_dir / "Chart.yaml").write_text("apiVersion: v2\nname: minimal\nversion: 0.1.0\n")
 
-    result = resolve_local_chart("charts/minimal", repo_root=tmp_path)
+    result = _resolve("charts/minimal", repo_root=tmp_path)
 
     assert result.source_path == (tmp_path / "charts" / "minimal").resolve()
 
@@ -118,7 +158,7 @@ def test_relative_path_resolved_against_cwd_when_no_repo_root(
     chart_dir.mkdir()
     (chart_dir / "Chart.yaml").write_text("apiVersion: v2\nname: minimal\nversion: 0.1.0\n")
 
-    result = resolve_local_chart("minimal")
+    result = _resolve("minimal")
 
     assert result.source_path == chart_dir.resolve()
     assert result.name == "minimal"
@@ -131,7 +171,7 @@ def test_absolute_path_used_directly(tmp_path: pathlib.Path) -> None:
     abs_chart.mkdir()
     (abs_chart / "Chart.yaml").write_text("apiVersion: v2\nname: abs_chart\nversion: 2.0.0\n")
 
-    result = resolve_local_chart(str(abs_chart))
+    result = _resolve(str(abs_chart))
 
     assert result.source_path == abs_chart.resolve()
     assert result.name == "abs_chart"
@@ -145,11 +185,11 @@ def test_absolute_path_used_directly(tmp_path: pathlib.Path) -> None:
 
 @pytest.mark.unit
 def test_missing_directory_raises(tmp_path: pathlib.Path) -> None:
-    """resolve_local_chart raises ChartResolutionError when path does not exist."""
+    """LocalChart.resolve() raises ChartResolutionError when path does not exist."""
     missing = tmp_path / "does-not-exist"
 
-    with pytest.raises(ChartResolutionError) as exc_info:
-        resolve_local_chart(str(missing))
+    with pytest.raises(ChartResolutionError) as exc_info, LocalChart(str(missing)).resolve():
+        pass
 
     assert "does not exist" in str(exc_info.value)
     assert exc_info.value.exit_code == 4
@@ -157,12 +197,12 @@ def test_missing_directory_raises(tmp_path: pathlib.Path) -> None:
 
 @pytest.mark.unit
 def test_path_is_file_not_directory_raises(tmp_path: pathlib.Path) -> None:
-    """resolve_local_chart raises ChartResolutionError when path is a file, not a directory."""
+    """LocalChart.resolve() raises ChartResolutionError when path is a file, not a directory."""
     afile = tmp_path / "afile"
     afile.write_text("x")
 
-    with pytest.raises(ChartResolutionError) as exc_info:
-        resolve_local_chart(str(afile))
+    with pytest.raises(ChartResolutionError) as exc_info, LocalChart(str(afile)).resolve():
+        pass
 
     assert "not a directory" in str(exc_info.value)
     assert exc_info.value.exit_code == 4
@@ -170,12 +210,12 @@ def test_path_is_file_not_directory_raises(tmp_path: pathlib.Path) -> None:
 
 @pytest.mark.unit
 def test_missing_chart_yaml_raises(tmp_path: pathlib.Path) -> None:
-    """resolve_local_chart raises ChartResolutionError when Chart.yaml is missing."""
+    """LocalChart.resolve() raises ChartResolutionError when Chart.yaml is missing."""
     empty_dir = tmp_path / "empty-dir"
     empty_dir.mkdir()
 
-    with pytest.raises(ChartResolutionError) as exc_info:
-        resolve_local_chart(str(empty_dir))
+    with pytest.raises(ChartResolutionError) as exc_info, LocalChart(str(empty_dir)).resolve():
+        pass
 
     assert "Chart.yaml not found" in str(exc_info.value)
     assert exc_info.value.exit_code == 4
@@ -183,30 +223,27 @@ def test_missing_chart_yaml_raises(tmp_path: pathlib.Path) -> None:
 
 @pytest.mark.unit
 def test_invalid_yaml_raises(tmp_path: pathlib.Path) -> None:
-    """resolve_local_chart raises ChartResolutionError when Chart.yaml has invalid YAML."""
+    """LocalChart.resolve() raises ChartResolutionError when Chart.yaml has invalid YAML."""
     chart_dir = tmp_path / "bad-yaml-chart"
     chart_dir.mkdir()
-    # Deliberately malformed YAML
     (chart_dir / "Chart.yaml").write_text("name: : :\nver bad:[\n")
 
-    with pytest.raises(ChartResolutionError) as exc_info:
-        resolve_local_chart(str(chart_dir))
+    with pytest.raises(ChartResolutionError) as exc_info, LocalChart(str(chart_dir)).resolve():
+        pass
 
-    # Should contain the underlying YAML error text
     assert exc_info.value.exit_code == 4
-    error_msg = str(exc_info.value)
-    assert "not valid YAML" in error_msg
+    assert "not valid YAML" in str(exc_info.value)
 
 
 @pytest.mark.unit
 def test_empty_chart_yaml_raises(tmp_path: pathlib.Path) -> None:
-    """resolve_local_chart raises ChartResolutionError when Chart.yaml is empty."""
+    """LocalChart.resolve() raises ChartResolutionError when Chart.yaml is empty."""
     chart_dir = tmp_path / "empty-yaml-chart"
     chart_dir.mkdir()
     (chart_dir / "Chart.yaml").write_text("")
 
-    with pytest.raises(ChartResolutionError) as exc_info:
-        resolve_local_chart(str(chart_dir))
+    with pytest.raises(ChartResolutionError) as exc_info, LocalChart(str(chart_dir)).resolve():
+        pass
 
     assert "empty or malformed" in str(exc_info.value)
     assert exc_info.value.exit_code == 4
@@ -214,14 +251,13 @@ def test_empty_chart_yaml_raises(tmp_path: pathlib.Path) -> None:
 
 @pytest.mark.unit
 def test_non_mapping_chart_yaml_raises(tmp_path: pathlib.Path) -> None:
-    """resolve_local_chart raises ChartResolutionError for non-mapping Chart.yaml top level."""
+    """LocalChart.resolve() raises ChartResolutionError for non-mapping Chart.yaml top level."""
     chart_dir = tmp_path / "list-yaml-chart"
     chart_dir.mkdir()
-    # YAML list at top level — not a mapping
     (chart_dir / "Chart.yaml").write_text("- name\n- mychart\n")
 
-    with pytest.raises(ChartResolutionError) as exc_info:
-        resolve_local_chart(str(chart_dir))
+    with pytest.raises(ChartResolutionError) as exc_info, LocalChart(str(chart_dir)).resolve():
+        pass
 
     assert "must be a YAML mapping" in str(exc_info.value)
     assert exc_info.value.exit_code == 4
@@ -239,7 +275,7 @@ def test_missing_name_falls_back_to_dir_name(tmp_path: pathlib.Path) -> None:
     chart_dir.mkdir()
     (chart_dir / "Chart.yaml").write_text("apiVersion: v2\nversion: 0.1.0\n")
 
-    result = resolve_local_chart(str(chart_dir))
+    result = _resolve(str(chart_dir))
 
     assert result.name == "dirname"
 
@@ -252,7 +288,7 @@ def test_missing_version_falls_back_to_empty_string_and_warns(tmp_path: pathlib.
     (chart_dir / "Chart.yaml").write_text("apiVersion: v2\nname: x\n")
 
     with capture_logs() as captured:
-        result = resolve_local_chart(str(chart_dir))
+        result = _resolve(str(chart_dir))
 
     assert result.version == ""
     assert any(event["event"] == "chart_yaml_missing_version" for event in captured), (
@@ -268,7 +304,7 @@ def test_v1_api_version_warns_but_proceeds(tmp_path: pathlib.Path) -> None:
     (chart_dir / "Chart.yaml").write_text("apiVersion: v1\nname: x\nversion: 0.1.0\n")
 
     with capture_logs() as captured:
-        result = resolve_local_chart(str(chart_dir))
+        result = _resolve(str(chart_dir))
 
     assert result.name == "x"
     assert result.version == "0.1.0"
@@ -278,7 +314,7 @@ def test_v1_api_version_warns_but_proceeds(tmp_path: pathlib.Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# ResolvedChart dataclass properties
+# ResolvedChart dataclass properties (imported from chart/base.py now)
 # ---------------------------------------------------------------------------
 
 

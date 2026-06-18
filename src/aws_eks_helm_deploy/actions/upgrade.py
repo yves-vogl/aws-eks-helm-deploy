@@ -1,7 +1,7 @@
 """UpgradeAction — orchestration root for helm upgrade --install.
 
 Requirements traceability:
-    CHART-01:  end-to-end: resolve_local_chart -> HelmClient.upgrade_install
+    CHART-01:  end-to-end: select_chart_source -> HelmClient.upgrade_install
     CHART-05:  pipe.success emits exact format per CONTEXT D7
     PIPE-01:   full chain (auth -> token -> kubeconfig -> chart -> helm) wired
     PIPE-06:   every failure maps to a typed PipeError; OSError wrapped as KubeconfigError
@@ -32,7 +32,7 @@ import structlog
 
 from aws_eks_helm_deploy.auth import select_strategy
 from aws_eks_helm_deploy.aws.eks_token import generate_eks_token
-from aws_eks_helm_deploy.chart.local import resolve_local_chart
+from aws_eks_helm_deploy.chart import select_chart_source
 from aws_eks_helm_deploy.eks.cluster import get_cluster_access
 from aws_eks_helm_deploy.errors import ConfigurationError, KubeconfigError
 from aws_eks_helm_deploy.helm.client import HelmClient
@@ -136,8 +136,8 @@ class UpgradeAction:
             cluster = get_cluster_access(session, s.cluster_name, s.aws_region)
             token = generate_eks_token(session, s.cluster_name, s.aws_region)
 
-        # Step 6: chart resolution
-        resolved = resolve_local_chart(s.chart)
+        # Step 6: chart source factory (routes by prefix: oci://, repo://, else local)
+        chart_source = select_chart_source(s)
 
         # Step 7: Bitbucket metadata args (opt-in per CONTEXT D5 / META-01)
         bitbucket_args: list[str] = (
@@ -145,56 +145,57 @@ class UpgradeAction:
         )
         set_args = bitbucket_args + s.set_values  # user-supplied AFTER bitbucket (last-wins)
 
-        # Step 8: kubeconfig write + helm upgrade
+        # Step 8: chart resolve + kubeconfig write + helm upgrade
         start = time.monotonic()
-        if self._kubeconfig_override is not None:
-            client = HelmClient(self._kubeconfig_override)
-            result = client.upgrade_install(
-                release=s.release_name,
-                chart=resolved,
-                namespace=s.namespace,
-                values_files=s.values_files,
-                set_args=set_args,
-                history_max=s.history_max,
-                timeout=s.timeout,
-            )
-            cluster_name = s.cluster_name
-        else:
-            try:
-                with write_kubeconfig(cluster, token) as kubeconfig_path:
-                    client = HelmClient(kubeconfig_path)
-                    result = client.upgrade_install(
-                        release=s.release_name,
-                        chart=resolved,
-                        namespace=s.namespace,
-                        values_files=s.values_files,
-                        set_args=set_args,
-                        history_max=s.history_max,
-                        timeout=s.timeout,
-                    )
-            except OSError as exc:
-                raise KubeconfigError(f"Failed to write kubeconfig: {exc}") from exc
-            cluster_name = cluster.name
-        duration_ms = int((time.monotonic() - start) * 1000)
+        with chart_source.resolve() as resolved:
+            if self._kubeconfig_override is not None:
+                client = HelmClient(self._kubeconfig_override)
+                result = client.upgrade_install(
+                    release=s.release_name,
+                    chart=resolved,
+                    namespace=s.namespace,
+                    values_files=s.values_files,
+                    set_args=set_args,
+                    history_max=s.history_max,
+                    timeout=s.timeout,
+                )
+                cluster_name = s.cluster_name
+            else:
+                try:
+                    with write_kubeconfig(cluster, token) as kubeconfig_path:
+                        client = HelmClient(kubeconfig_path)
+                        result = client.upgrade_install(
+                            release=s.release_name,
+                            chart=resolved,
+                            namespace=s.namespace,
+                            values_files=s.values_files,
+                            set_args=set_args,
+                            history_max=s.history_max,
+                            timeout=s.timeout,
+                        )
+                except OSError as exc:
+                    raise KubeconfigError(f"Failed to write kubeconfig: {exc}") from exc
+                cluster_name = cluster.name
+            duration_ms = int((time.monotonic() - start) * 1000)
 
-        # Step 9: success message + structlog (CHART-05 + D7 + OBS-01)
-        message = (
-            f"Deployed chart {resolved.name} ({resolved.version})"
-            f" to release {s.release_name}"
-            f" in namespace {s.namespace}"
-            f" on cluster {cluster_name}"
-        )
-        logger.info(
-            "upgrade complete",
-            action="upgrade",
-            release=s.release_name,
-            namespace=s.namespace,
-            chart_source=s.chart,
-            chart_name=resolved.name,
-            chart_version=resolved.version,
-            cluster=cluster_name,
-            helm_revision=result.revision,
-            duration_ms=duration_ms,
-        )
-        pipe.success(message)
+            # Step 9: success message + structlog (CHART-05 + D7 + OBS-01)
+            message = (
+                f"Deployed chart {resolved.name} ({resolved.version})"
+                f" to release {s.release_name}"
+                f" in namespace {s.namespace}"
+                f" on cluster {cluster_name}"
+            )
+            logger.info(
+                "upgrade complete",
+                action="upgrade",
+                release=s.release_name,
+                namespace=s.namespace,
+                chart_source=s.chart,
+                chart_name=resolved.name,
+                chart_version=resolved.version,
+                cluster=cluster_name,
+                helm_revision=result.revision,
+                duration_ms=duration_ms,
+            )
+            pipe.success(message)
         return 0

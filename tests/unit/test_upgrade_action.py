@@ -1,7 +1,8 @@
 """Unit tests for aws_eks_helm_deploy.actions.upgrade.
 
 Requirements traceability:
-    CHART-01: UpgradeAction.run invokes resolve_local_chart -> HelmClient.upgrade_install
+    CHART-01: UpgradeAction.run invokes select_chart_source -> chart_source.resolve()
+              -> HelmClient.upgrade_install (Phase 4 factory rewire)
     CHART-05: pipe.success emits exact 'Deployed chart ...' format per CONTEXT D7
     PIPE-01:  Full chain (auth -> token -> kubeconfig -> chart -> helm upgrade --install) wired
     PIPE-06:  Every failure mode raises a typed PipeError subclass; cli.py catches PipeError
@@ -12,6 +13,7 @@ Requirements traceability:
 
 from __future__ import annotations
 
+import contextlib
 import pathlib
 from contextlib import contextmanager
 from typing import Any
@@ -26,7 +28,8 @@ from aws_eks_helm_deploy.actions.upgrade import (
     UpgradeAction,
     build_bitbucket_set_args,
 )
-from aws_eks_helm_deploy.chart.local import ResolvedChart
+from aws_eks_helm_deploy.chart import ChartSource
+from aws_eks_helm_deploy.chart.base import ResolvedChart
 from aws_eks_helm_deploy.eks.cluster import ClusterAccess
 from aws_eks_helm_deploy.errors import (
     AuthenticationError,
@@ -66,6 +69,11 @@ def _resolved_chart() -> ResolvedChart:
         version="0.1.0",
         source_path=pathlib.Path("/tmp/chart-fixture"),
     )
+
+
+def _make_fake_source(resolved: ResolvedChart) -> Any:
+    """Build a fake ChartSource whose .resolve() yields the given ResolvedChart."""
+    return MagicMock(spec=ChartSource, resolve=lambda: contextlib.nullcontext(resolved))
 
 
 def _cluster_access() -> ClusterAccess:
@@ -123,9 +131,9 @@ def _patch_all_happy(mocker: MockerFixture) -> dict[str, MagicMock]:
             "aws_eks_helm_deploy.actions.upgrade.write_kubeconfig",
             side_effect=_kubeconfig_ctx,
         ),
-        "resolve_local_chart": mocker.patch(
-            "aws_eks_helm_deploy.actions.upgrade.resolve_local_chart",
-            return_value=_resolved_chart(),
+        "select_chart_source": mocker.patch(
+            "aws_eks_helm_deploy.actions.upgrade.select_chart_source",
+            return_value=_make_fake_source(_resolved_chart()),
         ),
         "helm_client_cls": mocker.patch(
             "aws_eks_helm_deploy.actions.upgrade.HelmClient",
@@ -289,11 +297,17 @@ def test_run_propagates_eks_token_error(mocker: MockerFixture) -> None:
 
 @pytest.mark.unit
 def test_run_propagates_chart_resolution_error(mocker: MockerFixture) -> None:
-    """ChartResolutionError from resolve_local_chart() propagates through run()."""
+    """ChartResolutionError from chart_source.resolve() propagates through run()."""
     _patch_all_happy(mocker)
+
+    @contextmanager  # type: ignore[arg-type]
+    def _raising_resolve():  # type: ignore[no-untyped-def]
+        raise ChartResolutionError("chart not found")
+        yield  # pragma: no cover
+
     mocker.patch(
-        "aws_eks_helm_deploy.actions.upgrade.resolve_local_chart",
-        side_effect=ChartResolutionError("chart not found"),
+        "aws_eks_helm_deploy.actions.upgrade.select_chart_source",
+        return_value=MagicMock(spec=ChartSource, resolve=_raising_resolve),
     )
     mock_pipe = mocker.MagicMock()
     action = UpgradeAction(_make_settings())
