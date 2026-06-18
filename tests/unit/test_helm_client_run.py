@@ -632,3 +632,190 @@ def test_pull_repo_timeout_raises_chart_resolution_error(mocker: Any) -> None:
         )
     assert exc_info.value.exit_code == 4
     assert "600" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# registry_login — new method (Plan 04-07)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_registry_login_happy_path_password_via_input_not_argv(mocker: Any) -> None:
+    """registry_login passes password via input=, NEVER in argv (R4).
+
+    Verifies:
+    - subprocess.run receives input="hunter2"
+    - argv does NOT contain "hunter2" anywhere
+    - timeout=60
+    """
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="Login Succeeded", stderr=""),
+    )
+    env = {"HELM_REGISTRY_CONFIG": "/tmp/reg.json", "DOCKER_CONFIG": "/tmp/docker"}
+    _client().registry_login("127.0.0.1:5555", "alice", "hunter2", env)
+    assert mock_run.call_count == 1
+    # Password must appear in input=, NOT in argv
+    assert mock_run.call_args.kwargs["input"] == "hunter2"
+    assert "hunter2" not in mock_run.call_args.args[0]  # argv does not contain password
+    # Timeout and env passthrough
+    assert mock_run.call_args.kwargs["timeout"] == 60
+    assert mock_run.call_args.kwargs["env"] == env
+
+
+@pytest.mark.unit
+def test_registry_login_argv_contains_password_stdin_flag(mocker: Any) -> None:
+    """registry_login argv includes --password-stdin (not --password <value>)."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    )
+    _client().registry_login("ghcr.io", "bob", "s3cr3t", {})
+    argv = mock_run.call_args.args[0]
+    assert "--password-stdin" in argv
+    # Negative: the literal form '--password' followed by value must NOT appear
+    # (--password-stdin is OK, but '--password' with a space + value is forbidden)
+    assert "s3cr3t" not in argv
+
+
+@pytest.mark.unit
+def test_registry_login_non_zero_returncode_raises_chart_resolution_error(mocker: Any) -> None:
+    """registry_login non-zero returncode raises ChartResolutionError (exit_code=4)."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="Error: unauthorized"
+        ),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().registry_login("ghcr.io", "alice", "bad-pass", {})
+    assert exc_info.value.exit_code == 4
+    assert "registry login ghcr.io returned 1" in str(exc_info.value)
+    assert "unauthorized" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_registry_login_timeout_raises_chart_resolution_error(mocker: Any) -> None:
+    """registry_login TimeoutExpired raises ChartResolutionError."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(cmd=["helm"], timeout=60),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().registry_login("ghcr.io", "alice", "pass", {})
+    assert exc_info.value.exit_code == 4
+    assert "60" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# pull_oci — new method (Plan 04-07)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_pull_oci_happy_path_with_version(mocker: Any) -> None:
+    """pull_oci happy path with version: subprocess.run returns 0, no exception."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    )
+    env = {
+        "HELM_REGISTRY_CONFIG": "/tmp/reg.json",
+        "DOCKER_CONFIG": "/tmp/docker",
+        "MARKER": "oci",
+    }
+    dest = pathlib.Path("/tmp/dest")
+    untar_dir = pathlib.Path("/tmp/unpacked")
+    _client().pull_oci("127.0.0.1:5555/charts/redis", dest, untar_dir, "18.5.0", env)
+    assert mock_run.call_count == 1
+    assert mock_run.call_args.args[0] == [
+        "helm",
+        "pull",
+        "oci://127.0.0.1:5555/charts/redis",
+        "--destination",
+        "/tmp/dest",
+        "--untar",
+        "--untar-dir",
+        "/tmp/unpacked",
+        "--version",
+        "18.5.0",
+    ]
+    assert mock_run.call_args.kwargs["env"] == env
+    assert mock_run.call_args.kwargs["check"] is False
+    assert mock_run.call_args.kwargs["timeout"] == 600
+
+
+@pytest.mark.unit
+def test_pull_oci_happy_path_without_version(mocker: Any) -> None:
+    """pull_oci without version: no --version flag in argv."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    )
+    dest = pathlib.Path("/tmp/dest")
+    untar_dir = pathlib.Path("/tmp/unpacked")
+    _client().pull_oci("127.0.0.1:5555/charts/redis", dest, untar_dir, None, {})
+    argv = mock_run.call_args.args[0]
+    assert "--version" not in argv
+    assert "oci://127.0.0.1:5555/charts/redis" in argv
+    assert "--untar" in argv
+
+
+@pytest.mark.unit
+def test_pull_oci_non_zero_returncode_raises_chart_resolution_error(mocker: Any) -> None:
+    """pull_oci non-zero returncode raises ChartResolutionError (exit_code=4)."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="Error: chart not found in registry"
+        ),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().pull_oci(
+            "ghcr.io/org/chart",
+            pathlib.Path("/tmp/dest"),
+            pathlib.Path("/tmp/up"),
+            "1.0.0",
+            {},
+        )
+    assert exc_info.value.exit_code == 4
+    assert "helm pull oci://ghcr.io/org/chart returned 1" in str(exc_info.value)
+    assert "chart not found" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_pull_oci_timeout_raises_chart_resolution_error(mocker: Any) -> None:
+    """pull_oci TimeoutExpired raises ChartResolutionError."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(cmd=["helm"], timeout=600),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().pull_oci(
+            "ghcr.io/org/chart", pathlib.Path("/tmp/dest"), pathlib.Path("/tmp/up"), None, {}
+        )
+    assert exc_info.value.exit_code == 4
+    assert "600" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_pull_oci_env_passthrough(mocker: Any) -> None:
+    """pull_oci passes env dict to subprocess.run (env isolation assertion)."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    )
+    env = {
+        "HELM_REGISTRY_CONFIG": "/tmp/reg.json",
+        "DOCKER_CONFIG": "/tmp/docker",
+        "HELM_REPOSITORY_CONFIG": "/tmp/repos.yaml",
+        "HELM_REPOSITORY_CACHE": "/tmp/cache",
+    }
+    _client().pull_oci(
+        "127.0.0.1:5555/charts/redis",
+        pathlib.Path("/tmp/dest"),
+        pathlib.Path("/tmp/up"),
+        None,
+        env,
+    )
+    assert mock_run.call_args.kwargs["env"] == env

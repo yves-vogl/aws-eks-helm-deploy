@@ -1,4 +1,30 @@
 # serializer version: 1
+# name: test_pull_oci_argv_with_version
+  list([
+    'helm',
+    'pull',
+    'oci://127.0.0.1:5555/charts/redis',
+    '--destination',
+    '/tmp/dest',
+    '--untar',
+    '--untar-dir',
+    '/tmp/unpacked',
+    '--version',
+    '18.5.0',
+  ])
+# ---
+# name: test_pull_oci_argv_without_version
+  list([
+    'helm',
+    'pull',
+    'oci://127.0.0.1:5555/charts/redis',
+    '--destination',
+    '/tmp/dest',
+    '--untar',
+    '--untar-dir',
+    '/tmp/unpacked',
+  ])
+# ---
 # name: test_pull_repo_argv_with_version
   list([
     'helm',
@@ -23,6 +49,17 @@
     '--untar',
     '--untar-dir',
     '/tmp/unpacked',
+  ])
+# ---
+# name: test_registry_login_argv
+  list([
+    'helm',
+    'registry',
+    'login',
+    '127.0.0.1:5555',
+    '--username',
+    'alice',
+    '--password-stdin',
   ])
 # ---
 # name: test_repo_add_argv

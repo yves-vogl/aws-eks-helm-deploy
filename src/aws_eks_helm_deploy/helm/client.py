@@ -6,9 +6,12 @@ REQ traceability:
     HISTORY-02 — ``--history-max`` passthrough; None suppresses the flag
     META-01    — ``--set-string`` for ALL injected key=value pairs (Pitfall 4: curly braces)
     CHART-02   — repo_add / repo_update / pull_repo typed methods for RepoChart (Phase 4)
+    CHART-03   — registry_login / pull_oci typed methods for OciChart (Phase 4)
 
 Architecture:
-    CONTEXT D1 — this is the ONLY module in the codebase that imports ``subprocess``.
+    CONTEXT D1 — this is the ONLY module in the codebase that imports ``subprocess``
+                 for HELM commands. chart/oci.py imports subprocess for cosign (CONTEXT D5
+                 scoped exception — cosign is a separate binary, not a helm subcommand).
     CONTEXT D2 — sync ``subprocess.run`` only; stderr truncated to last 32 KB.
     CONTEXT D9 — ``_build_argv`` is a pure function, snapshot-tested via syrupy.
 
@@ -401,6 +404,44 @@ class HelmClient:
             argv.extend(["--version", version])
         return argv
 
+    def _build_registry_login_argv(self, registry_host: str, username: str) -> list[str]:
+        """Build ``helm registry login <host> --username <u> --password-stdin`` argv.
+
+        The password is passed via subprocess ``input=``, NOT via argv (R4 — prevents
+        credential exposure in process listing / ``ps ax``).
+        """
+        return [
+            "helm",
+            "registry",
+            "login",
+            registry_host,
+            "--username",
+            username,
+            "--password-stdin",  # R4 — password via stdin, NEVER argv
+        ]
+
+    def _build_pull_oci_argv(
+        self,
+        reference: str,
+        destination: pathlib.Path,
+        untar_dir: pathlib.Path,
+        version: str | None,
+    ) -> list[str]:
+        """Build ``helm pull oci://<ref> --destination ... --untar --untar-dir ...`` argv."""
+        argv: list[str] = [
+            "helm",
+            "pull",
+            f"oci://{reference}",
+            "--destination",
+            str(destination),
+            "--untar",
+            "--untar-dir",
+            str(untar_dir),
+        ]
+        if version is not None:
+            argv.extend(["--version", version])
+        return argv
+
     # -----------------------------------------------------------------------
     # Private helper — shared subprocess runner for chart-resolution commands
     # -----------------------------------------------------------------------
@@ -507,4 +548,81 @@ class HelmClient:
         argv = self._build_pull_repo_argv(repo_chart, destination, untar_dir, version)
         self._run_helm_subcommand(
             argv, env=env, timeout=600, error_prefix=f"helm pull {repo_chart}"
+        )
+
+    def registry_login(
+        self,
+        registry_host: str,
+        username: str,
+        password: str,
+        env: dict[str, str],
+    ) -> None:
+        """Run ``helm registry login <host> --username <u> --password-stdin``.
+
+        The password is passed via subprocess ``input=``, NEVER via argv (R4 — prevents
+        credential exposure in process listing / ``ps ax``). The caller must unwrap
+        ``SecretStr`` via ``.get_secret_value()`` before passing the plaintext here;
+        that single unwrap site lives in ``chart/oci.py::OciChart._run_helm_registry_login``
+        (R13 — single SecretStr unwrap site).
+
+        Args:
+            registry_host: OCI registry hostname, e.g. ``"ghcr.io"`` or
+                ``"127.0.0.1:5555"``.
+            username: Registry username.
+            password: Plaintext password (caller has already unwrapped SecretStr).
+            env: Full subprocess env dict; must contain ``HELM_REGISTRY_CONFIG`` and
+                ``DOCKER_CONFIG`` for credential isolation (RESEARCH §5).
+
+        Raises:
+            ChartResolutionError: helm exited non-zero or timed out (exit_code=4).
+        """
+        argv = self._build_registry_login_argv(registry_host, username)
+        # Bypass _run_helm_subcommand because we need input=password for --password-stdin.
+        try:
+            result = subprocess.run(  # noqa: S603
+                argv,
+                input=password,
+                capture_output=True,
+                text=True,
+                check=False,
+                env=env,
+                timeout=60,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise ChartResolutionError(
+                f"helm registry login {registry_host} timed out after {exc.timeout}s"
+            ) from exc
+
+        if result.returncode != 0:
+            truncated_stderr = _truncate_stderr(result.stderr)
+            raise ChartResolutionError(
+                f"helm registry login {registry_host} returned {result.returncode} — "
+                f"last stderr: {truncated_stderr}"
+            )
+
+    def pull_oci(
+        self,
+        reference: str,
+        destination: pathlib.Path,
+        untar_dir: pathlib.Path,
+        version: str | None,
+        env: dict[str, str],
+    ) -> None:
+        """Run ``helm pull oci://<reference> --destination ... --untar --untar-dir ...``.
+
+        Args:
+            reference: Already-stripped OCI reference without the ``oci://`` prefix
+                (e.g. ``"127.0.0.1:5555/charts/redis"``).
+            destination: Directory where helm writes the ``.tgz`` tarball.
+            untar_dir: Directory where helm extracts the chart (``--untar-dir``).
+            version: Chart version string, or ``None`` to pull the latest.
+            env: Full subprocess env dict; must contain ``HELM_REGISTRY_CONFIG`` and
+                ``DOCKER_CONFIG`` for credential isolation (RESEARCH §5).
+
+        Raises:
+            ChartResolutionError: helm exited non-zero or timed out (exit_code=4).
+        """
+        argv = self._build_pull_oci_argv(reference, destination, untar_dir, version)
+        self._run_helm_subcommand(
+            argv, env=env, timeout=600, error_prefix=f"helm pull oci://{reference}"
         )

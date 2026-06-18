@@ -198,3 +198,48 @@ def test_pull_repo_argv_without_version(snapshot: object) -> None:
         None,
     )
     assert argv == snapshot
+
+
+# ---------------------------------------------------------------------------
+# New argv builders for registry_login + pull_oci (Plan 04-07)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_registry_login_argv(snapshot: object) -> None:
+    """helm registry login uses --password-stdin (NOT --password <value>) — argv snapshot.
+
+    This snapshot is the canonical regression guard for T-04-07-01: any PR that
+    accidentally switches to '--password <value>' will fail here and in the negative
+    grep check (R4 structural enforcement).
+    """
+    argv = _client()._build_registry_login_argv("127.0.0.1:5555", "alice")
+    assert argv == snapshot
+    assert "--password-stdin" in argv
+    assert "--password" not in [a for a in argv if not a.startswith("--password-stdin")]
+
+
+@pytest.mark.unit
+def test_pull_oci_argv_with_version(snapshot: object) -> None:
+    """helm pull oci://<ref> with --version flag — argv snapshot."""
+    argv = _client()._build_pull_oci_argv(
+        "127.0.0.1:5555/charts/redis",
+        pathlib.Path("/tmp/dest"),
+        pathlib.Path("/tmp/unpacked"),
+        "18.5.0",
+    )
+    assert argv == snapshot
+    assert "--untar" in argv
+
+
+@pytest.mark.unit
+def test_pull_oci_argv_without_version(snapshot: object) -> None:
+    """helm pull oci://<ref> without --version flag — argv snapshot."""
+    argv = _client()._build_pull_oci_argv(
+        "127.0.0.1:5555/charts/redis",
+        pathlib.Path("/tmp/dest"),
+        pathlib.Path("/tmp/unpacked"),
+        None,
+    )
+    assert argv == snapshot
+    assert "--version" not in argv
