@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 4 complete — verifier PASS, ready for PR
-last_updated: "2026-06-18T20:38:24.616Z"
-last_activity: 2026-06-18 -- Phase 04 complete — verifier PASS (7/7 REQs, 4/4 SCs, 8/8 decisions, 13/13 risks); ready for PR
+status: "Phase 04 shipped — PR #37 open against main"
+stopped_at: Phase 4 complete — verifier PASS, branch `phase/04-oidc-chart-sources` ready for PR
+last_updated: "2026-06-19T12:28:21.145Z"
+last_activity: "2026-06-19 -- Phase 04 PR #37 opened"
 progress:
   total_phases: 7
   completed_phases: 4
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-06-16)
 
 Phase: 04 — COMPLETE (verifier PASS)
 Plan: 7 of 7 complete (04-01, 04-02, 04-03, 04-04, 04-05, 04-06, 04-07 all shipped)
-Status: Phase 04 done — branch `phase/04-oidc-chart-sources` ready for PR. Verifier PASS: 7/7 REQs, 4/4 SCs, 8/8 locked decisions, 13/13 risks mitigated. 340 unit tests, 100% line+branch coverage, mypy --strict clean, ruff clean.
-Last activity: 2026-06-18 -- Phase 04 verification report — PASS
+Status: Phase 04 shipped — PR #37 open against main
+Last activity: 2026-06-19 -- Phase 04 PR #37 opened
 
 Progress: [█████░░░░░] 57% (4 of 7 phases complete)
 
