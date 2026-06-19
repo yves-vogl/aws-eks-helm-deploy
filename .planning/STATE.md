@@ -5,13 +5,14 @@ milestone_name: milestone
 status: completed
 stopped_at: Phase 4 complete — verifier PASS, ready for PR
 last_updated: "2026-06-18T20:38:24.616Z"
-last_activity: 2026-06-18 -- Phase 04 Plan 04-06 (RepoChart + HelmClient repo methods + CHART-02) complete
+last_activity: 2026-06-18 -- Phase 04 complete — verifier PASS (7/7 REQs, 4/4 SCs, 8/8 decisions, 13/13 risks); ready for PR
 progress:
   total_phases: 7
-  completed_phases: 1
-  total_plans: 24
-  completed_plans: 19
-  percent: 14
+  completed_phases: 4
+  total_plans: 20
+  completed_plans: 20
+  percent: 57
+  note: total_plans counts plans authored so far (phases 1–4); phases 5–7 not yet planned
 ---
 
 # Project State
@@ -21,16 +22,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-16)
 
 **Core value:** A maintainer can ship a Bitbucket Pipelines deployment to AWS EKS from a clean repository in under five minutes — without committing static AWS credentials and without surprises at upgrade time.
-**Current focus:** Phase 03 — helm-core-upgrade-action
+**Current focus:** Phase 05 — log-masking-diff-rollback-metadata (next)
 
 ## Current Position
 
-Phase: 04 — IN PROGRESS
-Plan: 6 of 7 complete (04-01, 04-02, 04-04, 04-05, 04-06 done; 04-07 Wave 3 remaining)
-Status: Phase 04 Wave 2 complete — 04-06 (RepoChart + HelmClient repo methods + CHART-02) shipped
-Last activity: 2026-06-18 -- Phase 04 Plan 04-06 (RepoChart + HelmClient repo methods + CHART-02) complete
+Phase: 04 — COMPLETE (verifier PASS)
+Plan: 7 of 7 complete (04-01, 04-02, 04-03, 04-04, 04-05, 04-06, 04-07 all shipped)
+Status: Phase 04 done — branch `phase/04-oidc-chart-sources` ready for PR. Verifier PASS: 7/7 REQs, 4/4 SCs, 8/8 locked decisions, 13/13 risks mitigated. 340 unit tests, 100% line+branch coverage, mypy --strict clean, ruff clean.
+Last activity: 2026-06-18 -- Phase 04 verification report — PASS
 
-Progress: [░░░░░░░░░░] 14%
+Progress: [█████░░░░░] 57% (4 of 7 phases complete)
 
 ## Performance Metrics
 
@@ -89,7 +90,7 @@ Items acknowledged and carried forward as v2.1+ (see REQUIREMENTS.md "v2 (Deferr
 
 ## Session Continuity
 
-Last session: 2026-06-18T20:38:24.605Z
-Stopped at: Phase 4 complete — verifier PASS, ready for PR
+Last session: 2026-06-19T00:00:00Z
+Stopped at: Phase 4 complete — verifier PASS, branch `phase/04-oidc-chart-sources` ready for PR
 Resume file: .planning/phases/04-oidc-chart-source-extensions/04-VERIFICATION.md
-Next command: Execute Wave 3 Plan 04-07 (OciChart + Cosign + Dockerfile cosign stage) on branch `phase/04-oidc-chart-sources`
+Next command: Open PR for Phase 4 (`/gsd-ship` or `gh pr create`), then `/gsd-discuss-phase` for Phase 5 (log-masking-diff-rollback-metadata)
