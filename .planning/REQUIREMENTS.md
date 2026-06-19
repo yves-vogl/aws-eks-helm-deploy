@@ -22,10 +22,10 @@ Two consumer-side personas drive the requirements: **(M)** the maintainer of a d
 
 - [ ] **AUTH-01**: M can authenticate using static `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` (parity with v1.x).
 - [ ] **AUTH-02**: M can additionally assume an IAM role by setting `ROLE_ARN` (and optional `SESSION_NAME`), composable on top of any base credential source (parity with v1.x).
-- [ ] **AUTH-03**: M can authenticate via Bitbucket Pipelines OIDC by setting only `OIDC_AUDIENCE` and `ROLE_ARN`; the pipe exchanges `BITBUCKET_STEP_OIDC_TOKEN` for STS credentials via `AssumeRoleWithWebIdentity`. **(Closes #3.)**
-- [ ] **AUTH-04**: Strategy selection follows the boto3 / AWS CLI default credential resolver chain; when both static keys AND an OIDC token are present, **static keys win** — same behaviour as the AWS CLI itself. A one-time WARN log (`auth.precedence.static_keys_won_over_oidc`) surfaces the precedence so consumers who set both by accident can see why their OIDC token was ignored. **(Revised 2026-06-18 — original wording assumed OIDC precedence; superseded by D1 in `.planning/phases/04-oidc-chart-source-extensions/04-CONTEXT.md`.)**
-- [ ] **AUTH-05**: The pipe ships a documented AWS IAM trust-policy template scoped to `BITBUCKET_WORKSPACE_UUID` and `BITBUCKET_REPO_UUID` so consumers cannot accidentally configure a permissive policy. **(Pitfall #1.)**
-- [ ] **AUTH-06**: The pipe rejects misconfigurations explicitly (e.g. `ROLE_ARN` set without any base credentials, `OIDC_AUDIENCE` without `ROLE_ARN`) with a clear error message before contacting AWS.
+- [x] **AUTH-03**: M can authenticate via Bitbucket Pipelines OIDC by setting only `OIDC_AUDIENCE` and `ROLE_ARN`; the pipe exchanges `BITBUCKET_STEP_OIDC_TOKEN` for STS credentials via `AssumeRoleWithWebIdentity`. **(Closes #3.)**
+- [x] **AUTH-04**: Strategy selection follows the boto3 / AWS CLI default credential resolver chain; when both static keys AND an OIDC token are present, **static keys win** — same behaviour as the AWS CLI itself. A one-time WARN log (`auth.precedence.static_keys_won_over_oidc`) surfaces the precedence so consumers who set both by accident can see why their OIDC token was ignored. **(Revised 2026-06-18 — original wording assumed OIDC precedence; superseded by D1 in `.planning/phases/04-oidc-chart-source-extensions/04-CONTEXT.md`.)**
+- [x] **AUTH-05**: The pipe ships a documented AWS IAM trust-policy template scoped to `BITBUCKET_WORKSPACE_UUID` and `BITBUCKET_REPO_UUID` so consumers cannot accidentally configure a permissive policy. **(Pitfall #1.)**
+- [x] **AUTH-06**: The pipe rejects misconfigurations explicitly (e.g. `ROLE_ARN` set without any base credentials, `OIDC_AUDIENCE` without `ROLE_ARN`) with a clear error message before contacting AWS.
 - [ ] **AUTH-07**: The EKS token (`k8s-aws-v1.<base64url-presigned-STS-URL>`) is generated via `boto3` only; no `awscli` dependency in the runtime image.
 
 ### Helm Chart Sources (CHART)
@@ -33,7 +33,7 @@ Two consumer-side personas drive the requirements: **(M)** the maintainer of a d
 - [ ] **CHART-01**: M can deploy a Helm chart from a local path (parity with v1.x).
 - [x] **CHART-02**: M can deploy a chart from a Helm repository by setting `CHART=repo://<repo-name>/<chart>`, `REPO_URL=<url>`, optional `CHART_VERSION=<version>`. **(Closes #7.)**
 - [x] **CHART-03**: M can deploy a chart from an OCI registry by setting `CHART=oci://<registry>/<chart>` with optional `CHART_VERSION` and optional `REGISTRY_USERNAME` + `REGISTRY_PASSWORD`.
-- [ ] **CHART-04**: M can verify an OCI chart signature by setting `CHART_VERIFY=true` (Cosign verification of the chart artifact); failure aborts the upgrade.
+- [x] **CHART-04**: M can verify an OCI chart signature by setting `CHART_VERIFY=true` (Cosign verification of the chart artifact); failure aborts the upgrade.
 - [ ] **CHART-05**: The pipe reports the resolved chart name + version in its success message so the consumer's logs are unambiguous.
 
 ### Pipe Actions (PIPE)
@@ -175,15 +175,15 @@ Populated by `gsd-roadmapper` on 2026-06-16 — every v1 REQ mapped to exactly o
 | TOOL-08 | Phase 1 | Pending |
 | AUTH-01 | Phase 2 | Pending |
 | AUTH-02 | Phase 2 | Pending |
-| AUTH-03 | Phase 4 | Pending |
-| AUTH-04 | Phase 4 | Pending |
-| AUTH-05 | Phase 4 | Pending |
-| AUTH-06 | Phase 4 | Pending |
+| AUTH-03 | Phase 4 | Complete |
+| AUTH-04 | Phase 4 | Complete |
+| AUTH-05 | Phase 4 | Complete |
+| AUTH-06 | Phase 4 | Complete |
 | AUTH-07 | Phase 2 | Pending |
 | CHART-01 | Phase 3 | Pending |
 | CHART-02 | Phase 4 | Complete |
 | CHART-03 | Phase 4 | Complete |
-| CHART-04 | Phase 4 | Pending |
+| CHART-04 | Phase 4 | Complete |
 | CHART-05 | Phase 3 | Pending |
 | PIPE-01 | Phase 3 | Pending |
 | PIPE-02 | Phase 5 | Pending |
