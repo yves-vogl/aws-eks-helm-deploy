@@ -9,6 +9,10 @@ Requirements traceability:
     HISTORY-01: Settings.history_max field (closes #17)
     HISTORY-02: settings.history_max flows through to HelmClient.upgrade_install(history_max=...)
     META-01:   INJECT_BITBUCKET_METADATA opt-in; 5 BITBUCKET_* env vars; missing-var warn
+    META-02:   Settings.inject_bitbucket_metadata default None (05-01 type change) — None and
+               False both gate off bitbucket_args injection (existing line in run())
+    META-03:   _check_bitbucket_values_yaml emits WARN when values.yaml has bitbucket key AND
+               setting is None (D4)
 
 Architecture (CONTEXT D1):
     - This module is < 50 LOC in UpgradeAction.run body.
@@ -25,6 +29,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+import re
 import time
 from typing import TYPE_CHECKING, Final
 
@@ -84,6 +89,51 @@ def build_bitbucket_set_args(log: structlog.BoundLogger) -> list[str]:
             continue
         result.append(f"{helm_key}={value}")
     return result
+
+
+BITBUCKET_VALUES_REGEX: Final[re.Pattern[str]] = re.compile(
+    r"^\s*bitbucket\s*:",
+    re.MULTILINE,
+)
+"""META-03 detection (D4): top-level `bitbucket:` key in chart's values.yaml."""
+
+
+def _check_bitbucket_values_yaml(
+    chart_dir: pathlib.Path,
+    inject_bitbucket_metadata: bool | None,
+    log: structlog.BoundLogger,
+) -> None:
+    """Emit a one-time WARN if values.yaml has `bitbucket:` and consumer has not opted in.
+
+    META-03 / CONTEXT D4: protects v1 chart consumers from silently losing the
+    `bitbucket.*` injection when they upgrade to v2.0. The WARN message points the
+    consumer at the explicit opt-in env var.
+
+    Args:
+        chart_dir: Resolved chart's on-disk directory (ResolvedChart.source_path).
+        inject_bitbucket_metadata: Settings.inject_bitbucket_metadata.
+            None = unset; True/False = explicit.
+        log: Bound structlog logger.
+
+    Returns:
+        None. Side effect: at most one `meta.bitbucket_values_detected_without_opt_in` WARN.
+    """
+    if inject_bitbucket_metadata is not None:
+        # Consumer has explicitly opted in or out — silence.
+        return
+    values_yaml = chart_dir / "values.yaml"
+    try:
+        content = values_yaml.read_text(encoding="utf-8")
+    except OSError:
+        # Chart has no values.yaml (or filesystem error) — silent return.
+        return
+    if BITBUCKET_VALUES_REGEX.search(content) is None:
+        return
+    log.warning(
+        "meta.bitbucket_values_detected_without_opt_in",
+        chart_dir=str(chart_dir),
+        values_yaml=str(values_yaml),
+    )
 
 
 class UpgradeAction:
@@ -149,6 +199,9 @@ class UpgradeAction:
         # Step 8: chart resolve + kubeconfig write + helm upgrade
         start = time.monotonic()
         with chart_source.resolve() as resolved:
+            # META-03 / D4: nudge consumer to set INJECT_BITBUCKET_METADATA explicitly if the
+            # chart declares a top-level `bitbucket:` key but no explicit setting is in place.
+            _check_bitbucket_values_yaml(resolved.source_path, s.inject_bitbucket_metadata, logger)
             if self._kubeconfig_override is not None:
                 client = HelmClient(self._kubeconfig_override)
                 result = client.upgrade_install(
