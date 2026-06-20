@@ -7,7 +7,7 @@
     '--destination',
     '/tmp/dest',
     '--untar',
-    '--untar-dir',
+    '--untardir',
     '/tmp/unpacked',
     '--version',
     '18.5.0',
@@ -21,7 +21,7 @@
     '--destination',
     '/tmp/dest',
     '--untar',
-    '--untar-dir',
+    '--untardir',
     '/tmp/unpacked',
   ])
 # ---
@@ -33,7 +33,7 @@
     '--destination',
     '/tmp/dest',
     '--untar',
-    '--untar-dir',
+    '--untardir',
     '/tmp/unpacked',
     '--version',
     '18.5.0',
@@ -47,7 +47,7 @@
     '--destination',
     '/tmp/dest',
     '--untar',
-    '--untar-dir',
+    '--untardir',
     '/tmp/unpacked',
   ])
 # ---

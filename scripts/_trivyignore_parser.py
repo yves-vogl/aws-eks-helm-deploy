@@ -73,10 +73,30 @@ def check(path: pathlib.Path, today: date | None = None) -> list[str]:
     return errors
 
 
+def emit_bare(path: pathlib.Path, out: pathlib.Path) -> None:
+    """Write a Trivy-compatible sidecar file with bare CVE IDs only.
+
+    Trivy's `.trivyignore` parser treats `<CVE>  # comment` as a single
+    invalid ID (inline comments after the CVE are NOT honoured). The D2
+    grammar uses inline `# expires=... rationale=... reviewer=...` after
+    each CVE for human review hygiene, but Trivy needs the plain IDs.
+    This helper strips everything after the first whitespace and writes
+    the result to `out` so the workflow can point `trivyignores:` at it.
+    """
+    lines: list[str] = []
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        cve = line.split()[0]
+        lines.append(cve)
+    out.write_text("\n".join(lines) + "\n" if lines else "")
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     if not args:
-        print("usage: trivyignore-check.sh <path-to-trivyignore>", file=sys.stderr)
+        print("usage: trivyignore-check.sh <path-to-trivyignore> [--emit-bare <out>]", file=sys.stderr)
         return 2
     path = pathlib.Path(args[0])
     errors = check(path)
@@ -84,6 +104,8 @@ def main(argv: list[str] | None = None) -> int:
         for err in errors:
             print(f"ERROR: {err}", file=sys.stderr)
         return 1
+    if len(args) >= 3 and args[1] == "--emit-bare":
+        emit_bare(path, pathlib.Path(args[2]))
     print(f"{path}: OK")
     return 0
 

@@ -125,8 +125,12 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --frozen
 
-      - name: Validate .trivyignore grammar (D2 + SEC-04)
-        run: bash scripts/trivyignore-check.sh .trivyignore
+      - name: Validate .trivyignore grammar + emit bare sidecar (D2 + SEC-04)
+        # The D2 grammar has inline `# expires=… rationale=… reviewer=…` comments
+        # for human review hygiene. Trivy does NOT honour inline comments after
+        # the CVE ID, so we emit a bare sidecar with comments stripped and point
+        # Trivy at it. The grammar enforcement still runs on the canonical file.
+        run: bash scripts/trivyignore-check.sh .trivyignore .trivyignore.bare
 
       - name: Build Docker image
         run: docker build -t aws-eks-helm-deploy:ci-test .
@@ -140,7 +144,7 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: "1"
           ignore-unfixed: true
-          trivyignores: .trivyignore
+          trivyignores: .trivyignore.bare
 
       - name: Upload SARIF to Code Scanning
         if: always()
@@ -168,17 +172,22 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --frozen
 
-      - name: Validate .trivyignore grammar (D2 + SEC-04)
-        run: bash scripts/trivyignore-check.sh .trivyignore
+      - name: Validate .trivyignore grammar + emit bare sidecar (D2 + SEC-04)
+        run: bash scripts/trivyignore-check.sh .trivyignore .trivyignore.bare
 
-      - name: Run Trivy config scan (Dockerfile + IaC + chart fixtures)
+      - name: Run Trivy config scan (Dockerfile + IaC)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: config
           scan-ref: .
           severity: CRITICAL,HIGH
           exit-code: "1"
-          trivyignores: .trivyignore
+          trivyignores: .trivyignore.bare
+          # Exclude test fixture charts — they intentionally use loose security
+          # contexts for test ergonomics and are NEVER deployed to a cluster.
+          # Production chart consumers are responsible for their own k8s
+          # securityContext hardening; the pipe itself just helm-upgrades.
+          skip-dirs: tests/fixtures,.planning
 
       - name: Run Trivy secret scan (filesystem)
         id: trivy-secret
