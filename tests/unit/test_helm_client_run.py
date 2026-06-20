@@ -19,7 +19,7 @@ from typing import Any
 
 import pytest
 
-from aws_eks_helm_deploy.errors import HelmExecutionError, HelmTimeoutError
+from aws_eks_helm_deploy.errors import ChartResolutionError, HelmExecutionError, HelmTimeoutError
 from aws_eks_helm_deploy.helm.client import (
     STDERR_MAX_BYTES,
     TRUNCATION_MARKER,
@@ -408,3 +408,414 @@ def test_history_returns_helm_revision_instances(mocker: Any) -> None:
     assert result[0].revision == 5
     assert result[0].chart == "app-1.2.3"
     assert result[0].description == "Upgrade complete"
+
+
+# ---------------------------------------------------------------------------
+# repo_add — new method (Plan 04-06)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_repo_add_happy_path(mocker: Any) -> None:
+    """repo_add happy path: subprocess.run returns 0, no exception raised."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    )
+    env = {"HELM_REPOSITORY_CONFIG": "/tmp/repos.yaml", "MARKER": "x"}
+    _client().repo_add("bitnami", "https://charts.bitnami.com/bitnami", env)
+    assert mock_run.call_count == 1
+    assert mock_run.call_args.args[0] == [
+        "helm",
+        "repo",
+        "add",
+        "bitnami",
+        "https://charts.bitnami.com/bitnami",
+    ]
+    assert mock_run.call_args.kwargs["env"] == env
+    assert mock_run.call_args.kwargs["check"] is False
+    assert mock_run.call_args.kwargs["timeout"] == 60
+
+
+@pytest.mark.unit
+def test_repo_add_non_zero_returncode_raises_chart_resolution_error(mocker: Any) -> None:
+    """repo_add non-zero returncode raises ChartResolutionError (exit_code=4)."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="Error: unauthorized"
+        ),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().repo_add("bitnami", "https://charts.bitnami.com/bitnami", {})
+    assert exc_info.value.exit_code == 4
+    assert "helm repo add bitnami returned 1" in str(exc_info.value)
+    assert "unauthorized" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_repo_add_timeout_raises_chart_resolution_error(mocker: Any) -> None:
+    """repo_add TimeoutExpired raises ChartResolutionError with timeout info."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(cmd=["helm"], timeout=60),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().repo_add("bitnami", "https://charts.bitnami.com/bitnami", {})
+    assert exc_info.value.exit_code == 4
+    assert "60" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_repo_add_timeout_with_stderr_includes_partial_stderr(mocker: Any) -> None:
+    """repo_add TimeoutExpired with stderr bytes surfaces them in the error message."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(
+            cmd=["helm"], timeout=60, output=None, stderr=b"partial output here"
+        ),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().repo_add("bitnami", "https://charts.bitnami.com/bitnami", {})
+    assert "partial output here" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# repo_update — new method (Plan 04-06)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_repo_update_happy_path(mocker: Any) -> None:
+    """repo_update happy path: subprocess.run returns 0, no exception raised."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    )
+    env = {"HELM_REPOSITORY_CACHE": "/tmp/cache", "MARKER": "y"}
+    _client().repo_update("bitnami", env)
+    assert mock_run.call_count == 1
+    assert mock_run.call_args.args[0] == ["helm", "repo", "update", "bitnami"]
+    assert mock_run.call_args.kwargs["env"] == env
+    assert mock_run.call_args.kwargs["check"] is False
+    assert mock_run.call_args.kwargs["timeout"] == 120
+
+
+@pytest.mark.unit
+def test_repo_update_non_zero_returncode_raises_chart_resolution_error(mocker: Any) -> None:
+    """repo_update non-zero returncode raises ChartResolutionError (exit_code=4)."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="Error: no repositories"
+        ),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().repo_update("bitnami", {})
+    assert exc_info.value.exit_code == 4
+    assert "helm repo update bitnami returned 1" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_repo_update_timeout_raises_chart_resolution_error(mocker: Any) -> None:
+    """repo_update TimeoutExpired raises ChartResolutionError."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(cmd=["helm"], timeout=120),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().repo_update("bitnami", {})
+    assert exc_info.value.exit_code == 4
+    assert "120" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_repo_update_timeout_with_stderr_bytes(mocker: Any) -> None:
+    """repo_update TimeoutExpired with stderr bytes includes them in the error."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(
+            cmd=["helm"], timeout=120, output=None, stderr=b"network timeout partial"
+        ),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().repo_update("bitnami", {})
+    assert "network timeout partial" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# pull_repo — new method (Plan 04-06)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_pull_repo_happy_path_with_version(mocker: Any) -> None:
+    """pull_repo happy path with version: subprocess.run returns 0, no exception."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    )
+    env = {"HELM_REPOSITORY_CONFIG": "/tmp/repos.yaml", "MARKER": "z"}
+    dest = pathlib.Path("/tmp/dest")
+    untar_dir = pathlib.Path("/tmp/unpacked")
+    _client().pull_repo("bitnami/redis", dest, untar_dir, "18.5.0", env)
+    assert mock_run.call_count == 1
+    assert mock_run.call_args.args[0] == [
+        "helm",
+        "pull",
+        "bitnami/redis",
+        "--destination",
+        "/tmp/dest",
+        "--untar",
+        "--untar-dir",
+        "/tmp/unpacked",
+        "--version",
+        "18.5.0",
+    ]
+    assert mock_run.call_args.kwargs["env"] == env
+    assert mock_run.call_args.kwargs["check"] is False
+    assert mock_run.call_args.kwargs["timeout"] == 600
+
+
+@pytest.mark.unit
+def test_pull_repo_happy_path_without_version(mocker: Any) -> None:
+    """pull_repo without version: no --version flag in argv."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    )
+    dest = pathlib.Path("/tmp/dest")
+    untar_dir = pathlib.Path("/tmp/unpacked")
+    _client().pull_repo("bitnami/redis", dest, untar_dir, None, {})
+    argv = mock_run.call_args.args[0]
+    assert "--version" not in argv
+    assert argv == [
+        "helm",
+        "pull",
+        "bitnami/redis",
+        "--destination",
+        "/tmp/dest",
+        "--untar",
+        "--untar-dir",
+        "/tmp/unpacked",
+    ]
+
+
+@pytest.mark.unit
+def test_pull_repo_non_zero_returncode_raises_chart_resolution_error(mocker: Any) -> None:
+    """pull_repo non-zero returncode raises ChartResolutionError (exit_code=4)."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="Error: chart not found"
+        ),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().pull_repo(
+            "bitnami/redis", pathlib.Path("/tmp/dest"), pathlib.Path("/tmp/up"), "18.5.0", {}
+        )
+    assert exc_info.value.exit_code == 4
+    assert "helm pull bitnami/redis returned 1" in str(exc_info.value)
+    assert "chart not found" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_pull_repo_timeout_raises_chart_resolution_error(mocker: Any) -> None:
+    """pull_repo TimeoutExpired raises ChartResolutionError."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(cmd=["helm"], timeout=600),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().pull_repo(
+            "bitnami/redis", pathlib.Path("/tmp/dest"), pathlib.Path("/tmp/up"), None, {}
+        )
+    assert exc_info.value.exit_code == 4
+    assert "600" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# registry_login — new method (Plan 04-07)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_registry_login_happy_path_password_via_input_not_argv(mocker: Any) -> None:
+    """registry_login passes password via input=, NEVER in argv (R4).
+
+    Verifies:
+    - subprocess.run receives input="hunter2"
+    - argv does NOT contain "hunter2" anywhere
+    - timeout=60
+    """
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="Login Succeeded", stderr=""),
+    )
+    env = {"HELM_REGISTRY_CONFIG": "/tmp/reg.json", "DOCKER_CONFIG": "/tmp/docker"}
+    _client().registry_login("127.0.0.1:5555", "alice", "hunter2", env)
+    assert mock_run.call_count == 1
+    # Password must appear in input=, NOT in argv
+    assert mock_run.call_args.kwargs["input"] == "hunter2"
+    assert "hunter2" not in mock_run.call_args.args[0]  # argv does not contain password
+    # Timeout and env passthrough
+    assert mock_run.call_args.kwargs["timeout"] == 60
+    assert mock_run.call_args.kwargs["env"] == env
+
+
+@pytest.mark.unit
+def test_registry_login_argv_contains_password_stdin_flag(mocker: Any) -> None:
+    """registry_login argv includes --password-stdin (not --password <value>)."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    )
+    _client().registry_login("ghcr.io", "bob", "s3cr3t", {})
+    argv = mock_run.call_args.args[0]
+    assert "--password-stdin" in argv
+    # Negative: the literal form '--password' followed by value must NOT appear
+    # (--password-stdin is OK, but '--password' with a space + value is forbidden)
+    assert "s3cr3t" not in argv
+
+
+@pytest.mark.unit
+def test_registry_login_non_zero_returncode_raises_chart_resolution_error(mocker: Any) -> None:
+    """registry_login non-zero returncode raises ChartResolutionError (exit_code=4)."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="Error: unauthorized"
+        ),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().registry_login("ghcr.io", "alice", "bad-pass", {})
+    assert exc_info.value.exit_code == 4
+    assert "registry login ghcr.io returned 1" in str(exc_info.value)
+    assert "unauthorized" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_registry_login_timeout_raises_chart_resolution_error(mocker: Any) -> None:
+    """registry_login TimeoutExpired raises ChartResolutionError."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(cmd=["helm"], timeout=60),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().registry_login("ghcr.io", "alice", "pass", {})
+    assert exc_info.value.exit_code == 4
+    assert "60" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# pull_oci — new method (Plan 04-07)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_pull_oci_happy_path_with_version(mocker: Any) -> None:
+    """pull_oci happy path with version: subprocess.run returns 0, no exception."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    )
+    env = {
+        "HELM_REGISTRY_CONFIG": "/tmp/reg.json",
+        "DOCKER_CONFIG": "/tmp/docker",
+        "MARKER": "oci",
+    }
+    dest = pathlib.Path("/tmp/dest")
+    untar_dir = pathlib.Path("/tmp/unpacked")
+    _client().pull_oci("127.0.0.1:5555/charts/redis", dest, untar_dir, "18.5.0", env)
+    assert mock_run.call_count == 1
+    assert mock_run.call_args.args[0] == [
+        "helm",
+        "pull",
+        "oci://127.0.0.1:5555/charts/redis",
+        "--destination",
+        "/tmp/dest",
+        "--untar",
+        "--untar-dir",
+        "/tmp/unpacked",
+        "--version",
+        "18.5.0",
+    ]
+    assert mock_run.call_args.kwargs["env"] == env
+    assert mock_run.call_args.kwargs["check"] is False
+    assert mock_run.call_args.kwargs["timeout"] == 600
+
+
+@pytest.mark.unit
+def test_pull_oci_happy_path_without_version(mocker: Any) -> None:
+    """pull_oci without version: no --version flag in argv."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    )
+    dest = pathlib.Path("/tmp/dest")
+    untar_dir = pathlib.Path("/tmp/unpacked")
+    _client().pull_oci("127.0.0.1:5555/charts/redis", dest, untar_dir, None, {})
+    argv = mock_run.call_args.args[0]
+    assert "--version" not in argv
+    assert "oci://127.0.0.1:5555/charts/redis" in argv
+    assert "--untar" in argv
+
+
+@pytest.mark.unit
+def test_pull_oci_non_zero_returncode_raises_chart_resolution_error(mocker: Any) -> None:
+    """pull_oci non-zero returncode raises ChartResolutionError (exit_code=4)."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="Error: chart not found in registry"
+        ),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().pull_oci(
+            "ghcr.io/org/chart",
+            pathlib.Path("/tmp/dest"),
+            pathlib.Path("/tmp/up"),
+            "1.0.0",
+            {},
+        )
+    assert exc_info.value.exit_code == 4
+    assert "helm pull oci://ghcr.io/org/chart returned 1" in str(exc_info.value)
+    assert "chart not found" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_pull_oci_timeout_raises_chart_resolution_error(mocker: Any) -> None:
+    """pull_oci TimeoutExpired raises ChartResolutionError."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(cmd=["helm"], timeout=600),
+    )
+    with pytest.raises(ChartResolutionError) as exc_info:
+        _client().pull_oci(
+            "ghcr.io/org/chart", pathlib.Path("/tmp/dest"), pathlib.Path("/tmp/up"), None, {}
+        )
+    assert exc_info.value.exit_code == 4
+    assert "600" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_pull_oci_env_passthrough(mocker: Any) -> None:
+    """pull_oci passes env dict to subprocess.run (env isolation assertion)."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    )
+    env = {
+        "HELM_REGISTRY_CONFIG": "/tmp/reg.json",
+        "DOCKER_CONFIG": "/tmp/docker",
+        "HELM_REPOSITORY_CONFIG": "/tmp/repos.yaml",
+        "HELM_REPOSITORY_CACHE": "/tmp/cache",
+    }
+    _client().pull_oci(
+        "127.0.0.1:5555/charts/redis",
+        pathlib.Path("/tmp/dest"),
+        pathlib.Path("/tmp/up"),
+        None,
+        env,
+    )
+    assert mock_run.call_args.kwargs["env"] == env

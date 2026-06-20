@@ -12,6 +12,11 @@ INJECT_BITBUCKET_METADATA).
 Breaking change from v1:
   - NAMESPACE default changed from 'kube-public' (v1 bug) to 'default' (v2 fix)
   - INJECT_BITBUCKET_METADATA defaults to False (was unconditional in v1)
+
+Phase 4 additions: OIDC_AUDIENCE (AUTH-03); REPO_URL + CHART_VERSION (CHART-02);
+REGISTRY_USERNAME + REGISTRY_PASSWORD (CHART-03 — password is SecretStr per R13);
+CHART_VERIFY + CHART_VERIFY_CERTIFICATE_IDENTITY + CHART_VERIFY_CERTIFICATE_OIDC_ISSUER
+(CHART-04).
 """
 
 from __future__ import annotations
@@ -20,7 +25,7 @@ import json
 import types
 from typing import Any, Literal, Union, get_args, get_origin
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic.fields import FieldInfo
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 from pydantic_settings.sources.providers.env import EnvSettingsSource
@@ -90,6 +95,9 @@ class Settings(BaseSettings):
     role_arn: str | None = Field(default=None, alias="ROLE_ARN")
     session_name: str = Field(default="BitbucketPipe", alias="SESSION_NAME")
 
+    # OIDC (AUTH-03) — Phase 4
+    oidc_audience: str | None = Field(default=None, alias="OIDC_AUDIENCE")
+
     # Cluster + chart (required at runtime; optional for unit tests in Phase 1)
     cluster_name: str | None = Field(default=None, alias="CLUSTER_NAME")
     chart: str | None = Field(default=None, alias="CHART")
@@ -105,6 +113,25 @@ class Settings(BaseSettings):
     timeout: str = Field(default="600s", alias="TIMEOUT")
     # CONTEXT D4 / closes #17: unset=no flag; 0=unlimited; N>=1=passthrough; ge=0 rejects negatives
     history_max: int | None = Field(default=None, ge=0, alias="HISTORY_MAX")
+
+    # Repo + OCI chart sources (CHART-02, CHART-03) — Phase 4
+    repo_url: str | None = Field(default=None, alias="REPO_URL")
+    chart_version: str | None = Field(default=None, alias="CHART_VERSION")
+    registry_username: str | None = Field(default=None, alias="REGISTRY_USERNAME")
+    # SecretStr — prevents accidental leak via repr(settings) (RESEARCH §R13 / R4).
+    # Unwrap with .get_secret_value() at the single call site in Plan 04-07's chart/oci.py.
+    registry_password: SecretStr | None = Field(default=None, alias="REGISTRY_PASSWORD")
+
+    # Cosign verify (CHART-04) — Phase 4; keyless only, no PUBKEY config var (per CONTEXT D5)
+    chart_verify: bool = Field(default=False, alias="CHART_VERIFY")
+    chart_verify_certificate_identity: str | None = Field(
+        default=None,
+        alias="CHART_VERIFY_CERTIFICATE_IDENTITY",
+    )
+    chart_verify_certificate_oidc_issuer: str | None = Field(
+        default=None,
+        alias="CHART_VERIFY_CERTIFICATE_OIDC_ISSUER",
+    )
 
     # Action dispatch (v2 new fields)
     action: Literal["upgrade"] = Field(default="upgrade", alias="ACTION")

@@ -6,10 +6,8 @@ Requirements traceability:
   - CHART-05: ResolvedChart.name + .version surface in the success message
     emitted by actions/upgrade.py.
 
-Scope (Phase 3):
-  - Only local-path chart sources are supported (CONTEXT D6).
-  - repo:// and oci:// chart sources are explicitly rejected with
-    ChartResolutionError; they ship in Phase 4 (CHART-02, CHART-03).
+Phase 4 refactor: resolve_local_chart() was removed; LocalChart class with
+.resolve() context-manager replaces it (CONTEXT D3 + RESEARCH §7.5).
 
 Security note (T-03-03-01):
   - yaml.safe_load is used exclusively. NEVER yaml.load — it executes
@@ -18,37 +16,20 @@ Security note (T-03-03-01):
 
 from __future__ import annotations
 
-import dataclasses
 import pathlib
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 import yaml  # PyYAML
 
+from aws_eks_helm_deploy.chart.base import ResolvedChart
 from aws_eks_helm_deploy.errors import ChartResolutionError
 from aws_eks_helm_deploy.logging import get_logger
 
-__all__: list[str] = ["ResolvedChart", "resolve_local_chart"]
+__all__: list[str] = ["LocalChart"]
 
 logger = get_logger(__name__)
-
-
-@dataclasses.dataclass(frozen=True)
-class ResolvedChart:
-    """Immutable resolved local chart descriptor.
-
-    Phase 4 refactors this to a ChartSource Protocol when repo:// and oci://
-    sources are added (CHART-02, CHART-03). Phase 3 keeps it as a concrete
-    frozen dataclass — YAGNI; one implementation does not warrant a Protocol.
-
-    Fields:
-        name: Chart name from Chart.yaml, or the directory name as fallback.
-        version: Chart version from Chart.yaml, or "" if missing (warns).
-        source_path: Absolute resolved path to the chart directory.
-    """
-
-    name: str
-    version: str
-    source_path: pathlib.Path
 
 
 def _resolve_chart_path(
@@ -98,73 +79,73 @@ def _parse_chart_yaml(path: pathlib.Path) -> dict[str, Any]:
     return data
 
 
-def resolve_local_chart(
-    chart_spec: str,
-    repo_root: pathlib.Path | None = None,
-) -> ResolvedChart:
-    """Resolve a local-path chart spec to a ResolvedChart.
+class LocalChart:
+    """Local-path chart source — satisfies ChartSource Protocol.
 
-    Validates that *chart_spec* points to an existing directory containing a
-    parseable Chart.yaml, then returns a ResolvedChart with the chart's name,
-    version, and absolute source path.
-
-    Args:
-        chart_spec: A local path (absolute or relative) to a Helm chart
-            directory. Strings starting with ``repo://`` or ``oci://`` are
-            explicitly rejected — those resolvers ship in Phase 4.
-        repo_root: Base directory for relative paths. When None, relative
-            paths are resolved against ``pathlib.Path.cwd()``. Useful in
-            tests and CI to avoid monkeypatching the working directory.
-
-    Returns:
-        A frozen ResolvedChart with ``name``, ``version``, and
-        ``source_path`` (always absolute).
-
-    Raises:
-        ChartResolutionError: On any of the following conditions —
-            - chart_spec starts with ``repo://`` or ``oci://`` (Phase 4 scope)
-            - resolved path does not exist
-            - resolved path is not a directory
-            - Chart.yaml is missing from the directory
-            - Chart.yaml contains invalid YAML
-            - Chart.yaml is empty or not a YAML mapping at top level
+    The resolve() context-manager is degenerate: it yields the on-disk
+    path that already exists; no tempdir creation; no cleanup. Unlike
+    RepoChart / OciChart which manage tempdir lifecycle, LocalChart's
+    resolve() is a yield-and-return.
     """
-    # 1. Source prefix rejection (Phase 3 scope boundary)
-    if chart_spec.startswith("repo://"):
-        raise ChartResolutionError(
-            "repo:// chart sources are not supported in Phase 3 (ship in Phase 4 — CHART-02)"
-        )
-    if chart_spec.startswith("oci://"):
-        raise ChartResolutionError(
-            "oci:// chart sources are not supported in Phase 3 (ship in Phase 4 — CHART-03)"
-        )
 
-    # 2. Path resolution
-    path = _resolve_chart_path(chart_spec, repo_root)
+    def __init__(self, chart_spec: str, repo_root: pathlib.Path | None = None) -> None:
+        self._chart_spec = chart_spec
+        self._repo_root = repo_root
 
-    # 3. Path existence + type validation
-    if not path.exists():
-        raise ChartResolutionError(f"Chart path does not exist: {path}")
-    if not path.is_dir():
-        raise ChartResolutionError(f"Chart path is not a directory: {path}")
+    @contextmanager
+    def resolve(self) -> Iterator[ResolvedChart]:
+        """Yield a ResolvedChart for the local chart directory.
 
-    # 4-6. Chart.yaml parse + shape validation (delegated to helper)
-    data = _parse_chart_yaml(path)
+        Raises:
+            ChartResolutionError: On any of the following conditions —
+                - chart_spec starts with ``repo://`` or ``oci://`` (handled by
+                  RepoChart / OciChart via select_chart_source())
+                - resolved path does not exist
+                - resolved path is not a directory
+                - Chart.yaml is missing from the directory
+                - Chart.yaml contains invalid YAML
+                - Chart.yaml is empty or not a YAML mapping at top level
+        """
+        # 1. Source prefix rejection — select_chart_source() routes by prefix
+        if self._chart_spec.startswith("repo://"):
+            raise ChartResolutionError(
+                "repo:// chart sources are handled by RepoChart (CHART-02) — "
+                "select_chart_source() routes by prefix"
+            )
+        if self._chart_spec.startswith("oci://"):
+            raise ChartResolutionError(
+                "oci:// chart sources are handled by OciChart (CHART-03) — "
+                "select_chart_source() routes by prefix"
+            )
 
-    # 7. Field extraction with fallbacks and non-fatal warnings
-    name_raw: Any = data.get("name")
-    name: str = str(name_raw) if name_raw is not None else path.name
+        # 2. Path resolution
+        path = _resolve_chart_path(self._chart_spec, self._repo_root)
 
-    version_raw: Any = data.get("version")
-    version: str = str(version_raw) if version_raw is not None else ""
-    if not version:
-        logger.warning("chart_yaml_missing_version", chart_path=str(path), chart_name=name)
+        # 3. Path existence + type validation
+        if not path.exists():
+            raise ChartResolutionError(f"Chart path does not exist: {path}")
+        if not path.is_dir():
+            raise ChartResolutionError(f"Chart path is not a directory: {path}")
 
-    api_version: str = str(data.get("apiVersion", "v2"))
-    if api_version == "v1":
-        # Helm 3 reads v1 charts in compatibility mode — warn but proceed.
-        # Raising here would break existing Helm 2-era charts unnecessarily.
-        logger.warning("chart_yaml_legacy_v1_api_version", chart_path=str(path), chart_name=name)
+        # 4-6. Chart.yaml parse + shape validation
+        data = _parse_chart_yaml(path)
 
-    # 8. Return the fully-resolved, immutable descriptor
-    return ResolvedChart(name=name, version=version, source_path=path)
+        # 7. Field extraction with fallbacks and non-fatal warnings
+        name_raw: Any = data.get("name")
+        name: str = str(name_raw) if name_raw is not None else path.name
+
+        version_raw: Any = data.get("version")
+        version: str = str(version_raw) if version_raw is not None else ""
+        if not version:
+            logger.warning("chart_yaml_missing_version", chart_path=str(path), chart_name=name)
+
+        api_version: str = str(data.get("apiVersion", "v2"))
+        if api_version == "v1":
+            # Helm 3 reads v1 charts in compatibility mode — warn but proceed.
+            logger.warning(
+                "chart_yaml_legacy_v1_api_version", chart_path=str(path), chart_name=name
+            )
+
+        # 8. Yield the fully-resolved, immutable descriptor.
+        # No finally — degenerate context-manager; nothing to clean up.
+        yield ResolvedChart(name=name, version=version, source_path=path)

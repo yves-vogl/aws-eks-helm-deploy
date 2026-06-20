@@ -9,6 +9,7 @@ Tests cover:
 from __future__ import annotations
 
 import pytest
+from pydantic import SecretStr
 
 from aws_eks_helm_deploy.settings import Settings, _CommaListEnvSource
 
@@ -265,3 +266,130 @@ def test_settings_namespace_v1_bug_fixed() -> None:
     assert s.namespace == "default", (
         "NAMESPACE must default to 'default', not 'kube-public' (v1 regression)"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 4 — new fields (AUTH-03, CHART-02, CHART-03, CHART-04)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_oidc_audience_default_none() -> None:
+    """Settings().oidc_audience is None when OIDC_AUDIENCE env var is unset."""
+    s = Settings()
+    assert s.oidc_audience is None
+
+
+@pytest.mark.unit
+def test_oidc_audience_via_alias() -> None:
+    """Settings(OIDC_AUDIENCE=...) resolves the alias correctly."""
+    s = Settings(OIDC_AUDIENCE="ari:cloud:bitbucket::workspace/abc-123")
+    assert s.oidc_audience == "ari:cloud:bitbucket::workspace/abc-123"
+
+
+@pytest.mark.unit
+def test_repo_url_default_none() -> None:
+    """Settings().repo_url is None when REPO_URL env var is unset."""
+    s = Settings()
+    assert s.repo_url is None
+
+
+@pytest.mark.unit
+def test_repo_url_via_alias() -> None:
+    """Settings(REPO_URL=...) resolves the alias correctly."""
+    s = Settings(REPO_URL="https://charts.example.com/")
+    assert s.repo_url == "https://charts.example.com/"
+
+
+@pytest.mark.unit
+def test_chart_version_default_none() -> None:
+    """Settings().chart_version is None when CHART_VERSION env var is unset."""
+    s = Settings()
+    assert s.chart_version is None
+
+
+@pytest.mark.unit
+def test_chart_version_via_alias() -> None:
+    """Settings(CHART_VERSION=...) resolves the alias correctly."""
+    s = Settings(CHART_VERSION="1.2.3")
+    assert s.chart_version == "1.2.3"
+
+
+@pytest.mark.unit
+def test_registry_username_default_none() -> None:
+    """Settings().registry_username is None when REGISTRY_USERNAME env var is unset."""
+    s = Settings()
+    assert s.registry_username is None
+
+
+@pytest.mark.unit
+def test_registry_username_via_alias() -> None:
+    """Settings(REGISTRY_USERNAME=...) resolves the alias correctly."""
+    s = Settings(REGISTRY_USERNAME="myuser")
+    assert s.registry_username == "myuser"
+
+
+@pytest.mark.unit
+def test_registry_password_default_none() -> None:
+    """Settings().registry_password is None when REGISTRY_PASSWORD env var is unset."""
+    s = Settings()
+    assert s.registry_password is None
+
+
+@pytest.mark.unit
+def test_registry_password_via_alias_returns_secret_str() -> None:
+    """Settings(REGISTRY_PASSWORD=...) returns a SecretStr instance (not plain str)."""
+    s = Settings(REGISTRY_PASSWORD="hunter2")
+    assert isinstance(s.registry_password, SecretStr)
+    assert s.registry_password.get_secret_value() == "hunter2"
+
+
+@pytest.mark.unit
+def test_registry_password_repr_masks_value() -> None:
+    """repr(settings) must NOT expose the registry password verbatim (R13 mitigation)."""
+    s = Settings(REGISTRY_PASSWORD="hunter2")
+    assert "hunter2" not in repr(s)
+    assert s.registry_password is not None
+    assert "**********" in repr(s.registry_password)
+
+
+@pytest.mark.unit
+def test_chart_verify_default_false() -> None:
+    """Settings().chart_verify is False when CHART_VERIFY env var is unset."""
+    s = Settings()
+    assert s.chart_verify is False
+
+
+@pytest.mark.unit
+def test_chart_verify_via_alias_true_string() -> None:
+    """Settings(CHART_VERIFY='true') coerces the string to True (pydantic bool coercion)."""
+    s = Settings(CHART_VERIFY="true")
+    assert s.chart_verify is True
+
+
+@pytest.mark.unit
+def test_chart_verify_certificate_identity_default_none() -> None:
+    """Settings().chart_verify_certificate_identity is None when env var is unset."""
+    s = Settings()
+    assert s.chart_verify_certificate_identity is None
+
+
+@pytest.mark.unit
+def test_chart_verify_certificate_identity_via_alias() -> None:
+    """Settings(CHART_VERIFY_CERTIFICATE_IDENTITY=...) resolves the alias correctly."""
+    s = Settings(CHART_VERIFY_CERTIFICATE_IDENTITY="https://github.com/actions/runner")
+    assert s.chart_verify_certificate_identity == "https://github.com/actions/runner"
+
+
+@pytest.mark.unit
+def test_chart_verify_certificate_oidc_issuer_default_none() -> None:
+    """Settings().chart_verify_certificate_oidc_issuer is None when env var is unset."""
+    s = Settings()
+    assert s.chart_verify_certificate_oidc_issuer is None
+
+
+@pytest.mark.unit
+def test_chart_verify_certificate_oidc_issuer_via_alias() -> None:
+    """Settings(CHART_VERIFY_CERTIFICATE_OIDC_ISSUER=...) resolves the alias correctly."""
+    s = Settings(CHART_VERIFY_CERTIFICATE_OIDC_ISSUER="https://token.actions.githubusercontent.com")
+    assert s.chart_verify_certificate_oidc_issuer == "https://token.actions.githubusercontent.com"

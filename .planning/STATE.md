@@ -2,16 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 1 plans created — 4 atomic PLAN files + VALIDATION.md; plan-checker APPROVED
-last_updated: "2026-06-18T00:10:41.910Z"
-last_activity: 2026-06-18 -- Phase 03 marked complete
+status: "Phase 04 shipped — PR #37 open against main"
+stopped_at: Phase 4 complete — verifier PASS, branch `phase/04-oidc-chart-sources` ready for PR
+last_updated: "2026-06-19T12:28:21.145Z"
+last_activity: "2026-06-19 -- Phase 04 PR #37 opened"
 progress:
   total_phases: 7
-  completed_phases: 1
-  total_plans: 15
-  completed_plans: 13
-  percent: 14
+  completed_phases: 4
+  total_plans: 20
+  completed_plans: 20
+  percent: 57
+  note: total_plans counts plans authored so far (phases 1–4); phases 5–7 not yet planned
 ---
 
 # Project State
@@ -21,16 +22,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-16)
 
 **Core value:** A maintainer can ship a Bitbucket Pipelines deployment to AWS EKS from a clean repository in under five minutes — without committing static AWS credentials and without surprises at upgrade time.
-**Current focus:** Phase 03 — helm-core-upgrade-action
+**Current focus:** Phase 05 — log-masking-diff-rollback-metadata (next)
 
 ## Current Position
 
-Phase: 03 — COMPLETE
-Plan: 1 of 5
-Status: Phase 03 complete
-Last activity: 2026-06-18 -- Phase 03 marked complete
+Phase: 04 — COMPLETE (verifier PASS)
+Plan: 7 of 7 complete (04-01, 04-02, 04-03, 04-04, 04-05, 04-06, 04-07 all shipped)
+Status: Phase 04 shipped — PR #37 open against main
+Last activity: 2026-06-19 -- Phase 04 PR #37 opened
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 57% (4 of 7 phases complete)
 
 ## Performance Metrics
 
@@ -63,6 +64,8 @@ Recent decisions affecting current work:
 - Roadmap: 7-phase structure derived from SUMMARY.md §6 sequencing and ARCHITECTURE.md 10-phase build order, consolidated into 7 to match `granularity: standard`.
 - Roadmap: Log-masking (SEC-06) sequenced before PIPE-03 (PR-comment helm-diff) as hard precondition.
 - Roadmap: Release pipeline + Cosign + SBOM + Trivy + pip-audit + multi-arch consolidated into a single Phase 6 ("Release & Supply Chain") for plan-size economy.
+- AUTH-04 (Phase 4): Strategy precedence mirrors botocore default chain — static keys win over OIDC when both present; one-time WARN log surfaces precedence. "OIDC wins deterministically" wording removed from ROADMAP + REQUIREMENTS (commit 6e28005).
+- CHART-02 (Phase 4 Plan 04-06): HelmClient repo_add/repo_update/pull_repo raise ChartResolutionError (exit=4) not HelmExecutionError (exit=5) — chart-resolution failures semantically distinct from upgrade failures. RepoChart uses placeholder kubeconfig_path for HelmClient constructor (repo ops don't need a kubeconfig).
 
 ### Pending Todos
 
@@ -87,7 +90,7 @@ Items acknowledged and carried forward as v2.1+ (see REQUIREMENTS.md "v2 (Deferr
 
 ## Session Continuity
 
-Last session: 2026-06-16
-Stopped at: Phase 1 plans created — 4 atomic PLAN files + VALIDATION.md; plan-checker APPROVED
-Resume file: None
-Next command: `/gsd-execute-phase 1` (after this PR merges)
+Last session: 2026-06-19T00:00:00Z
+Stopped at: Phase 4 complete — verifier PASS, branch `phase/04-oidc-chart-sources` ready for PR
+Resume file: .planning/phases/04-oidc-chart-source-extensions/04-VERIFICATION.md
+Next command: Open PR for Phase 4 (`/gsd-ship` or `gh pr create`), then `/gsd-discuss-phase` for Phase 5 (log-masking-diff-rollback-metadata)
