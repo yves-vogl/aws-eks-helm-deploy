@@ -1,0 +1,14 @@
+# Phase 6 / SEC-04 / D2 — CVE suppression list.
+#
+# Grammar (enforced by scripts/trivyignore-check.sh in CI):
+#   CVE-XXXX-NNNNN  # expires=YYYY-MM-DD rationale="…" reviewer=<github-handle>
+#
+# Rules:
+#   - expires=YYYY-MM-DD MUST be in the future AND within 180 days from today.
+#   - rationale="…" MUST be non-empty (a short sentence explaining the suppression).
+#   - reviewer=<github-handle> MUST identify the maintainer responsible for the review.
+#
+# Trivy itself only honours the CVE ID at the start of each line; the inline-comment
+# grammar is for human review hygiene. The check script enforces the grammar at CI time.
+#
+# Add a suppression by appending a line below this comment block.
