@@ -49,7 +49,7 @@ ARG TARGETARCH
 # when --platform linux/amd64 or linux/arm64 is targeted. Single Dockerfile builds both arches
 # natively (no QEMU) when invoked from the release.yml matrix.
 # Files are saved under their UPSTREAM names so sha256sum -c can resolve the filename
-# embedded in the .sha256sum file (e.g. "3f43c0aa...  helm-v3.18.6-linux-amd64.tar.gz").
+# embedded in the .sha256sum file (sha256sum format: "<hash>  <filename>").
 RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" \
         -o "/tmp/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" \
     && curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz.sha256sum" \
