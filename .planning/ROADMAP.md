@@ -114,7 +114,15 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `ACTION=rollback` + `REVISION=<n>` invokes `helm rollback <release> <n>` (PIPE-04); when `SAFE_UPGRADE=true`, both `--wait` and `--atomic` are passed to upgrade and a pre-flight `helm history` check fails the action if the target revision was not deployed with `--wait` (PIPE-05).
   4. With `INJECT_BITBUCKET_METADATA` unset, no `bitbucket.*` values are injected (META-02 — breaking change vs v1); when the pipe detects the chart's `values.yaml` references `.Values.bitbucket.*` without `INJECT_BITBUCKET_METADATA` set, it logs a loud one-time WARN recommending explicit opt-in (META-03); v1-only env-var names (`SET` / `VALUES` in positional format) trigger a one-time deprecation warning at startup (MIG-02). Closes #16.
 
-**Plans**: TBD
+**Plans**: 7 plans
+
+  - [ ] `05-01-PLAN.md` — Widen `Settings.action` Literal + add 4 new Phase 5 fields (META-02, PIPE-03/04/05)
+  - [ ] `05-02-PLAN.md` — SEC-06 redactor (`helm/redact.py`) + HelmClient wiring + Secret-emitting fixture + fuzz tests
+  - [ ] `05-03-PLAN.md` — PIPE-02 ACTION=diff — `helm-diff-fetch` Dockerfile stage + `HelmClient.diff` + `DiffAction` + cli dispatch
+  - [ ] `05-04-PLAN.md` — PIPE-03 PR-comment poster — `bitbucket/pr_comment.py` (stdlib urllib) + DiffAction wiring + token-scrub
+  - [ ] `05-05-PLAN.md` — PIPE-04/05 rollback + SAFE_UPGRADE — `HelmClient.rollback` + pre-flight description marker + `RollbackAction`
+  - [ ] `05-06-PLAN.md` — META-02/META-03/MIG-02 metadata flip + deprecation WARN (closes #16)
+  - [ ] `05-07-PLAN.md` — Migration guide draft `docs/guides/v1-to-v2.md` (Phase 7 polishes)
 **Risks**:
 
   - Log masking misses a non-stdlib Helm output channel (e.g., `helm get manifest` consumed by a future feature). Mitigation: centralize the redactor in `helm/redact.py`; every `HelmClient` method routes captured output through it; a fuzz test feeds randomised chart fixtures.
@@ -181,6 +189,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. AWS Layer & Auth Foundation | 0/TBD | Not started | - |
 | 3. Helm Core & Upgrade Action | 0/TBD | Not started | - |
 | 4. OIDC & Chart Source Extensions | 3/8 | In Progress|  |
-| 5. Log Masking, Diff, Rollback & Metadata Flip | 0/TBD | Not started | - |
+| 5. Log Masking, Diff, Rollback & Metadata Flip | 0/7 | Planned | - |
 | 6. Release Pipeline & Supply Chain | 0/TBD | Not started | - |
 | 7. Documentation Site & Migration Guide | 0/TBD | Not started | - |
