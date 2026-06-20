@@ -120,3 +120,24 @@ def test_ci_workflow_does_not_use_pull_request_target(ci_workflow: dict[str, Any
             "SECURITY VIOLATION: pull_request_target trigger detected in ci.yml"
             " — see RESEARCH §Known Threat Patterns"
         )
+
+
+def test_trivy_jobs_validate_trivyignore_grammar(ci_workflow: dict[str, Any]) -> None:
+    """Both trivy jobs must validate .trivyignore grammar before scanning (SEC-04 + D2).
+
+    Each of trivy-image and trivy-dockerfile must have at least one step whose
+    `run` field contains `scripts/trivyignore-check.sh`.
+    """
+    trivy_job_names = ("trivy-image", "trivy-dockerfile")
+    jobs: dict[str, Any] = ci_workflow.get("jobs", {})
+    for job_name in trivy_job_names:
+        job = jobs.get(job_name)
+        assert job is not None, f"Job '{job_name}' not found in ci.yml"
+        steps: list[dict[str, Any]] = job.get("steps", [])
+        has_grammar_check = any(
+            "scripts/trivyignore-check.sh" in (step.get("run") or "") for step in steps
+        )
+        assert has_grammar_check, (
+            f"SEC-04 + D2 violation: trivy job '{job_name}' does not validate"
+            " .trivyignore grammar before scanning."
+        )
