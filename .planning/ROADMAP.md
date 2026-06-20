@@ -147,7 +147,19 @@ Decimal phases appear between their surrounding integers in numeric order.
   9. **GitHub Private Vulnerability Reporting** is enabled (`Settings → Security → Private vulnerability reporting`); `SECURITY.md` documents the disclosure flow; published CVE responses live as **GitHub Security Advisories**, linked from `CHANGELOG.md` patch entries (SEC-09).
   10. `.github/workflows/scorecard.yml` (`ossf/scorecard-action@v2`, weekly cron + on-push to `main`) evaluates the repo against the OpenSSF Scorecard checks (Dependency-Update-Tool, Signed-Releases, Pinned-Dependencies, Branch-Protection, Code-Review, Token-Permissions, SAST, SBOM, Maintained, …) and uploads SARIF to GitHub Code Scanning; the README badge row carries a live link to `https://api.securityscorecards.dev/projects/github.com/yves-vogl/aws-eks-helm-deploy/badge`; the achieved score at v2.0 tag-cut is **≥ 8/10**; any deliberate sub-check failure is documented in `.scorecard-exception.md` with rationale and review date (SEC-10).
 
-**Plans**: TBD
+**Plans**: 11 plans
+
+  - [ ] `06-01-PLAN.md` — Wave 1: ci.yml 7-job parallel fan-out (D9) + structural test infra (CI-01, SEC-04, SEC-05)
+  - [ ] `06-02-PLAN.md` — Wave 1: release-please config + manifest + driver workflow + pipe.yml GHCR migration (CI-02 author half)
+  - [ ] `06-03-PLAN.md` — Wave 2: Dockerfile TARGETARCH multi-arch + release.yml build matrix (native ARM, no QEMU) (IMAGE-04, IMAGE-05)
+  - [ ] `06-04-PLAN.md` — Wave 3: release.yml sign-and-attest job (Cosign + Syft SBOM + SLSA provenance + GHCR manifest with :2 rolling tag) (SEC-01, SEC-02, SEC-03, CI-03)
+  - [ ] `06-05-PLAN.md` — Wave 4: cosign-verify.yml PR-gate (R1 mitigation; bootstrap-graceful)
+  - [ ] `06-06-PLAN.md` — Wave 5: Dependabot D6 grouping + C3 prefix correction + dependabot-auto-merge.yml (CI-05, SEC-08)
+  - [ ] `06-07-PLAN.md` — Wave 5: security-rescan.yml daily Trivy + SARIF + auto-issue with dedup (SEC-07)
+  - [ ] `06-08-PLAN.md` — Wave 5: SECURITY.md update — remove planned qualifiers + document Phase 6 live state (SEC-09)
+  - [ ] `06-09-PLAN.md` — Wave 5: .trivyignore + .scorecard-exception.md + grammar enforcement scripts + Scorecard badge (SEC-04, SEC-10)
+  - [ ] `06-10-PLAN.md` — Wave 5: docs/admin/repo-settings.md maintainer runbook + issue + PR templates (CI-06, CI-07, CMN-01, CMN-02, CMN-03, CMN-04, SEC-09)
+  - [ ] `06-11-PLAN.md` — Wave 6 (after 06-09 README badge ships): Bitbucket thin stub + benchmark-cold-start + v1-to-v2.md Distribution-change addendum + README badge row completion (CI-04, MIG-01, IMAGE-06)
 **Risks**:
 
   - Cosign keyless three-way coupling (Pitfall #4): missing `id-token: write` permission at job inheritance, Rekor unavailability at verify time, Fulcio cert expiry mid-job. Mitigation: declare `permissions: id-token: write` at workflow level; always `cosign sign --bundle`; isolate signing in a short-lived job; verify-on-PR step on every release-please PR.
@@ -190,5 +202,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Helm Core & Upgrade Action | 0/TBD | Not started | - |
 | 4. OIDC & Chart Source Extensions | 3/8 | In Progress|  |
 | 5. Log Masking, Diff, Rollback & Metadata Flip | 0/7 | Planned | - |
-| 6. Release Pipeline & Supply Chain | 0/TBD | Not started | - |
+| 6. Release Pipeline & Supply Chain | 0/11 | Planned | - |
 | 7. Documentation Site & Migration Guide | 0/TBD | Not started | - |
