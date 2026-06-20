@@ -1,0 +1,13 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Security vulnerability disclosure
+    url: https://github.com/yves-vogl/aws-eks-helm-deploy/security
+    about: >
+      For security findings, please use Private Vulnerability Reporting —
+      see SECURITY.md for the disclosure timeline and policy.
+  - name: Bitbucket Pipe Marketplace
+    url: https://bitbucket.org/product/features/pipelines/integrations
+    about: >
+      For Marketplace listing issues (logo, description, categorisation),
+      contact Bitbucket support — this GitHub repo does not own those.

@@ -1,0 +1,54 @@
+name: Feature request
+description: Suggest a new capability or env-var contract change.
+title: "[feature] <short summary>"
+labels: ["type/feature", "area/triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening: please check the
+        [Roadmap](.planning/ROADMAP.md) and
+        [Out of Scope](.planning/REQUIREMENTS.md#out-of-scope) —
+        some asks are deliberately out of scope for v2.x.
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: >
+        What problem are you trying to solve? A concrete scenario is preferred
+        over abstract framing.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-contract
+    attributes:
+      label: Proposed env-var contract (if applicable)
+      description: >
+        If your feature would add or change pipe env vars, sketch the contract here.
+      placeholder: |
+        NEW_VAR=<value>         # description
+        EXISTING_VAR=...        # changed behaviour: ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this worth shipping? Who benefits and how often?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: breaking
+    attributes:
+      label: Is this a breaking change?
+      options:
+        - "No"
+        - "Yes (env-var contract change)"
+        - "Yes (default-value flip)"
+        - "Unsure"
+    validations:
+      required: true
