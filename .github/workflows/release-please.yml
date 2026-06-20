@@ -1,0 +1,38 @@
+# Phase 6 / CI-02 / CONTEXT D1 — release-please driver.
+# On every push to main, googleapis/release-please-action inspects accumulated
+# Conventional Commits and opens-or-updates a single Release PR. The PR DOES NOT
+# auto-merge (D1); Yves reviews and squash-merges manually. The merged release-PR
+# pushes a tag (e.g. v2.0.0) which triggers release.yml (Plan 06-03 + 06-04).
+#
+# Pitfall #1: This workflow only AUTHORS the Release PR. It does NOT sign or push
+# the image. id-token:write is therefore NOT requested here — that permission is
+# reserved for release.yml (the only workflow allowed to mint OIDC tokens).
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write          # release-please pushes the release branch
+  pull-requests: write     # release-please opens/updates the Release PR
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false   # don't cancel a release-please run mid-PR-update
+
+jobs:
+  release-please:
+    name: release-please
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Run release-please
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          # release-please reads the JSON config + manifest from the repo root
+          # (no `config-file:` / `manifest-file:` overrides needed when files
+          # live at the documented default paths).
+          token: ${{ secrets.GITHUB_TOKEN }}
