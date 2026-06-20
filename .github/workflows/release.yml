@@ -98,3 +98,162 @@ jobs:
         id: export
         run: |
           echo "digest-${{ matrix.arch_suffix }}=${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
+
+  sign-and-attest:
+    name: sign + SBOM + SLSA + publish manifest
+    needs: [build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write        # create / edit GitHub Release
+      packages: write        # push manifest + cosign signature OCI artifact to GHCR
+      id-token: write        # OIDC token for Fulcio cert issuance (SEC-01)
+      attestations: write    # SLSA provenance store (SEC-03)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: "v2.6.3"   # match Dockerfile pin (Phase 4 D8 carry-forward)
+
+      - name: Compute version tags
+        id: tags
+        # ${{ github.ref_name }} is the tag (e.g. v2.0.0). Strip the leading "v" for SemVer.
+        # The :2 rolling-major tag tracks the current v2.x release per CONTEXT D10 / MIG-01.
+        run: |
+          set -euo pipefail
+          REF="${{ github.ref_name }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            REF="${{ inputs.tag }}"
+          fi
+          # Strip leading "v" — fail if absent (defensive)
+          [[ "$REF" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-[A-Za-z0-9.-]+)?$ ]] || { echo "Tag does not match vMAJOR.MINOR.PATCH[-PRE]: $REF" >&2; exit 1; }
+          MAJOR="${BASH_REMATCH[1]}"
+          VERSION="${REF#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "major=${MAJOR}" >> "$GITHUB_OUTPUT"
+          echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+
+      - name: Assemble multi-arch manifest from per-arch digests
+        id: manifest
+        # docker buildx imagetools create handles digest-based assembly (RESEARCH §Multi-arch).
+        # The three tags (vX.Y.Z, :MAJOR, :latest) are applied at the same manifest digest.
+        run: |
+          set -euo pipefail
+          DIGEST_AMD64="${{ needs.build.outputs.digest-amd64 }}"
+          DIGEST_ARM64="${{ needs.build.outputs.digest-arm64 }}"
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          VERSION="${{ steps.tags.outputs.version }}"
+          MAJOR="${{ steps.tags.outputs.major }}"
+
+          docker buildx imagetools create \
+            --tag "${IMAGE}:${VERSION}" \
+            --tag "${IMAGE}:${MAJOR}" \
+            --tag "${IMAGE}:latest" \
+            "${IMAGE}@${DIGEST_AMD64}" \
+            "${IMAGE}@${DIGEST_ARM64}"
+
+          # Resolve the assembled manifest digest (same for all three tags).
+          MANIFEST_DIGEST=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{json .Manifest}}' | jq -r '.digest')
+          echo "manifest-digest=${MANIFEST_DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "image-ref=${IMAGE}@${MANIFEST_DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke-test multi-arch manifest (Pitfall #2 / R2 mitigation)
+        # `imagetools inspect` lists the platforms baked into the manifest.
+        # Assertion: both linux/amd64 AND linux/arm64 present as real entries
+        # (NOT 'unknown/unknown' which is the QEMU-broken-arm64 telltale).
+        run: |
+          set -euo pipefail
+          INSPECT_OUT=$(docker buildx imagetools inspect "${{ steps.manifest.outputs.image-ref }}")
+          echo "$INSPECT_OUT"
+          echo "$INSPECT_OUT" | grep -F 'linux/amd64'
+          echo "$INSPECT_OUT" | grep -F 'linux/arm64'
+          # Defensive: fail if the manifest has any 'unknown' platform entry
+          if echo "$INSPECT_OUT" | grep -E 'Platform:.*unknown'; then
+            echo "ERROR: manifest contains an 'unknown' platform entry — Pitfall #2 (QEMU broken arm64?)" >&2
+            exit 1
+          fi
+
+      - name: Sign manifest with Cosign keyless (SEC-01)
+        # --bundle is REQUIRED (Pitfall #4): without it, verification needs Rekor online.
+        # --yes accepts the Fulcio TOS (required in non-interactive CI).
+        env:
+          IMAGE_REF: ${{ steps.manifest.outputs.image-ref }}
+        run: |
+          cosign sign --yes --bundle cosign.bundle "${IMAGE_REF}"
+
+      - name: Generate SPDX SBOM (SEC-02)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ steps.manifest.outputs.image-ref }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+
+      - name: Generate CycloneDX SBOM (SEC-02)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ steps.manifest.outputs.image-ref }}
+          format: cyclonedx-json
+          output-file: sbom.cyclonedx.json
+          upload-artifact: false
+
+      - name: Attest SPDX SBOM via Cosign (CONTEXT D8)
+        env:
+          IMAGE_REF: ${{ steps.manifest.outputs.image-ref }}
+        run: |
+          cosign attest --yes --bundle sbom.spdx.bundle \
+            --predicate sbom.spdx.json \
+            --type spdxjson \
+            "${IMAGE_REF}"
+
+      - name: Attest CycloneDX SBOM via Cosign (CONTEXT D8)
+        env:
+          IMAGE_REF: ${{ steps.manifest.outputs.image-ref }}
+        run: |
+          cosign attest --yes --bundle sbom.cyclonedx.bundle \
+            --predicate sbom.cyclonedx.json \
+            --type cyclonedx \
+            "${IMAGE_REF}"
+
+      - name: Attach SLSA build provenance (SEC-03)
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.manifest.outputs.manifest-digest }}
+          push-to-registry: true
+
+      - name: Update GitHub Release with supply-chain artifacts
+        # release-please already created the Release on PR merge; we just upload
+        # supply-chain artifacts and amend the notes (idempotent — works whether
+        # release-please pre-created the Release or this is a workflow_dispatch re-run).
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_REF: ${{ steps.manifest.outputs.image-ref }}
+          VERSION: ${{ steps.tags.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            gh release upload "v${VERSION}" \
+              sbom.spdx.json sbom.cyclonedx.json \
+              cosign.bundle sbom.spdx.bundle sbom.cyclonedx.bundle \
+              --clobber
+            gh release edit "v${VERSION}" --notes-file <(gh release view "v${VERSION}" --json body --jq .body; echo -e "\n\n## Supply chain artifacts\n\n- Manifest: \`${IMAGE_REF}\`\n- Cosign verify: \`cosign verify --certificate-identity-regexp '^https://github.com/${{ github.repository }}/' --certificate-oidc-issuer https://token.actions.githubusercontent.com ${IMAGE_REF}\`\n- SBOM (SPDX): \`cosign verify-attestation --type spdxjson ${IMAGE_REF}\`\n- SBOM (CycloneDX): \`cosign verify-attestation --type cyclonedx ${IMAGE_REF}\`")
+          else
+            echo "WARNING: GitHub Release v${VERSION} not found — release-please may have failed or this is workflow_dispatch" >&2
+            gh release create "v${VERSION}" --title "v${VERSION}" --generate-notes \
+              sbom.spdx.json sbom.cyclonedx.json \
+              cosign.bundle sbom.spdx.bundle sbom.cyclonedx.bundle
+          fi
