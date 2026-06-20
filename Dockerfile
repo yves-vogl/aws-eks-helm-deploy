@@ -85,14 +85,37 @@ RUN curl -fsSL "https://github.com/sigstore/cosign/releases/download/v${COSIGN_V
     && chmod +x /cosign \
     && rm -f /tmp/cosign_checksums.txt
 
-# ── Stage 3: Runtime image ────────────────────────────────────────────────────
-FROM python:${PYTHON_VERSION}-slim-bookworm@${PYTHON_BASE_DIGEST} AS runtime
+# ── Stage 2.7: helm-diff plugin fetch ────────────────────────────────────────
+# Phase 5 D2: build-time bundle of the helm-diff plugin (eliminates the runtime plugin-fetch step).
+# Mirrors the cosign-fetch stage (CONTEXT D8 / Phase 4 D8) verbatim except for binary identity.
+# SHA256 verified via upstream `helm-diff_${HELM_DIFF_VERSION}_checksums.txt` (T-05-05 mitigation).
+FROM debian:bookworm-slim@${DEBIAN_BASE_DIGEST} AS helm-diff-fetch
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 ARG HELM_DIFF_VERSION
 
-# System deps: git + curl are required by helm-diff plugin installer; ca-certificates for TLS
+# linux/amd64 only — multi-arch lands Phase 6 alongside helm-fetch + cosign-fetch.
+# helm-diff tgz extracts to a top-level `diff/` directory containing `bin/diff`, `plugin.yaml`,
+# `LICENSE`, `README.md`. Helm picks the plugin up by directory name (`name: "diff"` in plugin.yaml).
+RUN curl -fsSL "https://github.com/databus23/helm-diff/releases/download/v${HELM_DIFF_VERSION}/helm-diff-linux-amd64.tgz" \
+        -o "/tmp/helm-diff-linux-amd64.tgz" \
+    && curl -fsSL "https://github.com/databus23/helm-diff/releases/download/v${HELM_DIFF_VERSION}/helm-diff_${HELM_DIFF_VERSION}_checksums.txt" \
+        -o "/tmp/helm-diff_checksums.txt" \
+    && cd /tmp \
+    && grep "  helm-diff-linux-amd64.tgz$" helm-diff_checksums.txt | sha256sum -c \
+    && tar -xzf helm-diff-linux-amd64.tgz \
+    && rm helm-diff-linux-amd64.tgz helm-diff_checksums.txt
+
+# ── Stage 3: Runtime image ────────────────────────────────────────────────────
+FROM python:${PYTHON_VERSION}-slim-bookworm@${PYTHON_BASE_DIGEST} AS runtime
+
+# System deps: ca-certificates for TLS (git + curl no longer needed — helm-diff is bundled
+# via helm-diff-fetch stage; see Phase 5 D2 / CONTEXT D2).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git curl ca-certificates \
+    && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Non-root user (IMAGE-03): uid 10001
@@ -108,32 +131,22 @@ COPY --from=helm-fetch /helm /usr/local/bin/helm
 # Copy Cosign binary from cosign-fetch stage (CHART-04; R12 ordered after helm)
 COPY --from=cosign-fetch /cosign /usr/local/bin/cosign
 
+# Copy helm-diff plugin from helm-diff-fetch stage (Phase 5 D2).
+# Plugin directory name MUST be `diff` (matches `name: "diff"` in plugin.yaml);
+# destination is pipe user's HELM_PLUGINS path (NOT /root — see RESEARCH CONTRADICTION 1).
+COPY --from=helm-diff-fetch /tmp/diff /home/pipe/.local/share/helm/plugins/diff
+
 ENV PATH="/opt/venv/bin:${PATH}" \
     HELM_PLUGINS=/home/pipe/.local/share/helm/plugins \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONFAULTHANDLER=1
 
-# CRITICAL: switch USER before helm plugin install so the plugin lands in
-# /home/pipe/.local/share/helm/plugins (not /root/.local/...) — see PITFALL 4
 USER pipe
 
-# Install helm-diff plugin as the pipe user (plugins are user-scoped via HELM_PLUGINS)
-RUN helm plugin install \
-    https://github.com/databus23/helm-diff \
-    --version "v${HELM_DIFF_VERSION}"
-
-# Verify helm-diff is reachable as pipe user — build fails early if Pitfall 4 recurs
+# Verify helm-diff is reachable as pipe user — build fails early if plugin-discovery breaks
+# (R4-equivalent: catches path/name errors at build time, not at runtime).
 RUN helm diff version
-
-# Purge curl and git — neither is needed at runtime (sec-02, sec-14).
-# helm-diff plugin updates are a BUILD-TIME operation (helm plugin install above);
-# the runtime pipe only calls `helm diff` which does not exec git.
-USER root
-RUN apt-get purge -y curl git \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
-USER pipe
 
 WORKDIR /home/pipe
 
