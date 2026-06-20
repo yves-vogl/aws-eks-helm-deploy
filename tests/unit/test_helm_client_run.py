@@ -1009,3 +1009,28 @@ def test_diff_timeout_raises_helm_timeout_error(mocker: Any) -> None:
         _client().diff("r", _stub_chart(), "default", [], [], "600s")
     assert exc_info.value.exit_code == 6
     assert "600" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_diff_timeout_with_stderr_bytes_includes_partial_stderr(mocker: Any) -> None:
+    """diff() TimeoutExpired with stderr bytes surfaces them in HelmTimeoutError message."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(
+            cmd=["helm"], timeout=60, output=None, stderr=b"partial diff error output"
+        ),
+    )
+    with pytest.raises(HelmTimeoutError) as exc_info:
+        _client().diff("r", _stub_chart(), "default", [], [], "60s")
+    assert "partial diff error output" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_diff_timeout_with_none_stderr_does_not_crash(mocker: Any) -> None:
+    """diff() TimeoutExpired with stderr=None raises HelmTimeoutError without side effects."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(cmd=["helm"], timeout=600, stderr=None),
+    )
+    with pytest.raises(HelmTimeoutError):
+        _client().diff("r", _stub_chart(), "default", [], [], "600s")

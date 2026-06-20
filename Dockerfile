@@ -100,6 +100,8 @@ ARG HELM_DIFF_VERSION
 # linux/amd64 only — multi-arch lands Phase 6 alongside helm-fetch + cosign-fetch.
 # helm-diff tgz extracts to a top-level `diff/` directory containing `bin/diff`, `plugin.yaml`,
 # `LICENSE`, `README.md`. Helm picks the plugin up by directory name (`name: "diff"` in plugin.yaml).
+# Known SHA256 (linux-amd64, v3.10.0): a7875d4656b327b0b7f792f25a70f714801e402eb199ddd0f2df06a063e6bede
+# Verification uses the upstream checksums file (belt-and-suspenders over hardcoded hash).
 RUN curl -fsSL "https://github.com/databus23/helm-diff/releases/download/v${HELM_DIFF_VERSION}/helm-diff-linux-amd64.tgz" \
         -o "/tmp/helm-diff-linux-amd64.tgz" \
     && curl -fsSL "https://github.com/databus23/helm-diff/releases/download/v${HELM_DIFF_VERSION}/helm-diff_${HELM_DIFF_VERSION}_checksums.txt" \

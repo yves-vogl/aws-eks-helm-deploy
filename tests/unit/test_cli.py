@@ -299,3 +299,112 @@ def test_main_credentials_never_passed_to_bind_safe_context(
         assert not bound_keys & credential_keys, (
             f"Credential key(s) {bound_keys & credential_keys!r} passed to bind_safe_context"
         )
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 DiffAction dispatch tests (Plan 05-03)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_cli_dispatches_action_diff_to_diff_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() routes ACTION=diff to DiffAction (not UpgradeAction)."""
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_diff_cls = mocker.patch("aws_eks_helm_deploy.cli.DiffAction")
+    mock_diff_cls.return_value.run.return_value = 0
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+
+    from aws_eks_helm_deploy.cli import main
+
+    with mocker.patch(
+        "aws_eks_helm_deploy.cli.Settings",
+        return_value=mocker.MagicMock(
+            action="diff",
+            dry_run=False,
+            log_format="human",
+            debug=False,
+        ),
+    ):
+        result = main()
+
+    assert result == 0
+    mock_diff_cls.assert_called_once()
+    mock_diff_cls.return_value.run.assert_called_once()
+    mock_upgrade_cls.assert_not_called()
+
+
+@pytest.mark.unit
+def test_cli_dispatches_action_upgrade_with_dry_run_true_to_diff_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() routes ACTION=upgrade + DRY_RUN=true to DiffAction (R7 routing)."""
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_diff_cls = mocker.patch("aws_eks_helm_deploy.cli.DiffAction")
+    mock_diff_cls.return_value.run.return_value = 0
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+
+    from aws_eks_helm_deploy.cli import main
+
+    with mocker.patch(
+        "aws_eks_helm_deploy.cli.Settings",
+        return_value=mocker.MagicMock(
+            action="upgrade",
+            dry_run=True,
+            log_format="human",
+            debug=False,
+        ),
+    ):
+        result = main()
+
+    assert result == 0
+    mock_diff_cls.assert_called_once()
+    mock_upgrade_cls.assert_not_called()
+
+
+@pytest.mark.unit
+def test_cli_dispatches_action_upgrade_with_dry_run_false_to_upgrade_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() routes ACTION=upgrade + DRY_RUN=false to UpgradeAction (regression guard)."""
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_diff_cls = mocker.patch("aws_eks_helm_deploy.cli.DiffAction")
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.return_value = 0
+
+    from aws_eks_helm_deploy.cli import main
+
+    with mocker.patch(
+        "aws_eks_helm_deploy.cli.Settings",
+        return_value=mocker.MagicMock(
+            action="upgrade",
+            dry_run=False,
+            log_format="human",
+            debug=False,
+        ),
+    ):
+        result = main()
+
+    assert result == 0
+    mock_upgrade_cls.assert_called_once()
+    mock_diff_cls.assert_not_called()
+
+
+@pytest.mark.unit
+def test_cli_dispatches_action_upgrade_default_to_upgrade_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() defaults to UpgradeAction when ACTION and DRY_RUN are unset (preserved)."""
+    mock_pipe = mocker.MagicMock()
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO", return_value=mock_pipe)
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.return_value = 0
+
+    from aws_eks_helm_deploy.cli import main
+
+    # Default settings: action="upgrade", dry_run=False
+    result = main()
+
+    assert result == 0
+    mock_upgrade_cls.assert_called_once()

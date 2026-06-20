@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import sys
 
+from aws_eks_helm_deploy.actions.diff import DiffAction
 from aws_eks_helm_deploy.actions.upgrade import UpgradeAction
 from aws_eks_helm_deploy.auth import select_strategy
 from aws_eks_helm_deploy.errors import ConfigurationError, PipeError
@@ -53,9 +54,13 @@ def main(argv: list[str] | None = None) -> int:
 
     pipe = PipeIO()
     try:
+        if settings.action == "diff" or (settings.action == "upgrade" and settings.dry_run):
+            return DiffAction(settings, strategy=strategy).run(pipe)
         if settings.action == "upgrade":
             return UpgradeAction(settings, strategy=strategy).run(pipe)
-        # pragma: no cover — defensive; reachable once Phase 5 widens Settings.action Literal
+        # ACTION=rollback dispatch lands in plan 05-05.
+        # The Literal["upgrade", "diff", "rollback"] ensures pydantic rejects unknown values
+        # before cli.py sees them — this raise is dead code but kept as a safety net.
         raise ConfigurationError(f"Unsupported action: {settings.action!r}")  # pragma: no cover
     except PipeError as exc:
         pipe.fail(exc.user_message)
