@@ -656,3 +656,40 @@ def test_build_bitbucket_set_args_meta_vars_order() -> None:
     assert env_var_names[2] == "BITBUCKET_COMMIT"
     assert env_var_names[3] == "BITBUCKET_TAG"
     assert env_var_names[4] == "BITBUCKET_STEP_TRIGGERER_UUID"
+
+
+# ---------------------------------------------------------------------------
+# SAFE_UPGRADE kwarg forwarding (PIPE-05 / Plan 05-05)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_upgrade_action_forwards_safe_upgrade_false_by_default(
+    mocker: MockerFixture,
+) -> None:
+    """UpgradeAction.run passes safe_upgrade=False to upgrade_install by default (PIPE-05)."""
+    mocks = _patch_all_happy(mocker)
+    mock_pipe = mocker.MagicMock()
+    settings = _make_settings()  # no SAFE_UPGRADE env var -> False
+    action = UpgradeAction(settings)
+
+    action.run(mock_pipe)
+
+    call_kwargs = mocks["helm_client_cls"].return_value.upgrade_install.call_args.kwargs
+    assert call_kwargs["safe_upgrade"] is False
+
+
+@pytest.mark.unit
+def test_upgrade_action_forwards_safe_upgrade_true_when_env_set(
+    mocker: MockerFixture,
+) -> None:
+    """UpgradeAction.run passes safe_upgrade=True to upgrade_install when SAFE_UPGRADE=true."""
+    mocks = _patch_all_happy(mocker)
+    mock_pipe = mocker.MagicMock()
+    settings = _make_settings(safe_upgrade=True)
+    action = UpgradeAction(settings)
+
+    action.run(mock_pipe)
+
+    call_kwargs = mocks["helm_client_cls"].return_value.upgrade_install.call_args.kwargs
+    assert call_kwargs["safe_upgrade"] is True

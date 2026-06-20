@@ -4,6 +4,7 @@ Requirements traceability:
     CHART-01:  end-to-end: select_chart_source -> HelmClient.upgrade_install
     CHART-05:  pipe.success emits exact format per CONTEXT D7
     PIPE-01:   full chain (auth -> token -> kubeconfig -> chart -> helm) wired
+    PIPE-05:   safe_upgrade=s.safe_upgrade forwarded to HelmClient.upgrade_install (Phase 5 D5)
     PIPE-06:   every failure maps to a typed PipeError; OSError wrapped as KubeconfigError
     HISTORY-01: Settings.history_max field (closes #17)
     HISTORY-02: settings.history_max flows through to HelmClient.upgrade_install(history_max=...)
@@ -158,6 +159,7 @@ class UpgradeAction:
                     set_args=set_args,
                     history_max=s.history_max,
                     timeout=s.timeout,
+                    safe_upgrade=s.safe_upgrade,
                 )
                 cluster_name = s.cluster_name
             else:
@@ -172,6 +174,7 @@ class UpgradeAction:
                             set_args=set_args,
                             history_max=s.history_max,
                             timeout=s.timeout,
+                            safe_upgrade=s.safe_upgrade,
                         )
                 except OSError as exc:
                     raise KubeconfigError(f"Failed to write kubeconfig: {exc}") from exc
