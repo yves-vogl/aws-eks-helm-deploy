@@ -36,10 +36,10 @@
 | Existing `pyproject.toml` | `pyproject.toml` | Version field driven by release-please; Phase 6 ensures release-please can read+write it |
 | Existing `scripts/pip-audit-with-stale-check.sh` | `scripts/pip-audit-with-stale-check.sh` | Phase 4 established the two-pass stale-suppression pattern — Phase 6 CI calls this script |
 | Existing `.pre-commit-config.yaml` | `.pre-commit-config.yaml` | pip-audit runs as pre-push hook locally; CI gate is in addition |
-| `googleapis/release-please-action@v4` docs | https://github.com/googleapis/release-please-action | Source-of-truth for `.release-please-config.json` schema |
+| `googleapis/release-please-action@v5` docs | https://github.com/googleapis/release-please-action | Source-of-truth for `.release-please-config.json` schema. **⚠ RESEARCH CORRECTION (C2): use v5.0.0 (SHA 45996ed1f6d02564a971a2fa1b5860e934307cf7), NOT v4** |
 | `sigstore/cosign-installer` GitHub Action | https://github.com/sigstore/cosign-installer | Installs cosign in CI; pin to digest |
 | `anchore/sbom-action` (Syft) | https://github.com/anchore/sbom-action | SBOM generation in SPDX + CycloneDX |
-| `actions/attest-build-provenance@v1` | https://github.com/actions/attest-build-provenance | SLSA provenance attestation |
+| `actions/attest-build-provenance` | https://github.com/actions/attest-build-provenance | SLSA provenance attestation. **⚠ RESEARCH CORRECTION (C1): latest is v4.1.0 (SHA `a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32`), NOT v1.** |
 | `aquasecurity/trivy-action` | https://github.com/aquasecurity/trivy-action | Trivy scanner; SARIF upload to Code Scanning |
 | `ossf/scorecard-action@v2` | https://github.com/ossf/scorecard-action | Scorecard evaluation |
 | OpenSSF Scorecard public API | https://api.securityscorecards.dev/projects/github.com/yves-vogl/aws-eks-helm-deploy/badge | README badge URL |
@@ -135,6 +135,10 @@ updates:
         patterns: [boto3*, botocore*, mypy*, ruff*, pytest*, structlog, pydantic*, pyyaml, requests]
     commit-message: { prefix: chore, prefix-development: chore }
     open-pull-requests-limit: 5
+    # ⚠ RESEARCH CORRECTION (C3): existing dependabot.yml uses `prefix: fix` for pip;
+    # change to `chore` so Python-only patch bumps do NOT trigger release-please patch
+    # releases. ONLY docker ecosystem keeps `prefix: fix` (SEC-08 contract — base-image
+    # bump → release-please patch → re-published freshly-scanned image).
 
   - package-ecosystem: docker
     directory: "/"
