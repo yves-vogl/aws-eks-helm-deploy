@@ -14,7 +14,7 @@
 To report a vulnerability:
 
 1. Go to the [Security tab](https://github.com/yves-vogl/aws-eks-helm-deploy/security) of this repository.
-2. Click **Report a vulnerability**.
+2. Click **Report a vulnerability** (direct link: [Report a vulnerability](https://github.com/yves-vogl/aws-eks-helm-deploy/security/advisories/new)).
 3. Provide the details (affected version, reproduction steps, impact assessment, proposed mitigation if known).
 
 The maintainer will acknowledge receipt within 5 working days and provide an initial assessment within 14 days.
@@ -52,11 +52,13 @@ Out of scope:
 This repository runs several automated security gates that may catch issues before a manual report is needed:
 
 - **gitleaks** as a pre-commit hook (every commit + every CI run).
-- **pip-audit** on every push (Python dependency CVE scan with stale-ignore detection).
-- **CodeQL** (planned, Tier-2 Scorecard sprint).
-- **OpenSSF Scorecard** weekly (planned, Tier-2 Scorecard sprint).
-- **Trivy** image scanning at build time and on a scheduled cadence (planned, Phase 6).
-- **Dependabot** for `pip`, `docker`, and `github-actions` ecosystems.
+- **pip-audit** on every PR via `scripts/pip-audit-with-stale-check.sh` (Python dependency CVE scan with stale-ignore detection).
+- **CodeQL** static analysis on every PR + weekly on `main` (Security tab → Code scanning alerts).
+- **OpenSSF Scorecard** weekly (Security tab; live badge on the README).
+- **Trivy** image scanning on every PR (image filesystem + Dockerfile + chart fixtures + secret-leak patterns) AND on a daily scheduled rescan against the published GHCR image (`ghcr.io/yves-vogl/aws-eks-helm-deploy:latest` and `:2`); findings upload to GitHub Code Scanning and CRITICAL/HIGH findings open auto-deduplicated GitHub Issues.
+- **Cosign** keyless signing of the released image (Sigstore / Fulcio / Rekor) AND Cosign attestation of two SBOMs (SPDX + CycloneDX) AND SLSA build provenance via `actions/attest-build-provenance` — every release is verifiable via `cosign verify ghcr.io/yves-vogl/aws-eks-helm-deploy:<tag>` and `gh attestation verify`.
+- **Cosign verify** as a PR gate (`.github/workflows/cosign-verify.yml`) — every PR runs `cosign verify` against the most recent published image to catch sign-chain regressions.
+- **Dependabot** for `pip`, `docker`, and `github-actions` ecosystems with weekly grouping; auto-merge once required checks pass.
 
 If your finding is something one of these tools should have caught and didn't, please mention that in the report — it helps us improve the gate.
 
