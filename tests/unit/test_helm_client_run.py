@@ -922,3 +922,90 @@ def test_default_redactor_redacts_secret_in_upgrade_install_stdout(mocker: Any) 
     )
     assert "<redacted>" in result.stdout
     assert "dGVzdA==" not in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# diff method — PIPE-02 / SEC-06 (Plan 05-03)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_diff_success_exit_0_returns_redacted_stdout(mocker: Any) -> None:
+    """returncode=0 (no diff) returns the redacted stdout string."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="no changes\n", stderr=""),
+    )
+    result = _client().diff("r", _stub_chart(), "default", [], [], "600s")
+    assert result == "no changes\n"
+
+
+@pytest.mark.unit
+def test_diff_success_exit_1_returns_redacted_stdout(mocker: Any) -> None:
+    """returncode=1 (differences exist) is SUCCESS — returns the redacted diff text."""
+    diff_text = "--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+new\n"
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=1, stdout=diff_text, stderr=""),
+    )
+    # Must NOT raise; must return the diff content
+    result = _client().diff("r", _stub_chart(), "default", [], [], "600s")
+    assert result == diff_text
+
+
+@pytest.mark.unit
+def test_diff_failure_exit_2_raises_helm_execution_error(mocker: Any) -> None:
+    """returncode=2 (error) raises HelmExecutionError with exit_code=5."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[], returncode=2, stdout="", stderr="something went wrong"
+        ),
+    )
+    with pytest.raises(HelmExecutionError) as exc_info:
+        _client().diff("r", _stub_chart(), "default", [], [], "600s")
+    assert exc_info.value.exit_code == 5
+    assert "returned 2" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_diff_routes_stdout_and_stderr_through_redactor(mocker: Any) -> None:
+    """diff() routes stdout through the injected redactor (SEC-06 / T-05-01 gate).
+
+    Uses a tracking redactor to verify delegation — proving the wiring, not the
+    redactor's correctness (that lives in test_helm_redact.py).
+    """
+    calls: list[str] = []
+
+    def tracking_redactor(text: str) -> str:
+        calls.append(text)
+        return text.replace("dGVzdA==", "<redacted>")
+
+    raw_stdout = "apiVersion: v1\nkind: Secret\ndata:\n  pw: dGVzdA==\n"
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout=raw_stdout, stderr=""),
+    )
+    client = HelmClient(
+        kubeconfig_path=pathlib.Path("/tmp/test-kubeconfig.yaml"),
+        redactor=tracking_redactor,
+    )
+    result = client.diff("r", _stub_chart(), "default", [], [], "600s")
+    # Redactor must have been called with the raw stdout
+    assert raw_stdout in calls, "tracking_redactor was not called with raw stdout"
+    # Returned text must reflect redaction
+    assert "<redacted>" in result
+    assert "dGVzdA==" not in result
+
+
+@pytest.mark.unit
+def test_diff_timeout_raises_helm_timeout_error(mocker: Any) -> None:
+    """subprocess.TimeoutExpired raises HelmTimeoutError with exit_code=6."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(cmd=["helm"], timeout=600),
+    )
+    with pytest.raises(HelmTimeoutError) as exc_info:
+        _client().diff("r", _stub_chart(), "default", [], [], "600s")
+    assert exc_info.value.exit_code == 6
+    assert "600" in str(exc_info.value)

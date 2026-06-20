@@ -2,6 +2,7 @@
 
 REQ traceability:
     PIPE-01    — upgrade_install invokes ``helm upgrade --install`` with exact argv contract
+    PIPE-02    — diff invokes ``helm diff upgrade`` via the bundled helm-diff plugin (Phase 5 D2)
     PIPE-06    — typed errors: HelmExecutionError (exit=5) and HelmTimeoutError (exit=6)
     HISTORY-02 — ``--history-max`` passthrough; None suppresses the flag
     META-01    — ``--set-string`` for ALL injected key=value pairs (Pitfall 4: curly braces)
@@ -385,6 +386,90 @@ class HelmClient:
             for entry in entries
         ]
 
+    def diff(
+        self,
+        release: str,
+        chart: ResolvedChart,
+        namespace: str,
+        values_files: list[str],
+        set_args: list[str],
+        timeout: str,
+    ) -> str:
+        """Run ``helm diff upgrade`` and return the redacted diff text (PIPE-02 / SEC-06).
+
+        Invokes the bundled helm-diff plugin (Phase 5 D2 / Dockerfile stage
+        ``helm-diff-fetch``). The diff text is routed through ``self._redactor``
+        BEFORE being returned to the caller, so Secret payloads are scrubbed at
+        the HelmClient boundary (defense-in-depth — SEC-06 / CONTEXT D1).
+
+        helm-diff exit code semantics (per databus23/helm-diff README):
+            - ``0`` — no differences (diff is empty)
+            - ``1`` — differences exist (this is SUCCESS for the diff workflow)
+            - ``≥ 2`` — error (helm-diff encountered an unexpected failure)
+
+        Both exit codes 0 and 1 are treated as success; only ``≥ 2`` raises
+        ``HelmExecutionError``.
+
+        Args:
+            release: Helm release name.
+            chart: Resolved local chart descriptor. ``source_path`` is extracted
+                and passed to ``_build_diff_argv``.
+            namespace: Kubernetes namespace.
+            values_files: List of values file paths; each produces
+                ``["--values", path]`` in order (last-wins semantics).
+            set_args: List of ``"key=value"`` strings; each produces
+                ``["--set-string", "key=value"]`` (Pitfall 4 / RESEARCH G).
+            timeout: Go-duration string passed to ``_parse_timeout``
+                (e.g. ``"600s"`` or ``"10m"``).
+
+        Returns:
+            Redacted diff text (stdout from ``helm diff upgrade``).
+
+        Raises:
+            HelmExecutionError: helm-diff exited with returncode ``≥ 2``.
+            HelmTimeoutError: ``subprocess.run`` raised ``subprocess.TimeoutExpired``.
+        """
+        argv = self._build_diff_argv(
+            release,
+            chart.source_path,
+            namespace,
+            values_files,
+            set_args,
+        )
+        timeout_seconds = _parse_timeout(timeout)
+        try:
+            result = subprocess.run(  # noqa: S603
+                argv,
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+                env=os.environ.copy(),
+            )
+        except subprocess.TimeoutExpired as exc:
+            partial_stderr = ""
+            if exc.stderr is not None:
+                raw: str = (
+                    exc.stderr
+                    if isinstance(exc.stderr, str)
+                    else exc.stderr.decode("utf-8", errors="replace")
+                )
+                partial_stderr = self._redactor(raw)[-1024:]
+            msg = f"helm diff timed out after {exc.timeout}s"
+            if partial_stderr:
+                msg += f"; last stderr: {partial_stderr}"
+            raise HelmTimeoutError(msg) from exc
+
+        # helm-diff exit code 1 = "differences exist" = SUCCESS for the diff workflow.
+        # Only returncode >= 2 indicates an actual error.
+        if result.returncode >= 2:
+            truncated_stderr = _truncate_stderr(self._redactor(result.stderr))
+            raise HelmExecutionError(
+                f"helm diff returned {result.returncode} — last stderr: {truncated_stderr}"
+            )
+
+        return self._redactor(result.stdout)
+
     # -----------------------------------------------------------------------
     # Private argv builders — chart-resolution subcommands (Plan 04-06)
     # -----------------------------------------------------------------------
@@ -455,6 +540,59 @@ class HelmClient:
         ]
         if version is not None:
             argv.extend(["--version", version])
+        return argv
+
+    def _build_diff_argv(
+        self,
+        release: str,
+        chart_path: pathlib.Path,
+        namespace: str,
+        values_files: list[str],
+        set_args: list[str],
+    ) -> list[str]:
+        """Build the ``helm diff upgrade`` argv list (pure function — no I/O).
+
+        The first 9 elements are always stable (PIPE-02):
+            ``["helm", "diff", "upgrade", release, str(chart_path),
+               "--namespace", namespace, "--kubeconfig", str(self._kubeconfig_path)]``
+
+        Unlike ``_build_argv`` (for ``helm upgrade --install``), this method does NOT
+        include ``--install``, ``--timeout``, or ``--history-max`` — helm diff is a
+        read-only command and these flags are not applicable or accepted.
+
+        SEC-06: output from the subprocess that uses this argv flows through
+        ``self._redactor`` in ``diff()`` before being returned to the caller.
+        PIPE-02: this argv serves the ACTION=diff / DRY_RUN=true workflow.
+
+        Args:
+            release: Helm release name.
+            chart_path: Absolute path to the local chart directory.
+            namespace: Kubernetes namespace.
+            values_files: List of values file paths; each produces
+                ``["--values", path]`` in order (last-wins semantics).
+            set_args: List of ``"key=value"`` strings; each produces
+                ``["--set-string", "key=value"]``. Uses ``--set-string``
+                (not ``--set``) for ALL entries to handle curly-brace values
+                such as BITBUCKET_STEP_TRIGGERER_UUID (RESEARCH G / Pitfall 4).
+
+        Returns:
+            Complete argv list suitable for ``subprocess.run``.
+        """
+        argv: list[str] = [
+            "helm",
+            "diff",
+            "upgrade",
+            release,
+            str(chart_path),
+            "--namespace",
+            namespace,
+            "--kubeconfig",
+            str(self._kubeconfig_path),
+        ]
+        for vf in values_files:
+            argv.extend(["--values", vf])
+        for sa in set_args:
+            argv.extend(["--set-string", sa])
         return argv
 
     # -----------------------------------------------------------------------
