@@ -257,3 +257,30 @@ jobs:
               sbom.spdx.json sbom.cyclonedx.json \
               cosign.bundle sbom.spdx.bundle sbom.cyclonedx.bundle
           fi
+
+  benchmark-cold-start:
+    name: benchmark cold-start (IMAGE-06)
+    needs: [sign-and-attest]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Run benchmark
+        run: |
+          chmod +x scripts/benchmark-cold-start.sh
+          bash scripts/benchmark-cold-start.sh \
+            "ghcr.io/yves-vogl/aws-eks-helm-deploy:${{ github.ref_name }}" \
+            5 \
+            cold-start-results.json
+
+      - name: Upload benchmark JSON artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cold-start-benchmark-${{ github.ref_name }}
+          path: cold-start-results.json
+          retention-days: 90
