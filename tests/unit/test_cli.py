@@ -408,3 +408,67 @@ def test_cli_dispatches_action_upgrade_default_to_upgrade_action(
 
     assert result == 0
     mock_upgrade_cls.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 RollbackAction dispatch tests (Plan 05-05)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_cli_dispatches_action_rollback_to_rollback_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() routes ACTION=rollback to RollbackAction (not UpgradeAction or DiffAction)."""
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_rollback_cls = mocker.patch("aws_eks_helm_deploy.cli.RollbackAction")
+    mock_rollback_cls.return_value.run.return_value = 0
+    mock_diff_cls = mocker.patch("aws_eks_helm_deploy.cli.DiffAction")
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+
+    from aws_eks_helm_deploy.cli import main
+
+    with mocker.patch(
+        "aws_eks_helm_deploy.cli.Settings",
+        return_value=mocker.MagicMock(
+            action="rollback",
+            dry_run=False,
+            log_format="human",
+            debug=False,
+        ),
+    ):
+        result = main()
+
+    assert result == 0
+    mock_rollback_cls.assert_called_once()
+    mock_rollback_cls.return_value.run.assert_called_once()
+    mock_diff_cls.assert_not_called()
+    mock_upgrade_cls.assert_not_called()
+
+
+@pytest.mark.unit
+def test_cli_action_rollback_with_dry_run_true_still_uses_rollback_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """ACTION=rollback + DRY_RUN=true still routes to RollbackAction (R7 only affects upgrade)."""
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_rollback_cls = mocker.patch("aws_eks_helm_deploy.cli.RollbackAction")
+    mock_rollback_cls.return_value.run.return_value = 0
+    mock_diff_cls = mocker.patch("aws_eks_helm_deploy.cli.DiffAction")
+
+    from aws_eks_helm_deploy.cli import main
+
+    with mocker.patch(
+        "aws_eks_helm_deploy.cli.Settings",
+        return_value=mocker.MagicMock(
+            action="rollback",
+            dry_run=True,
+            log_format="human",
+            debug=False,
+        ),
+    ):
+        result = main()
+
+    assert result == 0
+    mock_rollback_cls.assert_called_once()
+    mock_diff_cls.assert_not_called()

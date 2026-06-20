@@ -1115,6 +1115,31 @@ def test_rollback_routes_stderr_through_redactor(mocker: Any) -> None:
 
 
 @pytest.mark.unit
+def test_rollback_timeout_with_stderr_bytes_includes_partial_stderr(mocker: Any) -> None:
+    """rollback TimeoutExpired with stderr bytes surfaces them in HelmTimeoutError message."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(
+            cmd=["helm"], timeout=60, output=None, stderr=b"partial rollback error"
+        ),
+    )
+    with pytest.raises(HelmTimeoutError) as exc_info:
+        _client().rollback(release="r", revision=2, namespace="ns", timeout="60s")
+    assert "partial rollback error" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_rollback_timeout_with_none_stderr_does_not_crash(mocker: Any) -> None:
+    """rollback TimeoutExpired with stderr=None raises HelmTimeoutError without crash."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(cmd=["helm"], timeout=600, stderr=None),
+    )
+    with pytest.raises(HelmTimeoutError):
+        _client().rollback(release="r", revision=2, namespace="ns", timeout="600s")
+
+
+@pytest.mark.unit
 def test_upgrade_install_safe_upgrade_true_argv_contains_description_marker(
     mocker: Any,
 ) -> None:
