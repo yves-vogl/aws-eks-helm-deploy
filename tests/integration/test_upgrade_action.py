@@ -32,7 +32,6 @@ import uuid
 from unittest.mock import MagicMock
 
 import pytest
-import yaml
 
 from aws_eks_helm_deploy.actions.upgrade import UpgradeAction
 from aws_eks_helm_deploy.errors import HelmExecutionError
@@ -283,7 +282,11 @@ def test_inject_bitbucket_metadata_sets_all_5_keys(
         result = action.run(pipe)
         assert result == 0, f"Expected return code 0 from inject test, got {result}"
 
-        # Assert all 5 bitbucket.* keys appear in helm get values
+        # Assert all 5 bitbucket.* keys appear in helm get values.
+        # Use JSON output (NOT YAML): the curly-brace UUID value would parse
+        # as a YAML flow-set if we re-loaded via yaml.safe_load — the braces are
+        # preserved on the wire by helm --set-string, but YAML re-parse turns
+        # them into a set/list. JSON is unambiguous.
         values_proc = _run_helm(
             "get",
             "values",
@@ -291,11 +294,11 @@ def test_inject_bitbucket_metadata_sets_all_5_keys(
             "-n",
             "default",
             "-o",
-            "yaml",
+            "json",
             kubeconfig=kind_kubeconfig,
         )
         assert values_proc.returncode == 0, f"helm get values failed:\n{values_proc.stderr}"
-        values = yaml.safe_load(values_proc.stdout)
+        values = json.loads(values_proc.stdout)
         assert isinstance(values, dict) and "bitbucket" in values, (
             f"Expected 'bitbucket' mapping in helm get values, got: {values}"
         )

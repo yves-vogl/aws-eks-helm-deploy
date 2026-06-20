@@ -91,6 +91,14 @@ jobs:
       - name: Install integration dependencies
         run: uv sync --group integration --frozen
 
+      - name: Set up Helm (3.18.x — matches Dockerfile pin)
+        # The GitHub-hosted runner's pre-installed helm version is unstable across
+        # runner image refreshes; pin to 3.18.x so tests that use --untar-dir and
+        # other flags introduced/preserved in 3.18 run reliably.
+        uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
+        with:
+          version: v3.18.6
+
       - name: Create kind cluster
         uses: helm/kind-action@99576bfa6ddf9a8e612d83b513da5a75875caced # v1.9.0
 
@@ -185,7 +193,10 @@ jobs:
           output: trivy-secret.sarif
 
       - name: Upload secret-scan SARIF to Code Scanning
-        if: always()
+        # Only upload when Trivy actually wrote a SARIF file. With zero secret-scan
+        # findings Trivy may exit without producing the output, and the upload step
+        # would otherwise fail on the missing file path.
+        if: always() && hashFiles('trivy-secret.sarif') != ''
         uses: github/codeql-action/upload-sarif@dd903d2e4f5405488e5ef1422510ee31c8b32357 # v3
         with:
           sarif_file: trivy-secret.sarif
@@ -232,4 +243,7 @@ jobs:
         run: docker build -t aws-eks-helm-deploy:ci-test .
 
       - name: Run acceptance tests
-        run: uv run pytest tests/acceptance -q --no-cov
+        # Override the default `addopts = "-m 'unit'"` from pyproject.toml so the
+        # acceptance-marked tests are actually selected (otherwise pytest exits 5
+        # "no tests collected"). Use `-m acceptance` to opt back in.
+        run: uv run pytest tests/acceptance -q --no-cov -m acceptance
