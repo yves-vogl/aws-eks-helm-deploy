@@ -24,14 +24,21 @@ Security notes (STRIDE T-02-03-01 through T-02-03-04):
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import boto3
 import boto3.session
 import botocore.config
 import botocore.exceptions
-from mypy_boto3_sts.type_defs import CredentialsTypeDef
 
 from aws_eks_helm_deploy.auth.base import AuthStrategy, AwsCredentials
 from aws_eks_helm_deploy.errors import AuthenticationError, ConfigurationError
+
+if TYPE_CHECKING:
+    # `mypy_boto3_sts` is a dev-only type-stub package; it is NOT installed in
+    # the runtime image. Guard the import so the runtime module load does not
+    # fail with ModuleNotFoundError on the published Docker image.
+    from mypy_boto3_sts.type_defs import CredentialsTypeDef
 
 __all__: list[str] = ["AssumeRoleStrategy"]
 

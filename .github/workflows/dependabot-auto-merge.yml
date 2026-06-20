@@ -1,0 +1,41 @@
+# Phase 6 / CI-05 / CONTEXT D6 — Auto-merge Dependabot PRs once CI passes.
+# Pitfall #1: pull_request-triggered workflow must not request the id-token permission.
+name: dependabot-auto-merge
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write          # for gh pr merge
+  pull-requests: write     # for gh pr review --approve + gh pr merge --auto
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  auto-merge:
+    name: auto-merge (dependabot)
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Wait for required CI checks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        # gh pr checks --watch blocks until all required checks have completed.
+        # Required checks are configured via branch protection (Plan 06-10).
+        run: gh pr checks --watch --interval 30 "${PR_NUMBER}"
+
+      - name: Approve and squash-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr review --approve "${PR_URL}"
+          gh pr merge --squash --auto "${PR_URL}"

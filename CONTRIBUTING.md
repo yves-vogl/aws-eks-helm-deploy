@@ -25,6 +25,21 @@ Thanks for considering a contribution. This project is a Bitbucket Pipelines Pip
 8. Open the PR against `main`. The PR template (when present) walks you through the checklist; otherwise include: motivation, what changed, how it was verified, and any deliberate scope omissions.
 9. CI must pass (the `ci` workflow runs the pre-commit suite + `pip-audit`). A CODEOWNERS-driven review is requested automatically.
 
+## CVE suppressions in `.trivyignore`
+
+If a Trivy CRITICAL or HIGH finding is unfixable (e.g., the fix is gated on an upstream library release), you can suppress it in `.trivyignore` — but every suppression must declare an expiry, rationale, and reviewer:
+
+```
+CVE-XXXX-NNNNN  # expires=YYYY-MM-DD rationale="<short why>" reviewer=<github-handle>
+```
+
+Rules enforced by `scripts/trivyignore-check.sh` in CI:
+- `expires=YYYY-MM-DD` must be in the future AND within 180 days of today.
+- `rationale="…"` must be non-empty.
+- `reviewer=<github-handle>` identifies the maintainer responsible for the next review.
+
+Stale suppressions fail CI. Suppressions whose root cause is fixed upstream must be removed promptly (the Trivy scan in `ci.yml` re-runs on every PR, so a fixed CVE no longer needing suppression is detected as a stale grammar entry).
+
 ## What to expect from the maintainer
 
 - Initial response within 5 working days for issues and PRs.

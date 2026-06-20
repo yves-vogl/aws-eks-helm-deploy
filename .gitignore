@@ -40,3 +40,4 @@ id_ed25519
 id_ed25519.*
 .aws/credentials
 .aws/config
+.trivyignore.bare

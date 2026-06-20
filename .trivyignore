@@ -1,0 +1,31 @@
+# Phase 6 / SEC-04 / D2 — CVE suppression list.
+#
+# Grammar (enforced by scripts/trivyignore-check.sh in CI):
+#   CVE-XXXX-NNNNN  # expires=YYYY-MM-DD rationale="…" reviewer=<github-handle>
+#
+# Rules:
+#   - expires=YYYY-MM-DD MUST be in the future AND within 180 days from today.
+#   - rationale="…" MUST be non-empty (a short sentence explaining the suppression).
+#   - reviewer=<github-handle> MUST identify the maintainer responsible for the review.
+#
+# Trivy itself only honours the CVE ID at the start of each line; the inline-comment
+# grammar is for human review hygiene. The check script enforces the grammar at CI time.
+#
+# Add a suppression by appending a line below this comment block.
+
+# ── Helm binary Go-stdlib CVEs (9 entries; pinned helm 3.18.6) ────────────────
+# Rationale: these are CVEs in the Go standard library that helm 3.18.6 was compiled
+# against (Go 1.24.6). They are NOT exploitable through the helm CLI surface that the
+# pipe uses — helm runs as a transient subprocess in our pipe with no network listener.
+# Upstream helm releases that adopt Go ≥ 1.25.x will close them; Dependabot docker
+# group + SEC-08 release-on-bump contract will pull the new helm into our base image
+# automatically. Review at expiry: bump HELM_VERSION pin if a fixed 3.x release exists.
+CVE-2026-42504  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-42499  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-39836  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-39825  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-39823  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-39820  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-33814  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-33811  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-32283  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl

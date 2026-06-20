@@ -589,7 +589,7 @@ class HelmClient:
             "--destination",
             str(destination),
             "--untar",
-            "--untar-dir",
+            "--untardir",
             str(untar_dir),
         ]
         if version is not None:
@@ -627,7 +627,7 @@ class HelmClient:
             "--destination",
             str(destination),
             "--untar",
-            "--untar-dir",
+            "--untardir",
             str(untar_dir),
         ]
         if version is not None:

@@ -62,6 +62,7 @@ ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "ANN", "S603", "S607", "S108", "S106"]
+"scripts/**" = ["S603", "S607", "N999"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -85,7 +86,7 @@ timeout = 600
 [tool.coverage.run]
 branch = true
 source = ["aws_eks_helm_deploy"]
-omit = ["*/tests/*", "*/__main__.py"]
+omit = ["*/tests/*", "*/__main__.py", "scripts/*"]
 
 [tool.coverage.report]
 show_missing = true

@@ -1,13 +1,14 @@
 # Bitbucket Pipelines Pipe: AWS EKS Helm Deploy
 
 [![License](https://img.shields.io/github/license/yves-vogl/aws-eks-helm-deploy)](LICENSE)
-[![GitHub release](https://img.shields.io/github/v/release/yves-vogl/aws-eks-helm-deploy?label=release&sort=semver)](https://github.com/yves-vogl/aws-eks-helm-deploy/releases)
+[![Release](https://img.shields.io/github/v/release/yves-vogl/aws-eks-helm-deploy)](https://github.com/yves-vogl/aws-eks-helm-deploy/releases)
+[![GHCR Image](https://img.shields.io/badge/GHCR-ghcr.io%2Fyves--vogl%2Faws--eks--helm--deploy-blue)](https://github.com/yves-vogl/aws-eks-helm-deploy/pkgs/container/aws-eks-helm-deploy)
 [![CI](https://github.com/yves-vogl/aws-eks-helm-deploy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yves-vogl/aws-eks-helm-deploy/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/yves-vogl/aws-eks-helm-deploy/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/yves-vogl/aws-eks-helm-deploy/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/yves-vogl/aws-eks-helm-deploy/badge)](https://securityscorecards.dev/viewer/?uri=github.com/yves-vogl/aws-eks-helm-deploy)
-[![GitHub stars](https://img.shields.io/github/stars/yves-vogl/aws-eks-helm-deploy?style=flat)](https://github.com/yves-vogl/aws-eks-helm-deploy/stargazers)
-[![Open issues](https://img.shields.io/github/issues/yves-vogl/aws-eks-helm-deploy)](https://github.com/yves-vogl/aws-eks-helm-deploy/issues)
-[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/yves-vogl)
+[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/yves-vogl/aws-eks-helm-deploy/actions/workflows/ci.yml)
+[![Cosign verified](https://img.shields.io/badge/cosign-verified-success?logo=sigstore)](https://github.com/yves-vogl/aws-eks-helm-deploy/actions/workflows/cosign-verify.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/yves-vogl/aws-eks-helm-deploy/badge)](https://scorecard.dev/viewer/?uri=github.com/yves-vogl/aws-eks-helm-deploy)
+
+**Cold-start benchmark:** see [latest workflow artifact](https://github.com/yves-vogl/aws-eks-helm-deploy/actions/workflows/release.yml) (IMAGE-06 target: < 10s; documented per A6 — see [Phase 6 RESEARCH](.planning/phases/06-release-pipeline-supply-chain/06-RESEARCH.md)).
 
 Deploy [Helm](https://helm.sh) charts to [AWS Elastic Kubernetes Service (EKS)](https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html) from [Bitbucket Pipelines](https://bitbucket.org/product/features/pipelines) — a thin, opinionated wrapper around `helm upgrade --install` that handles EKS authentication for you.
 

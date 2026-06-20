@@ -567,7 +567,7 @@ def test_pull_repo_happy_path_with_version(mocker: Any) -> None:
         "--destination",
         "/tmp/dest",
         "--untar",
-        "--untar-dir",
+        "--untardir",
         "/tmp/unpacked",
         "--version",
         "18.5.0",
@@ -596,7 +596,7 @@ def test_pull_repo_happy_path_without_version(mocker: Any) -> None:
         "--destination",
         "/tmp/dest",
         "--untar",
-        "--untar-dir",
+        "--untardir",
         "/tmp/unpacked",
     ]
 
@@ -735,7 +735,7 @@ def test_pull_oci_happy_path_with_version(mocker: Any) -> None:
         "--destination",
         "/tmp/dest",
         "--untar",
-        "--untar-dir",
+        "--untardir",
         "/tmp/unpacked",
         "--version",
         "18.5.0",

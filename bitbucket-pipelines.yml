@@ -1,37 +1,26 @@
-image: python:3.12
-options:
-  docker: true
+# Phase 6 / CI-04 — Bitbucket Pipeline thin stub.
+#
+# GitHub Actions (.github/workflows/release.yml) is the source-of-truth for image
+# builds, signing, SBOMs, SLSA provenance, and publishing to GHCR. This file
+# satisfies the Bitbucket Pipe Marketplace listing requirement without performing
+# any build/push of its own.
+#
+# Why a stub instead of removing the file: Bitbucket Pipe Marketplace listing
+# validation expects a working bitbucket-pipelines.yml. A no-op pipeline that
+# exits 0 satisfies the validator.
+#
+# The v1.x build+push pipeline (which used Docker Hub credentials via the Bitbucket pipe
+# release helper) has been removed. Docker Hub is frozen at v1.3.0
+# (MIG-01 / CONTEXT D10). v2.x lives at ghcr.io/yves-vogl/aws-eks-helm-deploy.
 
-definitions:
-  test: &test
-    step:
-      name: Test
-      caches:
-        - pip
-        - docker
-      script:
-        - pip install -r test/acceptance/requirements.txt
-        - pytest -v test/acceptance
-
-  push: &push
-    step:
-      name: Push and Tag
-      caches:
-        - docker
-      script:
-        - pipe: docker://bitbucketpipelines/bitbucket-pipe-release:5.6.1
-          variables:
-            REGISTRY_USERNAME: $DOCKERHUB_USERNAME
-            REGISTRY_PASSWORD: $DOCKERHUB_PASSWORD
-            IMAGE: yvogl/$BITBUCKET_REPO_SLUG
-            GIT_PUSH: "true"
-            TAG: "true"
-            CHANGELOG: "true"
+image: python:3.13-slim-bookworm
 
 pipelines:
   default:
-    - <<: *test
-  branches:
-    main:
-      - <<: *test
-      - <<: *push
+    - step:
+        name: "Marketplace listing stub (no-op)"
+        script:
+          - echo "Image builds are handled by GitHub Actions."
+          - echo "v2.x image: ghcr.io/yves-vogl/aws-eks-helm-deploy:2"
+          - echo "Source: https://github.com/yves-vogl/aws-eks-helm-deploy"
+          - exit 0

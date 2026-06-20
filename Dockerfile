@@ -43,23 +43,25 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 ARG HELM_VERSION
+ARG TARGETARCH
 
-# linux/amd64 explicitly for Phase 1; multi-arch native-runner matrix lands in Phase 6
-# Download Helm tarball + SHA256 checksum and verify integrity before extraction (sec-14).
+# Multi-arch (Phase 6 / IMAGE-04 / D4): TARGETARCH is auto-set by BuildKit to amd64 or arm64
+# when --platform linux/amd64 or linux/arm64 is targeted. Single Dockerfile builds both arches
+# natively (no QEMU) when invoked from the release.yml matrix.
 # Files are saved under their UPSTREAM names so sha256sum -c can resolve the filename
-# embedded in the .sha256sum file (e.g. "3f43c0aa...  helm-v3.18.6-linux-amd64.tar.gz").
-RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
-        -o "/tmp/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
-    && curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" \
-        -o "/tmp/helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" \
+# embedded in the .sha256sum file (sha256sum format: "<hash>  <filename>").
+RUN curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" \
+        -o "/tmp/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" \
+    && curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz.sha256sum" \
+        -o "/tmp/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz.sha256sum" \
     && cd /tmp \
-    && sha256sum -c "helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" \
-    && tar -xz -f "helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
-    && mv linux-amd64/helm /helm \
+    && sha256sum -c "helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz.sha256sum" \
+    && tar -xz -f "helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" \
+    && mv linux-${TARGETARCH}/helm /helm \
     && chmod +x /helm \
-    && rm -rf "helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
-              "helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum" \
-              linux-amd64
+    && rm -rf "helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" \
+              "helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz.sha256sum" \
+              linux-${TARGETARCH}
 
 # ── Stage 2.5: Cosign binary fetch ───────────────────────────────────────────
 # R12: this stage is placed BETWEEN helm-fetch and runtime for layer-cache ordering.
@@ -71,17 +73,18 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 ARG COSIGN_VERSION
+ARG TARGETARCH
 
-# linux/amd64 only — multi-arch lands Phase 6 alongside helm-fetch
-# Downloads cosign-linux-amd64 + cosign_checksums.txt (Sigstore canonical pinning pattern,
-# RESEARCH §6). The checksum file lists ~115 assets; grep filters to the exact file.
-RUN curl -fsSL "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64" \
-        -o "/tmp/cosign-linux-amd64" \
+# Multi-arch (Phase 6 / IMAGE-04 / D4): TARGETARCH selects cosign-linux-amd64 OR cosign-linux-arm64
+# from the upstream Sigstore release; the cosign_checksums.txt file contains entries for both arches.
+# The grep pattern (two spaces + end-anchor) is the Sigstore-canonical pinning pattern (RESEARCH §6).
+RUN curl -fsSL "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-${TARGETARCH}" \
+        -o "/tmp/cosign-linux-${TARGETARCH}" \
     && curl -fsSL "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign_checksums.txt" \
         -o "/tmp/cosign_checksums.txt" \
     && cd /tmp \
-    && grep "  cosign-linux-amd64$" cosign_checksums.txt | sha256sum -c \
-    && mv cosign-linux-amd64 /cosign \
+    && grep "  cosign-linux-${TARGETARCH}$" cosign_checksums.txt | sha256sum -c \
+    && mv cosign-linux-${TARGETARCH} /cosign \
     && chmod +x /cosign \
     && rm -f /tmp/cosign_checksums.txt
 
@@ -96,20 +99,20 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 ARG HELM_DIFF_VERSION
+ARG TARGETARCH
 
-# linux/amd64 only — multi-arch lands Phase 6 alongside helm-fetch + cosign-fetch.
-# helm-diff tgz extracts to a top-level `diff/` directory containing `bin/diff`, `plugin.yaml`,
-# `LICENSE`, `README.md`. Helm picks the plugin up by directory name (`name: "diff"` in plugin.yaml).
-# Known SHA256 (linux-amd64, v3.10.0): a7875d4656b327b0b7f792f25a70f714801e402eb199ddd0f2df06a063e6bede
-# Verification uses the upstream checksums file (belt-and-suspenders over hardcoded hash).
-RUN curl -fsSL "https://github.com/databus23/helm-diff/releases/download/v${HELM_DIFF_VERSION}/helm-diff-linux-amd64.tgz" \
-        -o "/tmp/helm-diff-linux-amd64.tgz" \
+# Multi-arch (Phase 6 / IMAGE-04 / D4): helm-diff-linux-${TARGETARCH}.tgz exists for both arches;
+# the extracted tarball always extracts to `diff/` regardless of arch (directory name is fixed).
+# Upstream `helm-diff_${HELM_DIFF_VERSION}_checksums.txt` contains entries for both amd64 and arm64;
+# the grep pattern selects the right one.
+RUN curl -fsSL "https://github.com/databus23/helm-diff/releases/download/v${HELM_DIFF_VERSION}/helm-diff-linux-${TARGETARCH}.tgz" \
+        -o "/tmp/helm-diff-linux-${TARGETARCH}.tgz" \
     && curl -fsSL "https://github.com/databus23/helm-diff/releases/download/v${HELM_DIFF_VERSION}/helm-diff_${HELM_DIFF_VERSION}_checksums.txt" \
         -o "/tmp/helm-diff_checksums.txt" \
     && cd /tmp \
-    && grep "  helm-diff-linux-amd64.tgz$" helm-diff_checksums.txt | sha256sum -c \
-    && tar -xzf helm-diff-linux-amd64.tgz \
-    && rm helm-diff-linux-amd64.tgz helm-diff_checksums.txt
+    && grep "  helm-diff-linux-${TARGETARCH}.tgz$" helm-diff_checksums.txt | sha256sum -c \
+    && tar -xzf helm-diff-linux-${TARGETARCH}.tgz \
+    && rm helm-diff-linux-${TARGETARCH}.tgz helm-diff_checksums.txt
 
 # ── Stage 3: Runtime image ────────────────────────────────────────────────────
 FROM python:${PYTHON_VERSION}-slim-bookworm@${PYTHON_BASE_DIGEST} AS runtime

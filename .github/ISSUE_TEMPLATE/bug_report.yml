@@ -1,0 +1,76 @@
+name: Bug report
+description: Report a bug or unexpected behaviour in the v2.x Pipe.
+title: "[bug] <short summary>"
+labels: ["type/bug", "area/triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug report! For **security vulnerabilities**, please use
+        [Private Vulnerability Reporting](https://github.com/yves-vogl/aws-eks-helm-deploy/security)
+        instead of this form.
+
+  - type: input
+    id: pipe-version
+    attributes:
+      label: Pipe version
+      description: >
+        Image tag in your `bitbucket-pipelines.yml`
+        (e.g. `ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0` or `:2`).
+      placeholder: "ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: runtime-context
+    attributes:
+      label: Runtime context
+      description: Where are you running the Pipe?
+      options:
+        - Bitbucket Pipelines (cloud)
+        - Self-hosted Bitbucket Pipelines runner
+        - Local docker run (debugging)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: >
+        Provide a minimal `bitbucket-pipelines.yml` snippet (with secrets redacted)
+        and the exact sequence of events that triggers the bug.
+      placeholder: |
+        1. Set CHART=oci://...
+        2. Set CHART_VERIFY=true
+        3. Pipe step fails with error: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: What actually happened? Include the full error message if available.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: >
+        Paste the relevant pipe logs (credentials redacted).
+        `LOG_FORMAT=json` output is ideal.
+      render: shell
+    validations:
+      required: false
