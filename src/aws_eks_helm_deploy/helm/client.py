@@ -3,6 +3,9 @@
 REQ traceability:
     PIPE-01    — upgrade_install invokes ``helm upgrade --install`` with exact argv contract
     PIPE-02    — diff invokes ``helm diff upgrade`` via the bundled helm-diff plugin (Phase 5 D2)
+    PIPE-04    — rollback invokes ``helm rollback <release> <revision>`` (Phase 5 D5)
+    PIPE-05    — SAFE_UPGRADE=true adds --wait --atomic --description "pipe:safe-upgrade" to
+                 upgrade argv (Phase 5 D5 / 05-RESEARCH CONTRADICTION 2)
     PIPE-06    — typed errors: HelmExecutionError (exit=5) and HelmTimeoutError (exit=6)
     HISTORY-02 — ``--history-max`` passthrough; None suppresses the flag
     META-01    — ``--set-string`` for ALL injected key=value pairs (Pitfall 4: curly braces)
@@ -55,7 +58,16 @@ REVISION_REGEX: Final[re.Pattern[str]] = re.compile(r"^REVISION:\s*(\d+)", re.MU
 TRUNCATION_MARKER: Final[str] = "...[truncated]...\n"
 """Prepended to truncated stderr so consumers know the output is partial."""
 
-__all__: list[str] = ["HelmClient", "HelmResult", "HelmRevision"]
+SAFE_UPGRADE_DESCRIPTION: Final[str] = "pipe:safe-upgrade"
+"""Marker substring stored in helm release history description when SAFE_UPGRADE=true.
+
+The RollbackAction pre-flight check searches for this substring in HelmRevision.description
+to detect revisions deployed with --wait --atomic. See 05-RESEARCH "CONTRADICTION 2" for the
+rationale: helm 3.x does NOT record --wait status in the history description by default,
+so the pipe explicitly sets it via --description on upgrade.
+"""
+
+__all__: list[str] = ["HelmClient", "HelmResult", "HelmRevision", "SAFE_UPGRADE_DESCRIPTION"]  # noqa: RUF022
 
 
 # ---------------------------------------------------------------------------
@@ -188,6 +200,8 @@ class HelmClient:
         set_args: list[str],
         history_max: int | None,
         timeout: str,
+        *,
+        safe_upgrade: bool = False,
     ) -> list[str]:
         """Build the ``helm upgrade --install`` argv list (pure function — no I/O).
 
@@ -212,6 +226,12 @@ class HelmClient:
                 CONTEXT D4 / Pitfall 3).
             timeout: Go-duration string passed verbatim to helm
                 (e.g. ``"600s"`` or ``"10m"``).
+            safe_upgrade: When ``True``, appends ``["--wait", "--atomic",
+                "--description", SAFE_UPGRADE_DESCRIPTION]`` after the
+                ``--history-max`` block (PIPE-05 / CONTEXT D5). The
+                ``SAFE_UPGRADE_DESCRIPTION`` marker enables the
+                ``RollbackAction`` pre-flight check to detect safe-upgraded
+                revisions (05-RESEARCH CONTRADICTION 2 workaround).
 
         Returns:
             Complete argv list suitable for ``subprocess.run``.
@@ -235,6 +255,9 @@ class HelmClient:
             argv.extend(["--set-string", sa])
         if history_max is not None:
             argv.extend(["--history-max", str(history_max)])
+        if safe_upgrade:
+            # PIPE-05 / CONTEXT D5: --wait + --atomic + --description marker for rollback safety.
+            argv.extend(["--wait", "--atomic", "--description", SAFE_UPGRADE_DESCRIPTION])
         return argv
 
     def upgrade_install(
@@ -246,6 +269,8 @@ class HelmClient:
         set_args: list[str],
         history_max: int | None,
         timeout: str,
+        *,
+        safe_upgrade: bool = False,
     ) -> HelmResult:
         """Run ``helm upgrade --install`` and return a typed result.
 
@@ -271,6 +296,9 @@ class HelmClient:
             set_args: List of ``"key=value"`` strings for ``--set-string``.
             history_max: ``None`` to omit ``--history-max``; 0 or N≥1 to pass it.
             timeout: Go-duration string, e.g. ``"600s"`` or ``"10m"``.
+            safe_upgrade: When ``True``, forwards to ``_build_argv`` to append
+                ``--wait --atomic --description "pipe:safe-upgrade"`` (PIPE-05 /
+                CONTEXT D5). Default ``False`` preserves backward compatibility.
 
         Returns:
             ``HelmResult`` with stdout, truncated stderr, returncode=0, and
@@ -288,6 +316,7 @@ class HelmClient:
             set_args,
             history_max,
             timeout,
+            safe_upgrade=safe_upgrade,
         )
         timeout_seconds = _parse_timeout(timeout)
         try:
@@ -470,6 +499,69 @@ class HelmClient:
 
         return self._redactor(result.stdout)
 
+    def rollback(
+        self,
+        release: str,
+        revision: int,
+        namespace: str,
+        timeout: str,
+    ) -> None:
+        """Run ``helm rollback <release> <revision>`` and return None on success (PIPE-04).
+
+        Constructs argv via ``_build_rollback_argv``, invokes ``subprocess.run``
+        with ``capture_output=True, text=True, check=False``, and maps exit codes
+        to typed errors from the PipeError hierarchy (PIPE-06):
+
+        - ``returncode != 0``  → ``HelmExecutionError`` (exit_code=5)
+        - ``subprocess.TimeoutExpired`` → ``HelmTimeoutError`` (exit_code=6)
+
+        On success, returns ``None`` — the caller (``RollbackAction``) logs the
+        result at INFO level via structlog; stdout is not needed at the action layer.
+
+        Stderr on the error path is redacted via ``self._redactor`` before appearing
+        in the ``HelmExecutionError`` message (T-05-01 / SEC-06).
+
+        Args:
+            release: Helm release name.
+            revision: Target revision number (must be a positive int).
+            namespace: Kubernetes namespace.
+            timeout: Go-duration string, e.g. ``"600s"`` or ``"10m"``.
+
+        Raises:
+            HelmExecutionError: helm exited with a non-zero return code (exit_code=5).
+            HelmTimeoutError: ``subprocess.run`` raised ``subprocess.TimeoutExpired`` (exit_code=6).
+        """
+        argv = self._build_rollback_argv(release, revision, namespace)
+        timeout_seconds = _parse_timeout(timeout)
+        try:
+            result = subprocess.run(  # noqa: S603
+                argv,
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+                env=os.environ.copy(),
+            )
+        except subprocess.TimeoutExpired as exc:
+            partial_stderr = ""
+            if exc.stderr is not None:
+                raw: str = (
+                    exc.stderr
+                    if isinstance(exc.stderr, str)
+                    else exc.stderr.decode("utf-8", errors="replace")
+                )
+                partial_stderr = self._redactor(raw)[-1024:]
+            msg = f"helm rollback timed out after {exc.timeout}s"
+            if partial_stderr:
+                msg += f"; last stderr: {partial_stderr}"
+            raise HelmTimeoutError(msg) from exc
+
+        if result.returncode != 0:
+            truncated_stderr = _truncate_stderr(self._redactor(result.stderr))
+            raise HelmExecutionError(
+                f"helm rollback returned {result.returncode} — last stderr: {truncated_stderr}"
+            )
+
     # -----------------------------------------------------------------------
     # Private argv builders — chart-resolution subcommands (Plan 04-06)
     # -----------------------------------------------------------------------
@@ -594,6 +686,41 @@ class HelmClient:
         for sa in set_args:
             argv.extend(["--set-string", sa])
         return argv
+
+    def _build_rollback_argv(
+        self,
+        release: str,
+        revision: int,
+        namespace: str,
+    ) -> list[str]:
+        """Build the ``helm rollback`` argv list (pure function — no I/O).
+
+        Returns the stable 8-element list (PIPE-04):
+            ``["helm", "rollback", release, str(revision),
+               "--namespace", namespace, "--kubeconfig", str(self._kubeconfig_path)]``
+
+        No ``--wait`` or ``--timeout`` are added here — helm rollback uses its own
+        defaults. Safety is enforced BEFORE this call by RollbackAction's pre-flight
+        check against SAFE_UPGRADE_DESCRIPTION (CONTEXT D5 / 05-RESEARCH CONTRADICTION 2).
+
+        Args:
+            release: Helm release name.
+            revision: Target revision number. Converted to ``str`` for argv.
+            namespace: Kubernetes namespace.
+
+        Returns:
+            Complete argv list suitable for ``subprocess.run``.
+        """
+        return [
+            "helm",
+            "rollback",
+            release,
+            str(revision),
+            "--namespace",
+            namespace,
+            "--kubeconfig",
+            str(self._kubeconfig_path),
+        ]
 
     # -----------------------------------------------------------------------
     # Private helper — shared subprocess runner for chart-resolution commands

@@ -1034,3 +1034,97 @@ def test_diff_timeout_with_none_stderr_does_not_crash(mocker: Any) -> None:
     )
     with pytest.raises(HelmTimeoutError):
         _client().diff("r", _stub_chart(), "default", [], [], "600s")
+
+
+# ---------------------------------------------------------------------------
+# rollback method — PIPE-04 / SEC-06 (Plan 05-05)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_rollback_success_returncode_zero_returns_none(mocker: Any) -> None:
+    """rollback happy path: returncode=0 returns None (not stdout)."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[], returncode=0, stdout="Rollback was a success", stderr=""
+        ),
+    )
+    result = _client().rollback(release="r", revision=2, namespace="ns", timeout="600s")
+    assert result is None
+
+
+@pytest.mark.unit
+def test_rollback_failure_raises_helm_execution_error(mocker: Any) -> None:
+    """returncode=1 from helm rollback raises HelmExecutionError with exit_code=5."""
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="Error: release not found"
+        ),
+    )
+    with pytest.raises(HelmExecutionError) as exc_info:
+        _client().rollback(release="r", revision=2, namespace="ns", timeout="600s")
+    assert exc_info.value.exit_code == 5
+    assert "returned 1" in str(exc_info.value)
+    assert "release not found" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_rollback_timeout_raises_helm_timeout_error(mocker: Any) -> None:
+    """subprocess.TimeoutExpired in rollback maps to HelmTimeoutError with exit_code=6."""
+    mocker.patch(
+        _PATCH_TARGET,
+        side_effect=subprocess.TimeoutExpired(cmd=["helm"], timeout=600),
+    )
+    with pytest.raises(HelmTimeoutError) as exc_info:
+        _client().rollback(release="r", revision=2, namespace="ns", timeout="600s")
+    assert exc_info.value.exit_code == 6
+    assert "600" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_rollback_routes_stderr_through_redactor(mocker: Any) -> None:
+    """rollback() routes stderr through self._redactor on error path (T-05-01 gate).
+
+    Uses a tracking redactor to verify delegation. Confirms Secret base64 data is
+    scrubbed before appearing in the HelmExecutionError message.
+    """
+    calls: list[str] = []
+
+    def tracking_redactor(text: str) -> str:
+        calls.append(text)
+        return text.replace("dGVzdA==", "<redacted>")
+
+    raw_stderr = "some error\nkind: Secret\ndata:\n  pw: dGVzdA==\n"
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=1, stdout="", stderr=raw_stderr),
+    )
+    client = HelmClient(
+        kubeconfig_path=pathlib.Path("/tmp/test-kubeconfig.yaml"),
+        redactor=tracking_redactor,
+    )
+    with pytest.raises(HelmExecutionError) as exc_info:
+        client.rollback(release="r", revision=1, namespace="ns", timeout="600s")
+    # Redactor must have been called with the raw stderr
+    assert raw_stderr in calls, "tracking_redactor was not called with raw stderr"
+    # Error message must contain <redacted>, NOT the raw base64
+    assert "<redacted>" in str(exc_info.value)
+    assert "dGVzdA==" not in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_upgrade_install_safe_upgrade_true_argv_contains_description_marker(
+    mocker: Any,
+) -> None:
+    """upgrade_install(safe_upgrade=True) passes pipe:safe-upgrade in argv to subprocess.run."""
+    mock_run = mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout="REVISION: 1", stderr=""),
+    )
+    _client().upgrade_install("rel", _stub_chart(), "ns", [], [], None, "600s", safe_upgrade=True)
+    argv_passed = mock_run.call_args.args[0]
+    assert "pipe:safe-upgrade" in argv_passed
+    assert "--wait" in argv_passed
+    assert "--atomic" in argv_passed
