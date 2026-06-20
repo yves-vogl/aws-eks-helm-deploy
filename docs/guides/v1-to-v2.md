@@ -361,3 +361,75 @@ Related guides:
   lists the 8 requirements addressed in this phase.
 
 <!-- Draft authored in Phase 5; polished in Phase 7 alongside the mkdocs-material site. -->
+
+---
+
+## Distribution change (Phase 6 / MIG-01)
+
+**The v2.x image is published exclusively to GitHub Container Registry.** Docker Hub is frozen at v1.3.0.
+
+### v1.x consumers (frozen)
+
+The Docker Hub repository `yvogl/aws-eks-helm-deploy` continues to host v1.3.0 forever. No new tags will ever be pushed there. Existing pipeline files that reference `yvogl/aws-eks-helm-deploy:1.3.0` (or `:latest`, which is permanently pinned to 1.3.0) continue to work indefinitely.
+
+### v2.x consumers (active)
+
+The v2.x image is at:
+
+- `ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0` — specific patch version
+- `ghcr.io/yves-vogl/aws-eks-helm-deploy:2` — rolling major tag (auto-updates to the latest v2.x patch release)
+- `ghcr.io/yves-vogl/aws-eks-helm-deploy:latest` — rolling tag pointing to the latest release
+
+For a `bitbucket-pipelines.yml` consumer, the migration is a single-line change:
+
+```yaml
+# v1.x
+image: yvogl/aws-eks-helm-deploy:1.3.0
+
+# v2.x — patch-pinned (recommended for production)
+image: ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0
+
+# v2.x — rolling major (auto-update to latest v2.x patch)
+image: ghcr.io/yves-vogl/aws-eks-helm-deploy:2
+```
+
+### Why GHCR-only
+
+- Native OIDC push from GitHub Actions eliminates long-lived Docker Hub credentials as a CI secret.
+- Cosign keyless signing + SLSA build provenance + SBOM attestation are end-to-end in a single trust domain (GitHub OIDC → Fulcio → Rekor → GHCR).
+- Multi-arch native runners (`ubuntu-24.04` + `ubuntu-24.04-arm`) produce reproducible `linux/amd64` + `linux/arm64` manifests.
+
+### Verifying the v2.x image
+
+Every v2.x release image is signed with Cosign keyless and carries SBOM attestations:
+
+```bash
+# Verify the image signature
+cosign verify \
+  --certificate-identity-regexp '^https://github.com/yves-vogl/aws-eks-helm-deploy/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  ghcr.io/yves-vogl/aws-eks-helm-deploy:2
+
+# Retrieve the SPDX SBOM
+cosign verify-attestation --type spdxjson \
+  --certificate-identity-regexp '^https://github.com/yves-vogl/aws-eks-helm-deploy/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  ghcr.io/yves-vogl/aws-eks-helm-deploy:2
+
+# Verify SLSA build provenance
+gh attestation verify --owner yves-vogl ghcr.io/yves-vogl/aws-eks-helm-deploy:2
+```
+
+### Docker Hub README update (maintainer one-shot)
+
+The following text is to be pasted verbatim into the Docker Hub repo description
+at https://hub.docker.com/repository/docker/yvogl/aws-eks-helm-deploy (per
+`docs/admin/repo-settings.md` §7 maintainer runbook):
+
+```
+⚠ This repository is FROZEN at v1.3.0.
+v2.0+ is published to GitHub Container Registry:
+  ghcr.io/yves-vogl/aws-eks-helm-deploy:2
+
+See https://github.com/yves-vogl/aws-eks-helm-deploy for migration.
+```
