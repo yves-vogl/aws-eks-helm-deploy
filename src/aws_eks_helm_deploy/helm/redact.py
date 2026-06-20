@@ -65,11 +65,19 @@ def redact_helm_output(text: str) -> str:
         # CONTEXT D1: passthrough for non-YAML helm output (e.g., progress messages on stderr).
         return text
 
+    redacted = False
     for doc in docs:
         if isinstance(doc, dict) and doc.get("kind") == "Secret":
             if "data" in doc:
                 doc["data"] = REDACTED_SENTINEL
+                redacted = True
             if "stringData" in doc:
                 doc["stringData"] = REDACTED_SENTINEL
+                redacted = True
+
+    if not redacted:
+        # No Secret docs found — return the original text verbatim to avoid
+        # YAML re-serialization artefacts (e.g. appended '...\n' for scalar docs).
+        return text
 
     return yaml.safe_dump_all(docs, sort_keys=False)

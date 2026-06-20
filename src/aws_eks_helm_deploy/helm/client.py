@@ -7,11 +7,14 @@ REQ traceability:
     META-01    — ``--set-string`` for ALL injected key=value pairs (Pitfall 4: curly braces)
     CHART-02   — repo_add / repo_update / pull_repo typed methods for RepoChart (Phase 4)
     CHART-03   — registry_login / pull_oci typed methods for OciChart (Phase 4)
+    SEC-06     — every stdout/stderr capture site routes through self._redactor (CONTEXT D1)
 
 Architecture:
     CONTEXT D1 — this is the ONLY module in the codebase that imports ``subprocess``
                  for HELM commands. chart/oci.py imports subprocess for cosign (CONTEXT D5
                  scoped exception — cosign is a separate binary, not a helm subcommand).
+                 CONTEXT D1 — redactor defaults to redact_helm_output; tests inject a no-op
+                 via redactor= kwarg.
     CONTEXT D2 — sync ``subprocess.run`` only; stderr truncated to last 32 KB.
     CONTEXT D9 — ``_build_argv`` is a pure function, snapshot-tested via syrupy.
 
@@ -29,9 +32,11 @@ import os
 import pathlib
 import re
 import subprocess
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Final
 
 from aws_eks_helm_deploy.errors import ChartResolutionError, HelmExecutionError, HelmTimeoutError
+from aws_eks_helm_deploy.helm.redact import redact_helm_output
 
 if TYPE_CHECKING:
     from aws_eks_helm_deploy.chart.base import ResolvedChart
@@ -158,10 +163,20 @@ class HelmClient:
         kubeconfig_path: Absolute path to a kubeconfig file. The file must
             exist and be accessible when ``upgrade_install`` or ``history``
             is called. No validation is performed in the constructor.
+        redactor: Callable that scrubs Secret payloads from captured
+            stdout/stderr; defaults to ``redact_helm_output`` (SEC-06 /
+            CONTEXT D1). Inject a no-op (``lambda s: s``) in tests that
+            need raw output.
     """
 
-    def __init__(self, kubeconfig_path: pathlib.Path) -> None:
+    def __init__(
+        self,
+        kubeconfig_path: pathlib.Path,
+        *,
+        redactor: Callable[[str], str] = redact_helm_output,
+    ) -> None:
         self._kubeconfig_path = kubeconfig_path
+        self._redactor = redactor
 
     def _build_argv(
         self,
@@ -291,13 +306,13 @@ class HelmClient:
                     if isinstance(exc.stderr, str)
                     else exc.stderr.decode("utf-8", errors="replace")
                 )
-                partial_stderr = raw[-1024:]
+                partial_stderr = self._redactor(raw)[-1024:]
             msg = f"helm upgrade timed out after {exc.timeout}s"
             if partial_stderr:
                 msg += f"; last stderr: {partial_stderr}"
             raise HelmTimeoutError(msg) from exc
 
-        truncated_stderr = _truncate_stderr(result.stderr)
+        truncated_stderr = _truncate_stderr(self._redactor(result.stderr))
 
         if result.returncode != 0:
             raise HelmExecutionError(
@@ -307,7 +322,7 @@ class HelmClient:
         rev_match = REVISION_REGEX.search(result.stdout)
         revision = int(rev_match.group(1)) if rev_match else None
         return HelmResult(
-            stdout=result.stdout,
+            stdout=self._redactor(result.stdout),
             stderr=truncated_stderr,
             returncode=0,
             revision=revision,
@@ -355,11 +370,11 @@ class HelmClient:
             env=os.environ.copy(),
         )
         if result.returncode != 0:
-            truncated_stderr = _truncate_stderr(result.stderr)
+            truncated_stderr = _truncate_stderr(self._redactor(result.stderr))
             raise HelmExecutionError(
                 f"helm history returned {result.returncode} — last stderr: {truncated_stderr}"
             )
-        entries: list[dict[str, int | str]] = json.loads(result.stdout)
+        entries: list[dict[str, int | str]] = json.loads(self._redactor(result.stdout))
         return [
             HelmRevision(
                 revision=int(entry["revision"]),
@@ -486,7 +501,7 @@ class HelmClient:
             raise ChartResolutionError(msg) from exc
 
         if result.returncode != 0:
-            truncated_stderr = _truncate_stderr(result.stderr)
+            truncated_stderr = _truncate_stderr(self._redactor(result.stderr))
             raise ChartResolutionError(
                 f"{error_prefix} returned {result.returncode} — last stderr: {truncated_stderr}"
             )
@@ -594,7 +609,7 @@ class HelmClient:
             ) from exc
 
         if result.returncode != 0:
-            truncated_stderr = _truncate_stderr(result.stderr)
+            truncated_stderr = _truncate_stderr(self._redactor(result.stderr))
             raise ChartResolutionError(
                 f"helm registry login {registry_host} returned {result.returncode} — "
                 f"last stderr: {truncated_stderr}"
