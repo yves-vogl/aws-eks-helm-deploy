@@ -1,0 +1,100 @@
+# Phase 6 / IMAGE-04 / IMAGE-05 / CI-03 — Release pipeline (build half).
+# Triggered when release-please's Release PR is merged and pushes a `v*` tag.
+# Builds linux/amd64 + linux/arm64 NATIVELY on ubuntu-24.04 + ubuntu-24.04-arm
+# runners (NO QEMU — see RESEARCH §Common Pitfalls #2 / D4).
+#
+# This file is the BUILD half. Plan 06-04 will EXTEND this workflow by appending
+# a `sign-and-attest` job (Cosign keyless + Syft SBOM + SLSA provenance) that
+# depends on `build` via `needs: [build]`.
+#
+# Pitfall #1 / Pitfall #4: id-token:write is declared at workflow level so the
+# build job can authenticate to GHCR via OIDC AND so Plan 06-04's sign step can
+# request a Fulcio cert. This is the ONLY workflow allowed to declare id-token:write.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to (re-)release (e.g. v2.0.0)"
+        required: true
+
+permissions:
+  contents: write          # GitHub Release creation (Plan 06-04 extension)
+  packages: write          # push image + cosign signature artifact to GHCR
+  id-token: write          # OIDC token for Fulcio cert issuance (Plan 06-04)
+  attestations: write      # SLSA provenance (Plan 06-04)
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false   # Pitfall #4: never cancel a half-pushed release
+
+env:
+  REGISTRY: ghcr.io
+  # IMAGE_NAME resolves to: ghcr.io/yves-vogl/aws-eks-helm-deploy
+  IMAGE_NAME: ${{ github.repository_owner }}/aws-eks-helm-deploy
+
+jobs:
+  build:
+    name: build (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+            arch_suffix: amd64
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+            arch_suffix: arm64
+    outputs:
+      digest-amd64: ${{ steps.export.outputs.digest-amd64 }}
+      digest-arm64: ${{ steps.export.outputs.digest-arm64 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate OCI metadata (IMAGE-05)
+        id: meta
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          labels: |
+            org.opencontainers.image.title=aws-eks-helm-deploy
+            org.opencontainers.image.description=Deploy Helm charts to AWS EKS from Bitbucket Pipelines
+            org.opencontainers.image.licenses=Apache-2.0
+          # source, revision, version, created are auto-populated by metadata-action
+
+      - name: Build and push per-arch image by digest
+        id: build
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # push-by-digest=true: Plan 06-04's sign-and-attest fan-in job
+          # assembles the multi-arch manifest from the per-arch digests via
+          # `docker buildx imagetools create`.
+          outputs: type=image,push-by-digest=true,name-canonical=true,push=true,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # BuildKit auto-sets TARGETARCH based on --platform; no explicit
+          # --build-arg needed for the multi-arch stage conversions in Dockerfile.
+
+      - name: Export per-arch digest as job output
+        id: export
+        run: |
+          echo "digest-${{ matrix.arch_suffix }}=${{ steps.build.outputs.digest }}" >> "$GITHUB_OUTPUT"
