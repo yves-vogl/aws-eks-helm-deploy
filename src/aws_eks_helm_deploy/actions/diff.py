@@ -23,6 +23,7 @@ BITBUCKET_* env vars:
 
 from __future__ import annotations
 
+import os
 import pathlib
 import time
 from typing import TYPE_CHECKING
@@ -31,6 +32,7 @@ import boto3.session
 
 from aws_eks_helm_deploy.auth import select_strategy
 from aws_eks_helm_deploy.aws.eks_token import generate_eks_token
+from aws_eks_helm_deploy.bitbucket import post_diff_comment
 from aws_eks_helm_deploy.chart import select_chart_source
 from aws_eks_helm_deploy.eks.cluster import get_cluster_access
 from aws_eks_helm_deploy.errors import ConfigurationError, KubeconfigError
@@ -150,5 +152,54 @@ class DiffAction:
                 cluster=cluster_name,
                 duration_ms=duration_ms,
             )
+            # PIPE-03: optionally post the diff to the Bitbucket PR (D3).
+            self._maybe_post_pr_comment(diff_text)
             pipe.success(f"{header}\n\n{diff_text}")
         return 0
+
+    def _maybe_post_pr_comment(self, diff_text: str) -> None:
+        """Post the diff as a Bitbucket PR comment when all 5 gate conditions are met.
+
+        Gate conditions (CONTEXT D3):
+            1. settings.post_diff_as_comment is True
+            2. settings.bitbucket_token is not None
+            3. BITBUCKET_PR_ID env var is set (truthy)
+            4. BITBUCKET_WORKSPACE env var is set (truthy)
+            5. BITBUCKET_REPO_SLUG env var is set (truthy)
+
+        When post_diff_as_comment=False (default), the method is a silent no-op.
+        When any gate is unmet while post_diff_as_comment=True, an INFO log is emitted
+        to help diagnose misconfigured PR builds.
+
+        Any exception from post_diff_comment is swallowed and logged as WARN --
+        PR-comment posting is observability, not critical path (D3 R2 mitigation).
+        """
+        s = self._settings
+        if not s.post_diff_as_comment:
+            return
+
+        pr_id = os.environ.get("BITBUCKET_PR_ID")
+        workspace = os.environ.get("BITBUCKET_WORKSPACE")
+        repo_slug = os.environ.get("BITBUCKET_REPO_SLUG")
+
+        if s.bitbucket_token is not None and pr_id and workspace and repo_slug:
+            try:
+                post_diff_comment(
+                    workspace=workspace,
+                    repo_slug=repo_slug,
+                    pr_id=pr_id,
+                    diff_text=diff_text,
+                    token=s.bitbucket_token.get_secret_value(),
+                )
+            except Exception:  # noqa: BLE001
+                # PR-comment posting is observability, NOT critical path (D3).
+                # post_diff_comment is designed to never raise; this guard is defensive.
+                logger.warning("bitbucket.pr_comment.unexpected_exception", exc_info=True)
+        else:
+            logger.info(
+                "bitbucket.pr_comment.skipped_gate_unmet",
+                has_token=s.bitbucket_token is not None,
+                has_pr_id=bool(pr_id),
+                has_workspace=bool(workspace),
+                has_repo_slug=bool(repo_slug),
+            )

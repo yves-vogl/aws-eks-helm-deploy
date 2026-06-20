@@ -2,6 +2,7 @@
 
 Requirements traceability:
     PIPE-02:  DiffAction.run invokes HelmClient.diff (read-only, no cluster mutation)
+    PIPE-03:  DiffAction conditionally calls post_diff_comment when all 5 gates are met
     SEC-06:   diff output flows through HelmClient.diff's redactor; DiffAction emits
               only the redacted return value (T-05-01 per-task gate)
     META-01:  inject_bitbucket_metadata opt-in guard carried forward from UpgradeAction
@@ -16,6 +17,8 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
+import structlog
+from pydantic import SecretStr
 from pytest_mock import MockerFixture
 
 from aws_eks_helm_deploy.actions.diff import DiffAction
@@ -322,3 +325,198 @@ def test_diff_action_full_eks_path_wraps_os_error_as_kubeconfig_error(
         action.run(mock_pipe)
 
     assert "permission denied" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# PIPE-03: PR-comment integration tests (DiffAction -> post_diff_comment wiring)
+# ---------------------------------------------------------------------------
+
+_PATCH_POST_DIFF = "aws_eks_helm_deploy.actions.diff.post_diff_comment"
+
+
+@pytest.mark.unit
+def test_pr_comment_post_called_when_all_gates_met(
+    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """post_diff_comment is called exactly once when all 5 gate conditions are met.
+
+    Also verifies the SecretStr unwrap: the token arg is a plain str, not SecretStr.
+    """
+    mocks = _patch_all_happy(mocker)
+    diff_output = "--- a\n+++ b\n"
+    mocks["helm_client_cls"].return_value.diff.return_value = diff_output
+
+    monkeypatch.setenv("BITBUCKET_PR_ID", "7")
+    monkeypatch.setenv("BITBUCKET_WORKSPACE", "my-ws")
+    monkeypatch.setenv("BITBUCKET_REPO_SLUG", "my-repo")
+    post_mock = mocker.patch(_PATCH_POST_DIFF)
+
+    settings = _make_settings(
+        post_diff_as_comment=True,
+        bitbucket_token=SecretStr("tok-plain"),
+    )
+    action = DiffAction(settings, kubeconfig_override=pathlib.Path("/tmp/test-kubeconfig.yaml"))
+    action.run(mocker.MagicMock())
+
+    post_mock.assert_called_once()
+    call_kwargs = post_mock.call_args.kwargs
+    assert call_kwargs["workspace"] == "my-ws"
+    assert call_kwargs["repo_slug"] == "my-repo"
+    assert call_kwargs["pr_id"] == "7"
+    assert call_kwargs["diff_text"] == diff_output
+    assert call_kwargs["token"] == "tok-plain"  # noqa: S105 -- test fixture value
+    assert isinstance(call_kwargs["token"], str)
+
+
+@pytest.mark.unit
+def test_pr_comment_called_with_unwrapped_secret_str(
+    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The token arg to post_diff_comment must be a plain str, NOT a SecretStr instance."""
+    _patch_all_happy(mocker)
+    monkeypatch.setenv("BITBUCKET_PR_ID", "3")
+    monkeypatch.setenv("BITBUCKET_WORKSPACE", "ws")
+    monkeypatch.setenv("BITBUCKET_REPO_SLUG", "repo")
+    post_mock = mocker.patch(_PATCH_POST_DIFF)
+
+    settings = _make_settings(
+        post_diff_as_comment=True,
+        bitbucket_token=SecretStr("raw-token-value"),
+    )
+    action = DiffAction(settings, kubeconfig_override=pathlib.Path("/tmp/test-kubeconfig.yaml"))
+    action.run(mocker.MagicMock())
+
+    assert post_mock.call_args.kwargs["token"] == "raw-token-value"  # noqa: S105 -- test fixture
+    assert not isinstance(post_mock.call_args.kwargs["token"], SecretStr)
+
+
+@pytest.mark.unit
+def test_pr_comment_not_called_when_post_diff_as_comment_false(
+    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """post_diff_comment must NOT be called when post_diff_as_comment=False (default)."""
+    _patch_all_happy(mocker)
+    monkeypatch.setenv("BITBUCKET_PR_ID", "1")
+    monkeypatch.setenv("BITBUCKET_WORKSPACE", "ws")
+    monkeypatch.setenv("BITBUCKET_REPO_SLUG", "repo")
+    post_mock = mocker.patch(_PATCH_POST_DIFF)
+
+    settings = _make_settings(
+        post_diff_as_comment=False,
+        bitbucket_token=SecretStr("tok"),
+    )
+    action = DiffAction(settings, kubeconfig_override=pathlib.Path("/tmp/test-kubeconfig.yaml"))
+    result = action.run(mocker.MagicMock())
+
+    assert result == 0
+    post_mock.assert_not_called()
+
+
+@pytest.mark.unit
+def test_pr_comment_not_called_when_pr_id_missing(
+    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When BITBUCKET_PR_ID is unset, poster NOT called; INFO log with has_pr_id=False."""
+    _patch_all_happy(mocker)
+    monkeypatch.delenv("BITBUCKET_PR_ID", raising=False)
+    monkeypatch.setenv("BITBUCKET_WORKSPACE", "ws")
+    monkeypatch.setenv("BITBUCKET_REPO_SLUG", "repo")
+    post_mock = mocker.patch(_PATCH_POST_DIFF)
+
+    settings = _make_settings(
+        post_diff_as_comment=True,
+        bitbucket_token=SecretStr("tok"),
+    )
+    action = DiffAction(settings, kubeconfig_override=pathlib.Path("/tmp/test-kubeconfig.yaml"))
+    with structlog.testing.capture_logs() as captured:
+        result = action.run(mocker.MagicMock())
+
+    assert result == 0
+    post_mock.assert_not_called()
+    info_entries = [
+        c for c in captured if c.get("event") == "bitbucket.pr_comment.skipped_gate_unmet"
+    ]
+    assert len(info_entries) == 1
+    assert info_entries[0]["has_pr_id"] is False
+
+
+@pytest.mark.unit
+def test_pr_comment_not_called_when_bitbucket_token_missing(
+    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When bitbucket_token=None, poster NOT called; INFO log with has_token=False."""
+    _patch_all_happy(mocker)
+    monkeypatch.setenv("BITBUCKET_PR_ID", "5")
+    monkeypatch.setenv("BITBUCKET_WORKSPACE", "ws")
+    monkeypatch.setenv("BITBUCKET_REPO_SLUG", "repo")
+    post_mock = mocker.patch(_PATCH_POST_DIFF)
+
+    settings = _make_settings(
+        post_diff_as_comment=True,
+        bitbucket_token=None,
+    )
+    action = DiffAction(settings, kubeconfig_override=pathlib.Path("/tmp/test-kubeconfig.yaml"))
+    with structlog.testing.capture_logs() as captured:
+        result = action.run(mocker.MagicMock())
+
+    assert result == 0
+    post_mock.assert_not_called()
+    info_entries = [
+        c for c in captured if c.get("event") == "bitbucket.pr_comment.skipped_gate_unmet"
+    ]
+    assert len(info_entries) == 1
+    assert info_entries[0]["has_token"] is False
+
+
+@pytest.mark.unit
+def test_pr_comment_not_called_when_workspace_missing(
+    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When BITBUCKET_WORKSPACE is unset, poster NOT called; INFO log with has_workspace=False."""
+    _patch_all_happy(mocker)
+    monkeypatch.setenv("BITBUCKET_PR_ID", "5")
+    monkeypatch.delenv("BITBUCKET_WORKSPACE", raising=False)
+    monkeypatch.setenv("BITBUCKET_REPO_SLUG", "repo")
+    post_mock = mocker.patch(_PATCH_POST_DIFF)
+
+    settings = _make_settings(
+        post_diff_as_comment=True,
+        bitbucket_token=SecretStr("tok"),
+    )
+    action = DiffAction(settings, kubeconfig_override=pathlib.Path("/tmp/test-kubeconfig.yaml"))
+    with structlog.testing.capture_logs() as captured:
+        result = action.run(mocker.MagicMock())
+
+    assert result == 0
+    post_mock.assert_not_called()
+    info_entries = [
+        c for c in captured if c.get("event") == "bitbucket.pr_comment.skipped_gate_unmet"
+    ]
+    assert len(info_entries) == 1
+    assert info_entries[0]["has_workspace"] is False
+
+
+@pytest.mark.unit
+def test_diff_action_returns_zero_even_if_post_diff_comment_raises(
+    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """DiffAction.run returns 0 even when post_diff_comment raises (defensive exception guard)."""
+    _patch_all_happy(mocker)
+    monkeypatch.setenv("BITBUCKET_PR_ID", "9")
+    monkeypatch.setenv("BITBUCKET_WORKSPACE", "ws")
+    monkeypatch.setenv("BITBUCKET_REPO_SLUG", "repo")
+    mocker.patch(_PATCH_POST_DIFF, side_effect=RuntimeError("simulated network failure"))
+
+    settings = _make_settings(
+        post_diff_as_comment=True,
+        bitbucket_token=SecretStr("tok"),
+    )
+    action = DiffAction(settings, kubeconfig_override=pathlib.Path("/tmp/test-kubeconfig.yaml"))
+    with structlog.testing.capture_logs() as captured:
+        result = action.run(mocker.MagicMock())
+
+    assert result == 0  # DiffAction must not propagate the exception
+    warn_entries = [
+        c for c in captured if c.get("event") == "bitbucket.pr_comment.unexpected_exception"
+    ]
+    assert len(warn_entries) == 1
