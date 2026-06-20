@@ -156,7 +156,10 @@ def test_resolve_happy_path_with_verify_constrained(tmp_path: pathlib.Path, mock
     assert "--certificate-identity" in cosign_argv
     assert "alice@example.com" in cosign_argv
     assert "--certificate-oidc-issuer" in cosign_argv
-    assert "https://accounts.example.com" in cosign_argv
+    # Explicit list-element match (not substring) — silences CodeQL
+    # `py/incomplete-url-substring-sanitization` false-positive on the `in`
+    # operator over a list of argv tokens.
+    assert any(arg == "https://accounts.example.com" for arg in cosign_argv)
     # Reference is the OCI ref, NOT a local path (R5)
     assert "127.0.0.1:5555/charts/redis" in cosign_argv
 
