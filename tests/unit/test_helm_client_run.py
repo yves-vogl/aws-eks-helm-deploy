@@ -819,3 +819,106 @@ def test_pull_oci_env_passthrough(mocker: Any) -> None:
         env,
     )
     assert mock_run.call_args.kwargs["env"] == env
+
+
+# ---------------------------------------------------------------------------
+# Redactor wiring — SEC-06 / CONTEXT D1 (Plan 05-02)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_upgrade_install_routes_stdout_and_stderr_through_redactor(mocker: Any) -> None:
+    """upgrade_install delegates both stdout and stderr through the injected redactor.
+
+    Uses a tracking redactor (closure) to verify the delegation — proving the wiring,
+    not the redactor's correctness (that lives in test_helm_redact.py).
+    """
+    calls: list[str] = []
+
+    def tracking_redactor(text: str) -> str:
+        calls.append(text)
+        return text
+
+    raw_stdout = (
+        "REVISION: 1\napiVersion: v1\nkind: Secret\nmetadata:\n  name: x\ndata:\n  pw: dGVzdA==\n"
+    )
+    raw_stderr = "some stderr text\n"
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout=raw_stdout, stderr=raw_stderr),
+    )
+    client = HelmClient(
+        kubeconfig_path=pathlib.Path("/tmp/test-kubeconfig.yaml"),
+        redactor=tracking_redactor,
+    )
+    client.upgrade_install("r", _stub_chart(), "default", [], [], None, "600s")
+    # Redactor must have been called with the raw stdout AND raw stderr at least once each.
+    assert raw_stdout in calls, "tracking_redactor was not called with raw stdout"
+    assert raw_stderr in calls, "tracking_redactor was not called with raw stderr"
+
+
+@pytest.mark.unit
+def test_history_routes_stdout_and_stderr_through_redactor(mocker: Any) -> None:
+    """history delegates stdout through redactor on success and stderr on error path.
+
+    Two sub-cases are verified using the tracking redactor:
+    - Happy path: stdout (json.loads path) is passed through the redactor.
+    - Error path: stderr is passed through the redactor (via HelmExecutionError).
+    """
+    stdout_calls: list[str] = []
+    stderr_calls: list[str] = []
+
+    def tracking_redactor(text: str) -> str:
+        # Distinguish stdout vs stderr by format heuristic: JSON starts with '['
+        if text.startswith("[") or text == "":
+            stdout_calls.append(text)
+        else:
+            stderr_calls.append(text)
+        return text
+
+    # Sub-case 1: happy path — redactor receives stdout.
+    json_stdout = (
+        '[{"revision": 1, "status": "deployed", "chart": "app-1.0.0",'
+        ' "description": "Install complete", "updated": "2026-01-01T00:00:00Z",'
+        ' "app_version": "1.0"}]'
+    )
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout=json_stdout, stderr=""),
+    )
+    client = HelmClient(
+        kubeconfig_path=pathlib.Path("/tmp/test-kubeconfig.yaml"),
+        redactor=tracking_redactor,
+    )
+    client.history("rel", "ns")
+    assert json_stdout in stdout_calls, "tracking_redactor was not called with raw stdout"
+
+    # Sub-case 2: error path — redactor receives stderr.
+    raw_stderr = "Error: release not found\n"
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=1, stdout="", stderr=raw_stderr),
+    )
+    with pytest.raises(HelmExecutionError):
+        client.history("rel", "ns")
+    assert raw_stderr in stderr_calls, "tracking_redactor was not called with raw stderr"
+
+
+@pytest.mark.unit
+def test_default_redactor_redacts_secret_in_upgrade_install_stdout(mocker: Any) -> None:
+    """Default redact_helm_output scrubs kind: Secret from upgrade_install stdout end-to-end.
+
+    Constructs HelmClient WITHOUT explicit redactor= to prove the default wiring.
+    Verifies that the sentinel appears and the raw base64 bytes do not.
+    """
+    helm_stdout = "apiVersion: v1\nkind: Secret\nmetadata:\n  name: x\ndata:\n  pw: dGVzdA==\n"
+    mocker.patch(
+        _PATCH_TARGET,
+        return_value=CompletedProcess(args=[], returncode=0, stdout=helm_stdout, stderr=""),
+    )
+    # No explicit redactor= — default redact_helm_output is used.
+    result = HelmClient(kubeconfig_path=pathlib.Path("/tmp/test-kubeconfig.yaml")).upgrade_install(
+        "r", _stub_chart(), "default", [], [], None, "600s"
+    )
+    assert "<redacted>" in result.stdout
+    assert "dGVzdA==" not in result.stdout
