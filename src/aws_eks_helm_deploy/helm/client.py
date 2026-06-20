@@ -2,16 +2,23 @@
 
 REQ traceability:
     PIPE-01    — upgrade_install invokes ``helm upgrade --install`` with exact argv contract
+    PIPE-02    — diff invokes ``helm diff upgrade`` via the bundled helm-diff plugin (Phase 5 D2)
+    PIPE-04    — rollback invokes ``helm rollback <release> <revision>`` (Phase 5 D5)
+    PIPE-05    — SAFE_UPGRADE=true adds --wait --atomic --description "pipe:safe-upgrade" to
+                 upgrade argv (Phase 5 D5 / 05-RESEARCH CONTRADICTION 2)
     PIPE-06    — typed errors: HelmExecutionError (exit=5) and HelmTimeoutError (exit=6)
     HISTORY-02 — ``--history-max`` passthrough; None suppresses the flag
     META-01    — ``--set-string`` for ALL injected key=value pairs (Pitfall 4: curly braces)
     CHART-02   — repo_add / repo_update / pull_repo typed methods for RepoChart (Phase 4)
     CHART-03   — registry_login / pull_oci typed methods for OciChart (Phase 4)
+    SEC-06     — every stdout/stderr capture site routes through self._redactor (CONTEXT D1)
 
 Architecture:
     CONTEXT D1 — this is the ONLY module in the codebase that imports ``subprocess``
                  for HELM commands. chart/oci.py imports subprocess for cosign (CONTEXT D5
                  scoped exception — cosign is a separate binary, not a helm subcommand).
+                 CONTEXT D1 — redactor defaults to redact_helm_output; tests inject a no-op
+                 via redactor= kwarg.
     CONTEXT D2 — sync ``subprocess.run`` only; stderr truncated to last 32 KB.
     CONTEXT D9 — ``_build_argv`` is a pure function, snapshot-tested via syrupy.
 
@@ -29,9 +36,11 @@ import os
 import pathlib
 import re
 import subprocess
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Final
 
 from aws_eks_helm_deploy.errors import ChartResolutionError, HelmExecutionError, HelmTimeoutError
+from aws_eks_helm_deploy.helm.redact import redact_helm_output
 
 if TYPE_CHECKING:
     from aws_eks_helm_deploy.chart.base import ResolvedChart
@@ -49,7 +58,16 @@ REVISION_REGEX: Final[re.Pattern[str]] = re.compile(r"^REVISION:\s*(\d+)", re.MU
 TRUNCATION_MARKER: Final[str] = "...[truncated]...\n"
 """Prepended to truncated stderr so consumers know the output is partial."""
 
-__all__: list[str] = ["HelmClient", "HelmResult", "HelmRevision"]
+SAFE_UPGRADE_DESCRIPTION: Final[str] = "pipe:safe-upgrade"
+"""Marker substring stored in helm release history description when SAFE_UPGRADE=true.
+
+The RollbackAction pre-flight check searches for this substring in HelmRevision.description
+to detect revisions deployed with --wait --atomic. See 05-RESEARCH "CONTRADICTION 2" for the
+rationale: helm 3.x does NOT record --wait status in the history description by default,
+so the pipe explicitly sets it via --description on upgrade.
+"""
+
+__all__: list[str] = ["HelmClient", "HelmResult", "HelmRevision", "SAFE_UPGRADE_DESCRIPTION"]  # noqa: RUF022
 
 
 # ---------------------------------------------------------------------------
@@ -158,10 +176,20 @@ class HelmClient:
         kubeconfig_path: Absolute path to a kubeconfig file. The file must
             exist and be accessible when ``upgrade_install`` or ``history``
             is called. No validation is performed in the constructor.
+        redactor: Callable that scrubs Secret payloads from captured
+            stdout/stderr; defaults to ``redact_helm_output`` (SEC-06 /
+            CONTEXT D1). Inject a no-op (``lambda s: s``) in tests that
+            need raw output.
     """
 
-    def __init__(self, kubeconfig_path: pathlib.Path) -> None:
+    def __init__(
+        self,
+        kubeconfig_path: pathlib.Path,
+        *,
+        redactor: Callable[[str], str] = redact_helm_output,
+    ) -> None:
         self._kubeconfig_path = kubeconfig_path
+        self._redactor = redactor
 
     def _build_argv(
         self,
@@ -172,6 +200,8 @@ class HelmClient:
         set_args: list[str],
         history_max: int | None,
         timeout: str,
+        *,
+        safe_upgrade: bool = False,
     ) -> list[str]:
         """Build the ``helm upgrade --install`` argv list (pure function — no I/O).
 
@@ -196,6 +226,12 @@ class HelmClient:
                 CONTEXT D4 / Pitfall 3).
             timeout: Go-duration string passed verbatim to helm
                 (e.g. ``"600s"`` or ``"10m"``).
+            safe_upgrade: When ``True``, appends ``["--wait", "--atomic",
+                "--description", SAFE_UPGRADE_DESCRIPTION]`` after the
+                ``--history-max`` block (PIPE-05 / CONTEXT D5). The
+                ``SAFE_UPGRADE_DESCRIPTION`` marker enables the
+                ``RollbackAction`` pre-flight check to detect safe-upgraded
+                revisions (05-RESEARCH CONTRADICTION 2 workaround).
 
         Returns:
             Complete argv list suitable for ``subprocess.run``.
@@ -219,6 +255,9 @@ class HelmClient:
             argv.extend(["--set-string", sa])
         if history_max is not None:
             argv.extend(["--history-max", str(history_max)])
+        if safe_upgrade:
+            # PIPE-05 / CONTEXT D5: --wait + --atomic + --description marker for rollback safety.
+            argv.extend(["--wait", "--atomic", "--description", SAFE_UPGRADE_DESCRIPTION])
         return argv
 
     def upgrade_install(
@@ -230,6 +269,8 @@ class HelmClient:
         set_args: list[str],
         history_max: int | None,
         timeout: str,
+        *,
+        safe_upgrade: bool = False,
     ) -> HelmResult:
         """Run ``helm upgrade --install`` and return a typed result.
 
@@ -255,6 +296,9 @@ class HelmClient:
             set_args: List of ``"key=value"`` strings for ``--set-string``.
             history_max: ``None`` to omit ``--history-max``; 0 or N≥1 to pass it.
             timeout: Go-duration string, e.g. ``"600s"`` or ``"10m"``.
+            safe_upgrade: When ``True``, forwards to ``_build_argv`` to append
+                ``--wait --atomic --description "pipe:safe-upgrade"`` (PIPE-05 /
+                CONTEXT D5). Default ``False`` preserves backward compatibility.
 
         Returns:
             ``HelmResult`` with stdout, truncated stderr, returncode=0, and
@@ -272,6 +316,7 @@ class HelmClient:
             set_args,
             history_max,
             timeout,
+            safe_upgrade=safe_upgrade,
         )
         timeout_seconds = _parse_timeout(timeout)
         try:
@@ -291,13 +336,13 @@ class HelmClient:
                     if isinstance(exc.stderr, str)
                     else exc.stderr.decode("utf-8", errors="replace")
                 )
-                partial_stderr = raw[-1024:]
+                partial_stderr = self._redactor(raw)[-1024:]
             msg = f"helm upgrade timed out after {exc.timeout}s"
             if partial_stderr:
                 msg += f"; last stderr: {partial_stderr}"
             raise HelmTimeoutError(msg) from exc
 
-        truncated_stderr = _truncate_stderr(result.stderr)
+        truncated_stderr = _truncate_stderr(self._redactor(result.stderr))
 
         if result.returncode != 0:
             raise HelmExecutionError(
@@ -307,7 +352,7 @@ class HelmClient:
         rev_match = REVISION_REGEX.search(result.stdout)
         revision = int(rev_match.group(1)) if rev_match else None
         return HelmResult(
-            stdout=result.stdout,
+            stdout=self._redactor(result.stdout),
             stderr=truncated_stderr,
             returncode=0,
             revision=revision,
@@ -355,11 +400,11 @@ class HelmClient:
             env=os.environ.copy(),
         )
         if result.returncode != 0:
-            truncated_stderr = _truncate_stderr(result.stderr)
+            truncated_stderr = _truncate_stderr(self._redactor(result.stderr))
             raise HelmExecutionError(
                 f"helm history returned {result.returncode} — last stderr: {truncated_stderr}"
             )
-        entries: list[dict[str, int | str]] = json.loads(result.stdout)
+        entries: list[dict[str, int | str]] = json.loads(self._redactor(result.stdout))
         return [
             HelmRevision(
                 revision=int(entry["revision"]),
@@ -369,6 +414,153 @@ class HelmClient:
             )
             for entry in entries
         ]
+
+    def diff(
+        self,
+        release: str,
+        chart: ResolvedChart,
+        namespace: str,
+        values_files: list[str],
+        set_args: list[str],
+        timeout: str,
+    ) -> str:
+        """Run ``helm diff upgrade`` and return the redacted diff text (PIPE-02 / SEC-06).
+
+        Invokes the bundled helm-diff plugin (Phase 5 D2 / Dockerfile stage
+        ``helm-diff-fetch``). The diff text is routed through ``self._redactor``
+        BEFORE being returned to the caller, so Secret payloads are scrubbed at
+        the HelmClient boundary (defense-in-depth — SEC-06 / CONTEXT D1).
+
+        helm-diff exit code semantics (per databus23/helm-diff README):
+            - ``0`` — no differences (diff is empty)
+            - ``1`` — differences exist (this is SUCCESS for the diff workflow)
+            - ``≥ 2`` — error (helm-diff encountered an unexpected failure)
+
+        Both exit codes 0 and 1 are treated as success; only ``≥ 2`` raises
+        ``HelmExecutionError``.
+
+        Args:
+            release: Helm release name.
+            chart: Resolved local chart descriptor. ``source_path`` is extracted
+                and passed to ``_build_diff_argv``.
+            namespace: Kubernetes namespace.
+            values_files: List of values file paths; each produces
+                ``["--values", path]`` in order (last-wins semantics).
+            set_args: List of ``"key=value"`` strings; each produces
+                ``["--set-string", "key=value"]`` (Pitfall 4 / RESEARCH G).
+            timeout: Go-duration string passed to ``_parse_timeout``
+                (e.g. ``"600s"`` or ``"10m"``).
+
+        Returns:
+            Redacted diff text (stdout from ``helm diff upgrade``).
+
+        Raises:
+            HelmExecutionError: helm-diff exited with returncode ``≥ 2``.
+            HelmTimeoutError: ``subprocess.run`` raised ``subprocess.TimeoutExpired``.
+        """
+        argv = self._build_diff_argv(
+            release,
+            chart.source_path,
+            namespace,
+            values_files,
+            set_args,
+        )
+        timeout_seconds = _parse_timeout(timeout)
+        try:
+            result = subprocess.run(  # noqa: S603
+                argv,
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+                env=os.environ.copy(),
+            )
+        except subprocess.TimeoutExpired as exc:
+            partial_stderr = ""
+            if exc.stderr is not None:
+                raw: str = (
+                    exc.stderr
+                    if isinstance(exc.stderr, str)
+                    else exc.stderr.decode("utf-8", errors="replace")
+                )
+                partial_stderr = self._redactor(raw)[-1024:]
+            msg = f"helm diff timed out after {exc.timeout}s"
+            if partial_stderr:
+                msg += f"; last stderr: {partial_stderr}"
+            raise HelmTimeoutError(msg) from exc
+
+        # helm-diff exit code 1 = "differences exist" = SUCCESS for the diff workflow.
+        # Only returncode >= 2 indicates an actual error.
+        if result.returncode >= 2:
+            truncated_stderr = _truncate_stderr(self._redactor(result.stderr))
+            raise HelmExecutionError(
+                f"helm diff returned {result.returncode} — last stderr: {truncated_stderr}"
+            )
+
+        return self._redactor(result.stdout)
+
+    def rollback(
+        self,
+        release: str,
+        revision: int,
+        namespace: str,
+        timeout: str,
+    ) -> None:
+        """Run ``helm rollback <release> <revision>`` and return None on success (PIPE-04).
+
+        Constructs argv via ``_build_rollback_argv``, invokes ``subprocess.run``
+        with ``capture_output=True, text=True, check=False``, and maps exit codes
+        to typed errors from the PipeError hierarchy (PIPE-06):
+
+        - ``returncode != 0``  → ``HelmExecutionError`` (exit_code=5)
+        - ``subprocess.TimeoutExpired`` → ``HelmTimeoutError`` (exit_code=6)
+
+        On success, returns ``None`` — the caller (``RollbackAction``) logs the
+        result at INFO level via structlog; stdout is not needed at the action layer.
+
+        Stderr on the error path is redacted via ``self._redactor`` before appearing
+        in the ``HelmExecutionError`` message (T-05-01 / SEC-06).
+
+        Args:
+            release: Helm release name.
+            revision: Target revision number (must be a positive int).
+            namespace: Kubernetes namespace.
+            timeout: Go-duration string, e.g. ``"600s"`` or ``"10m"``.
+
+        Raises:
+            HelmExecutionError: helm exited with a non-zero return code (exit_code=5).
+            HelmTimeoutError: ``subprocess.run`` raised ``subprocess.TimeoutExpired`` (exit_code=6).
+        """
+        argv = self._build_rollback_argv(release, revision, namespace)
+        timeout_seconds = _parse_timeout(timeout)
+        try:
+            result = subprocess.run(  # noqa: S603
+                argv,
+                capture_output=True,
+                text=True,
+                timeout=timeout_seconds,
+                check=False,
+                env=os.environ.copy(),
+            )
+        except subprocess.TimeoutExpired as exc:
+            partial_stderr = ""
+            if exc.stderr is not None:
+                raw: str = (
+                    exc.stderr
+                    if isinstance(exc.stderr, str)
+                    else exc.stderr.decode("utf-8", errors="replace")
+                )
+                partial_stderr = self._redactor(raw)[-1024:]
+            msg = f"helm rollback timed out after {exc.timeout}s"
+            if partial_stderr:
+                msg += f"; last stderr: {partial_stderr}"
+            raise HelmTimeoutError(msg) from exc
+
+        if result.returncode != 0:
+            truncated_stderr = _truncate_stderr(self._redactor(result.stderr))
+            raise HelmExecutionError(
+                f"helm rollback returned {result.returncode} — last stderr: {truncated_stderr}"
+            )
 
     # -----------------------------------------------------------------------
     # Private argv builders — chart-resolution subcommands (Plan 04-06)
@@ -442,6 +634,94 @@ class HelmClient:
             argv.extend(["--version", version])
         return argv
 
+    def _build_diff_argv(
+        self,
+        release: str,
+        chart_path: pathlib.Path,
+        namespace: str,
+        values_files: list[str],
+        set_args: list[str],
+    ) -> list[str]:
+        """Build the ``helm diff upgrade`` argv list (pure function — no I/O).
+
+        The first 9 elements are always stable (PIPE-02):
+            ``["helm", "diff", "upgrade", release, str(chart_path),
+               "--namespace", namespace, "--kubeconfig", str(self._kubeconfig_path)]``
+
+        Unlike ``_build_argv`` (for ``helm upgrade --install``), this method does NOT
+        include ``--install``, ``--timeout``, or ``--history-max`` — helm diff is a
+        read-only command and these flags are not applicable or accepted.
+
+        SEC-06: output from the subprocess that uses this argv flows through
+        ``self._redactor`` in ``diff()`` before being returned to the caller.
+        PIPE-02: this argv serves the ACTION=diff / DRY_RUN=true workflow.
+
+        Args:
+            release: Helm release name.
+            chart_path: Absolute path to the local chart directory.
+            namespace: Kubernetes namespace.
+            values_files: List of values file paths; each produces
+                ``["--values", path]`` in order (last-wins semantics).
+            set_args: List of ``"key=value"`` strings; each produces
+                ``["--set-string", "key=value"]``. Uses ``--set-string``
+                (not ``--set``) for ALL entries to handle curly-brace values
+                such as BITBUCKET_STEP_TRIGGERER_UUID (RESEARCH G / Pitfall 4).
+
+        Returns:
+            Complete argv list suitable for ``subprocess.run``.
+        """
+        argv: list[str] = [
+            "helm",
+            "diff",
+            "upgrade",
+            release,
+            str(chart_path),
+            "--namespace",
+            namespace,
+            "--kubeconfig",
+            str(self._kubeconfig_path),
+        ]
+        for vf in values_files:
+            argv.extend(["--values", vf])
+        for sa in set_args:
+            argv.extend(["--set-string", sa])
+        return argv
+
+    def _build_rollback_argv(
+        self,
+        release: str,
+        revision: int,
+        namespace: str,
+    ) -> list[str]:
+        """Build the ``helm rollback`` argv list (pure function — no I/O).
+
+        Returns the stable 8-element list (PIPE-04):
+            ``["helm", "rollback", release, str(revision),
+               "--namespace", namespace, "--kubeconfig", str(self._kubeconfig_path)]``
+
+        No ``--wait`` or ``--timeout`` are added here — helm rollback uses its own
+        defaults. Safety is enforced BEFORE this call by RollbackAction's pre-flight
+        check against SAFE_UPGRADE_DESCRIPTION (CONTEXT D5 / 05-RESEARCH CONTRADICTION 2).
+
+        Args:
+            release: Helm release name.
+            revision: Target revision number. Converted to ``str`` for argv.
+            namespace: Kubernetes namespace.
+
+        Returns:
+            Complete argv list suitable for ``subprocess.run``.
+        """
+        return [
+            "helm",
+            "rollback",
+            release,
+            str(revision),
+            "--namespace",
+            namespace,
+            "--kubeconfig",
+            str(self._kubeconfig_path),
+        ]
+
     # -----------------------------------------------------------------------
     # Private helper — shared subprocess runner for chart-resolution commands
     # -----------------------------------------------------------------------
@@ -486,7 +766,7 @@ class HelmClient:
             raise ChartResolutionError(msg) from exc
 
         if result.returncode != 0:
-            truncated_stderr = _truncate_stderr(result.stderr)
+            truncated_stderr = _truncate_stderr(self._redactor(result.stderr))
             raise ChartResolutionError(
                 f"{error_prefix} returned {result.returncode} — last stderr: {truncated_stderr}"
             )
@@ -594,7 +874,7 @@ class HelmClient:
             ) from exc
 
         if result.returncode != 0:
-            truncated_stderr = _truncate_stderr(result.stderr)
+            truncated_stderr = _truncate_stderr(self._redactor(result.stderr))
             raise ChartResolutionError(
                 f"helm registry login {registry_host} returned {result.returncode} — "
                 f"last stderr: {truncated_stderr}"

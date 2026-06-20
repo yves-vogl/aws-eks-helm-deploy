@@ -11,12 +11,17 @@ INJECT_BITBUCKET_METADATA).
 
 Breaking change from v1:
   - NAMESPACE default changed from 'kube-public' (v1 bug) to 'default' (v2 fix)
-  - INJECT_BITBUCKET_METADATA defaults to False (was unconditional in v1)
+  - INJECT_BITBUCKET_METADATA defaults to None (was False in v2.0b, unconditional in v1);
+    None is the sentinel used by META-03 to distinguish "unset" from "explicit false".
 
 Phase 4 additions: OIDC_AUDIENCE (AUTH-03); REPO_URL + CHART_VERSION (CHART-02);
 REGISTRY_USERNAME + REGISTRY_PASSWORD (CHART-03 — password is SecretStr per R13);
 CHART_VERIFY + CHART_VERIFY_CERTIFICATE_IDENTITY + CHART_VERIFY_CERTIFICATE_OIDC_ISSUER
 (CHART-04).
+
+Phase 5 additions: ACTION=diff/rollback (PIPE-02/04); POST_DIFF_AS_COMMENT + BITBUCKET_TOKEN
+(PIPE-03 per D3); SAFE_UPGRADE (PIPE-05 per D5); REVISION (PIPE-04 per D5);
+INJECT_BITBUCKET_METADATA flipped to bool | None per META-02/D4.
 """
 
 from __future__ import annotations
@@ -133,16 +138,29 @@ class Settings(BaseSettings):
         alias="CHART_VERIFY_CERTIFICATE_OIDC_ISSUER",
     )
 
-    # Action dispatch (v2 new fields)
-    action: Literal["upgrade"] = Field(default="upgrade", alias="ACTION")
+    # Action dispatch (v2 new fields); widened in Phase 5 to support diff + rollback (PIPE-02/04)
+    action: Literal["upgrade", "diff", "rollback"] = Field(default="upgrade", alias="ACTION")
     dry_run: bool = Field(default=False, alias="DRY_RUN")
 
     # Observability (OBS-01 / OBS-02)
     log_format: Literal["human", "json"] = Field(default="human", alias="LOG_FORMAT")
     debug: bool = Field(default=False, alias="DEBUG")
 
-    # Metadata injection (v2 default=False — breaking change vs v1 which was unconditional)
-    inject_bitbucket_metadata: bool = Field(default=False, alias="INJECT_BITBUCKET_METADATA")
+    # Metadata injection (META-02 — tri-state: None=unset/META-03-detect, True=inject, False=skip)
+    # Phase 5 breaking change: was bool=False; now bool|None=None so META-03 detector can fire
+    # a one-time WARN when values.yaml references 'bitbucket:' but the flag was never set (D4).
+    inject_bitbucket_metadata: bool | None = Field(default=None, alias="INJECT_BITBUCKET_METADATA")
+
+    # ── Phase 5 additions ─────────────────────────────────────────────────────
+    # PIPE-03 (D3): diff posted as Bitbucket PR comment
+    post_diff_as_comment: bool = Field(default=False, alias="POST_DIFF_AS_COMMENT")
+    # SecretStr prevents repr(settings) from leaking the token — R4/T-05-02 carry-forward.
+    # Unwrap with .get_secret_value() at the single call site in bitbucket/pr_comment.py.
+    bitbucket_token: SecretStr | None = Field(default=None, alias="BITBUCKET_TOKEN")
+    # PIPE-05 (D5): adds --wait --atomic --description "pipe:safe-upgrade" to helm upgrade argv
+    safe_upgrade: bool = Field(default=False, alias="SAFE_UPGRADE")
+    # PIPE-04 (D5): target revision for ACTION=rollback; ge=0 mirrors history_max constraint
+    revision: int | None = Field(default=None, ge=0, alias="REVISION")
 
     @classmethod
     def settings_customise_sources(

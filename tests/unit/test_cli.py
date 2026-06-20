@@ -12,16 +12,20 @@ Tests cover:
   - main() returns non-zero and writes to stderr when Settings() raises
   - main() calls select_strategy(settings) and binds auth_strategy to structlog context
   - Credentials are never passed to bind_safe_context
+  - MIG-02: _warn_on_v1_env_vars emits WARN for SET/VALUES env vars at startup (D4)
 """
 
 from __future__ import annotations
 
 import runpy
+from unittest.mock import MagicMock
 
 import pytest
 from pytest_mock import MockerFixture
+from structlog.testing import capture_logs
 
 from aws_eks_helm_deploy.auth.base import AuthStrategy
+from aws_eks_helm_deploy.cli import _warn_on_v1_env_vars
 from aws_eks_helm_deploy.errors import ConfigurationError, HelmExecutionError
 from aws_eks_helm_deploy.settings import Settings
 
@@ -299,3 +303,285 @@ def test_main_credentials_never_passed_to_bind_safe_context(
         assert not bound_keys & credential_keys, (
             f"Credential key(s) {bound_keys & credential_keys!r} passed to bind_safe_context"
         )
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 DiffAction dispatch tests (Plan 05-03)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_cli_dispatches_action_diff_to_diff_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() routes ACTION=diff to DiffAction (not UpgradeAction)."""
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_diff_cls = mocker.patch("aws_eks_helm_deploy.cli.DiffAction")
+    mock_diff_cls.return_value.run.return_value = 0
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+
+    from aws_eks_helm_deploy.cli import main
+
+    with mocker.patch(
+        "aws_eks_helm_deploy.cli.Settings",
+        return_value=mocker.MagicMock(
+            action="diff",
+            dry_run=False,
+            log_format="human",
+            debug=False,
+        ),
+    ):
+        result = main()
+
+    assert result == 0
+    mock_diff_cls.assert_called_once()
+    mock_diff_cls.return_value.run.assert_called_once()
+    mock_upgrade_cls.assert_not_called()
+
+
+@pytest.mark.unit
+def test_cli_dispatches_action_upgrade_with_dry_run_true_to_diff_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() routes ACTION=upgrade + DRY_RUN=true to DiffAction (R7 routing)."""
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_diff_cls = mocker.patch("aws_eks_helm_deploy.cli.DiffAction")
+    mock_diff_cls.return_value.run.return_value = 0
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+
+    from aws_eks_helm_deploy.cli import main
+
+    with mocker.patch(
+        "aws_eks_helm_deploy.cli.Settings",
+        return_value=mocker.MagicMock(
+            action="upgrade",
+            dry_run=True,
+            log_format="human",
+            debug=False,
+        ),
+    ):
+        result = main()
+
+    assert result == 0
+    mock_diff_cls.assert_called_once()
+    mock_upgrade_cls.assert_not_called()
+
+
+@pytest.mark.unit
+def test_cli_dispatches_action_upgrade_with_dry_run_false_to_upgrade_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() routes ACTION=upgrade + DRY_RUN=false to UpgradeAction (regression guard)."""
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_diff_cls = mocker.patch("aws_eks_helm_deploy.cli.DiffAction")
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.return_value = 0
+
+    from aws_eks_helm_deploy.cli import main
+
+    with mocker.patch(
+        "aws_eks_helm_deploy.cli.Settings",
+        return_value=mocker.MagicMock(
+            action="upgrade",
+            dry_run=False,
+            log_format="human",
+            debug=False,
+        ),
+    ):
+        result = main()
+
+    assert result == 0
+    mock_upgrade_cls.assert_called_once()
+    mock_diff_cls.assert_not_called()
+
+
+@pytest.mark.unit
+def test_cli_dispatches_action_upgrade_default_to_upgrade_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() defaults to UpgradeAction when ACTION and DRY_RUN are unset (preserved)."""
+    mock_pipe = mocker.MagicMock()
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO", return_value=mock_pipe)
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.return_value = 0
+
+    from aws_eks_helm_deploy.cli import main
+
+    # Default settings: action="upgrade", dry_run=False
+    result = main()
+
+    assert result == 0
+    mock_upgrade_cls.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 RollbackAction dispatch tests (Plan 05-05)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_cli_dispatches_action_rollback_to_rollback_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """main() routes ACTION=rollback to RollbackAction (not UpgradeAction or DiffAction)."""
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_rollback_cls = mocker.patch("aws_eks_helm_deploy.cli.RollbackAction")
+    mock_rollback_cls.return_value.run.return_value = 0
+    mock_diff_cls = mocker.patch("aws_eks_helm_deploy.cli.DiffAction")
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+
+    from aws_eks_helm_deploy.cli import main
+
+    with mocker.patch(
+        "aws_eks_helm_deploy.cli.Settings",
+        return_value=mocker.MagicMock(
+            action="rollback",
+            dry_run=False,
+            log_format="human",
+            debug=False,
+        ),
+    ):
+        result = main()
+
+    assert result == 0
+    mock_rollback_cls.assert_called_once()
+    mock_rollback_cls.return_value.run.assert_called_once()
+    mock_diff_cls.assert_not_called()
+    mock_upgrade_cls.assert_not_called()
+
+
+@pytest.mark.unit
+def test_cli_action_rollback_with_dry_run_true_still_uses_rollback_action(
+    _fake_strategy: object, mocker: MockerFixture
+) -> None:
+    """ACTION=rollback + DRY_RUN=true still routes to RollbackAction (R7 only affects upgrade)."""
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mock_rollback_cls = mocker.patch("aws_eks_helm_deploy.cli.RollbackAction")
+    mock_rollback_cls.return_value.run.return_value = 0
+    mock_diff_cls = mocker.patch("aws_eks_helm_deploy.cli.DiffAction")
+
+    from aws_eks_helm_deploy.cli import main
+
+    with mocker.patch(
+        "aws_eks_helm_deploy.cli.Settings",
+        return_value=mocker.MagicMock(
+            action="rollback",
+            dry_run=True,
+            log_format="human",
+            debug=False,
+        ),
+    ):
+        result = main()
+
+    assert result == 0
+    mock_rollback_cls.assert_called_once()
+    mock_diff_cls.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# MIG-02: _warn_on_v1_env_vars startup scan (CONTEXT D4)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_warn_on_v1_env_vars_emits_warn_when_set_is_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_warn_on_v1_env_vars emits one WARN with name='SET' when SET env var is present."""
+    monkeypatch.setenv("SET", "oldvalue")
+    mock_log = MagicMock()
+
+    _warn_on_v1_env_vars(mock_log)
+
+    mock_log.warning.assert_called_once_with("mig.v1_env_var_detected", name="SET")
+
+
+@pytest.mark.unit
+def test_warn_on_v1_env_vars_emits_warn_when_values_is_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_warn_on_v1_env_vars emits one WARN with name='VALUES' when VALUES env var is present."""
+    monkeypatch.setenv("VALUES", "values.yaml,extra.yaml")
+    mock_log = MagicMock()
+
+    _warn_on_v1_env_vars(mock_log)
+
+    mock_log.warning.assert_called_once_with("mig.v1_env_var_detected", name="VALUES")
+
+
+@pytest.mark.unit
+def test_warn_on_v1_env_vars_emits_two_warns_when_both_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_warn_on_v1_env_vars emits two WARNs when both SET and VALUES are present."""
+    monkeypatch.setenv("SET", "key1=val1")
+    monkeypatch.setenv("VALUES", "values.yaml")
+    mock_log = MagicMock()
+
+    _warn_on_v1_env_vars(mock_log)
+
+    assert mock_log.warning.call_count == 2
+    calls = [call.kwargs["name"] for call in mock_log.warning.call_args_list]
+    assert "SET" in calls
+    assert "VALUES" in calls
+
+
+@pytest.mark.unit
+def test_warn_on_v1_env_vars_silent_when_neither_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_warn_on_v1_env_vars emits no WARNs when neither SET nor VALUES is in os.environ."""
+    monkeypatch.delenv("SET", raising=False)
+    monkeypatch.delenv("VALUES", raising=False)
+    mock_log = MagicMock()
+
+    _warn_on_v1_env_vars(mock_log)
+
+    mock_log.warning.assert_not_called()
+
+
+@pytest.mark.unit
+def test_warn_on_v1_env_vars_silent_when_set_is_empty_string(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """_warn_on_v1_env_vars treats empty-string SET as unset — no WARN emitted."""
+    monkeypatch.setenv("SET", "")
+    mock_log = MagicMock()
+
+    _warn_on_v1_env_vars(mock_log)
+
+    mock_log.warning.assert_not_called()
+
+
+@pytest.mark.unit
+def test_main_calls_warn_on_v1_env_vars_after_configure_logging_and_before_dispatch(
+    _fake_strategy: object,
+    mocker: MockerFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """main() emits mig.v1_env_var_detected WARN before auth strategy selected INFO.
+
+    configure_logging() is mocked so it does not reconfigure the structlog pipeline
+    (which would discard the capture_logs() processor installed by the test harness).
+    """
+    monkeypatch.setenv("SET", "key=value")
+    mocker.patch("aws_eks_helm_deploy.cli.PipeIO")
+    mocker.patch("aws_eks_helm_deploy.cli.configure_logging")  # prevent pipeline clobber
+    mock_upgrade_cls = mocker.patch("aws_eks_helm_deploy.cli.UpgradeAction")
+    mock_upgrade_cls.return_value.run.return_value = 0
+
+    from aws_eks_helm_deploy.cli import main
+
+    with capture_logs() as logs:
+        result = main()
+
+    assert result == 0
+    warn_events = [e for e in logs if e.get("event") == "mig.v1_env_var_detected"]
+    assert len(warn_events) == 1
+    assert warn_events[0]["name"] == "SET"
+    assert warn_events[0]["log_level"] == "warning"
+    # Verify WARN comes before the auth strategy info log
+    auth_events = [e for e in logs if e.get("event") == "auth strategy selected"]
+    warn_idx = logs.index(warn_events[0])
+    auth_idx = logs.index(auth_events[0])
+    assert warn_idx < auth_idx

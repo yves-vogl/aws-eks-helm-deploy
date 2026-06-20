@@ -9,6 +9,8 @@ Requirements traceability:
     HISTORY-01: Settings.history_max with ge=0 validator (closes #17)
     HISTORY-02: settings.history_max flows through to HelmClient.upgrade_install(history_max=...)
     META-01:  INJECT_BITBUCKET_METADATA opt-in; 5 BITBUCKET_* vars; missing-var warn
+    META-02:  Settings.inject_bitbucket_metadata default None — None and False both gate off inject
+    META-03:  _check_bitbucket_values_yaml emits WARN when values.yaml has bitbucket: and is None
 """
 
 from __future__ import annotations
@@ -25,7 +27,9 @@ from structlog.testing import capture_logs
 
 from aws_eks_helm_deploy.actions.upgrade import (
     BITBUCKET_META_VARS,
+    BITBUCKET_VALUES_REGEX,
     UpgradeAction,
+    _check_bitbucket_values_yaml,
     build_bitbucket_set_args,
 )
 from aws_eks_helm_deploy.chart import ChartSource
@@ -656,3 +660,289 @@ def test_build_bitbucket_set_args_meta_vars_order() -> None:
     assert env_var_names[2] == "BITBUCKET_COMMIT"
     assert env_var_names[3] == "BITBUCKET_TAG"
     assert env_var_names[4] == "BITBUCKET_STEP_TRIGGERER_UUID"
+
+
+# ---------------------------------------------------------------------------
+# SAFE_UPGRADE kwarg forwarding (PIPE-05 / Plan 05-05)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_upgrade_action_forwards_safe_upgrade_false_by_default(
+    mocker: MockerFixture,
+) -> None:
+    """UpgradeAction.run passes safe_upgrade=False to upgrade_install by default (PIPE-05)."""
+    mocks = _patch_all_happy(mocker)
+    mock_pipe = mocker.MagicMock()
+    settings = _make_settings()  # no SAFE_UPGRADE env var -> False
+    action = UpgradeAction(settings)
+
+    action.run(mock_pipe)
+
+    call_kwargs = mocks["helm_client_cls"].return_value.upgrade_install.call_args.kwargs
+    assert call_kwargs["safe_upgrade"] is False
+
+
+@pytest.mark.unit
+def test_upgrade_action_forwards_safe_upgrade_true_when_env_set(
+    mocker: MockerFixture,
+) -> None:
+    """UpgradeAction.run passes safe_upgrade=True to upgrade_install when SAFE_UPGRADE=true."""
+    mocks = _patch_all_happy(mocker)
+    mock_pipe = mocker.MagicMock()
+    settings = _make_settings(safe_upgrade=True)
+    action = UpgradeAction(settings)
+
+    action.run(mock_pipe)
+
+    call_kwargs = mocks["helm_client_cls"].return_value.upgrade_install.call_args.kwargs
+    assert call_kwargs["safe_upgrade"] is True
+
+
+# ---------------------------------------------------------------------------
+# _check_bitbucket_values_yaml unit tests (META-03 / D4)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_check_bitbucket_values_yaml_warns_when_match_and_setting_is_none(
+    tmp_path: pathlib.Path,
+) -> None:
+    """WARN emitted when values.yaml has `bitbucket:` and inject_bitbucket_metadata is None."""
+    (tmp_path / "values.yaml").write_text("bitbucket:\n  foo: bar\n", encoding="utf-8")
+    mock_log = MagicMock()
+
+    with capture_logs() as logs:
+        _check_bitbucket_values_yaml(tmp_path, None, mock_log)
+
+    mock_log.warning.assert_called_once_with(
+        "meta.bitbucket_values_detected_without_opt_in",
+        chart_dir=str(tmp_path),
+        values_yaml=str(tmp_path / "values.yaml"),
+    )
+    _ = logs
+
+
+@pytest.mark.unit
+def test_check_bitbucket_values_yaml_silent_when_match_and_setting_is_true(
+    tmp_path: pathlib.Path,
+) -> None:
+    """No WARN when values.yaml has `bitbucket:` but inject_bitbucket_metadata is True."""
+    (tmp_path / "values.yaml").write_text("bitbucket:\n  foo: bar\n", encoding="utf-8")
+    mock_log = MagicMock()
+
+    _check_bitbucket_values_yaml(tmp_path, True, mock_log)
+
+    mock_log.warning.assert_not_called()
+
+
+@pytest.mark.unit
+def test_check_bitbucket_values_yaml_silent_when_match_and_setting_is_false(
+    tmp_path: pathlib.Path,
+) -> None:
+    """No WARN when values.yaml has `bitbucket:` but inject_bitbucket_metadata is False."""
+    (tmp_path / "values.yaml").write_text("bitbucket:\n  foo: bar\n", encoding="utf-8")
+    mock_log = MagicMock()
+
+    _check_bitbucket_values_yaml(tmp_path, False, mock_log)
+
+    mock_log.warning.assert_not_called()
+
+
+@pytest.mark.unit
+def test_check_bitbucket_values_yaml_silent_when_no_match(
+    tmp_path: pathlib.Path,
+) -> None:
+    """No WARN when values.yaml has no `bitbucket:` key (regardless of setting)."""
+    (tmp_path / "values.yaml").write_text(
+        "replicaCount: 1\nimage:\n  repository: nginx\n",
+        encoding="utf-8",
+    )
+    mock_log = MagicMock()
+
+    _check_bitbucket_values_yaml(tmp_path, None, mock_log)
+
+    mock_log.warning.assert_not_called()
+
+
+@pytest.mark.unit
+def test_check_bitbucket_values_yaml_silent_when_values_yaml_missing(
+    tmp_path: pathlib.Path,
+) -> None:
+    """No WARN and no exception when values.yaml does not exist."""
+    mock_log = MagicMock()
+
+    _check_bitbucket_values_yaml(tmp_path, None, mock_log)
+
+    mock_log.warning.assert_not_called()
+
+
+@pytest.mark.unit
+def test_check_bitbucket_values_yaml_silent_when_match_is_indented(
+    tmp_path: pathlib.Path,
+) -> None:
+    """WARN is emitted when `bitbucket:` appears indented — regex matches any leading whitespace."""
+    (tmp_path / "values.yaml").write_text(
+        "  nested:\n    bitbucket:\n      foo: bar\n",
+        encoding="utf-8",
+    )
+    mock_log = MagicMock()
+
+    _check_bitbucket_values_yaml(tmp_path, None, mock_log)
+
+    mock_log.warning.assert_called_once_with(
+        "meta.bitbucket_values_detected_without_opt_in",
+        chart_dir=str(tmp_path),
+        values_yaml=str(tmp_path / "values.yaml"),
+    )
+
+
+@pytest.mark.unit
+def test_check_bitbucket_values_yaml_handles_oserror_silently(
+    tmp_path: pathlib.Path,
+    mocker: MockerFixture,
+) -> None:
+    """No WARN and no exception when read_text raises OSError (e.g. permission denied)."""
+    (tmp_path / "values.yaml").write_text("bitbucket:\n  foo: bar\n", encoding="utf-8")
+    mocker.patch("pathlib.Path.read_text", side_effect=OSError("permission denied"))
+    mock_log = MagicMock()
+
+    # Should not raise
+    _check_bitbucket_values_yaml(tmp_path, None, mock_log)
+
+    mock_log.warning.assert_not_called()
+
+
+@pytest.mark.unit
+def test_check_bitbucket_values_yaml_regex_does_not_match_commented_line(
+    tmp_path: pathlib.Path,
+) -> None:
+    """No WARN when `bitbucket:` appears only in comments (`# bitbucket:`)."""
+    (tmp_path / "values.yaml").write_text(
+        "# bitbucket:\n# comment\nreplicaCount: 1\n",
+        encoding="utf-8",
+    )
+    mock_log = MagicMock()
+
+    _check_bitbucket_values_yaml(tmp_path, None, mock_log)
+
+    mock_log.warning.assert_not_called()
+
+
+@pytest.mark.unit
+def test_upgrade_action_run_calls_check_bitbucket_values_yaml_after_chart_resolve(
+    mocker: MockerFixture,
+) -> None:
+    """UpgradeAction.run calls _check_bitbucket_values_yaml exactly once with correct args."""
+    mocks = _patch_all_happy(mocker)
+    mock_pipe = mocker.MagicMock()
+    settings = _make_settings()  # inject_bitbucket_metadata defaults to None
+    action = UpgradeAction(settings)
+
+    mock_check = mocker.patch(
+        "aws_eks_helm_deploy.actions.upgrade._check_bitbucket_values_yaml",
+    )
+
+    action.run(mock_pipe)
+
+    resolved = _resolved_chart()
+    mock_check.assert_called_once_with(
+        resolved.source_path,
+        settings.inject_bitbucket_metadata,
+        mocker.ANY,
+    )
+    _ = mocks
+
+
+# ---------------------------------------------------------------------------
+# META-02 tri-state inject_bitbucket_metadata tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_upgrade_action_does_not_inject_bitbucket_args_when_metadata_is_none(
+    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """inject_bitbucket_metadata=None (default) -> no bitbucket.* entries in set_args."""
+    monkeypatch.setenv("BITBUCKET_BUILD_NUMBER", "42")
+    mocks = _patch_all_happy(mocker)
+    mock_pipe = mocker.MagicMock()
+    settings = _make_settings()  # inject_bitbucket_metadata defaults to None
+    action = UpgradeAction(settings)
+
+    action.run(mock_pipe)
+
+    call_kwargs = mocks["helm_client_cls"].return_value.upgrade_install.call_args.kwargs
+    set_args: list[str] = call_kwargs["set_args"]
+    assert not any("bitbucket" in arg for arg in set_args)
+
+
+@pytest.mark.unit
+def test_upgrade_action_does_not_inject_bitbucket_args_when_metadata_is_false(
+    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """inject_bitbucket_metadata=False -> no bitbucket.* entries in set_args."""
+    monkeypatch.setenv("BITBUCKET_BUILD_NUMBER", "42")
+    mocks = _patch_all_happy(mocker)
+    mock_pipe = mocker.MagicMock()
+    settings = _make_settings(inject_bitbucket_metadata=False)
+    action = UpgradeAction(settings)
+
+    action.run(mock_pipe)
+
+    call_kwargs = mocks["helm_client_cls"].return_value.upgrade_install.call_args.kwargs
+    set_args: list[str] = call_kwargs["set_args"]
+    assert not any("bitbucket" in arg for arg in set_args)
+
+
+@pytest.mark.unit
+def test_upgrade_action_injects_bitbucket_args_when_metadata_is_true(
+    mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """inject_bitbucket_metadata=True -> bitbucket.* entries appear in set_args."""
+    monkeypatch.setenv("BITBUCKET_BUILD_NUMBER", "99")
+    monkeypatch.setenv("BITBUCKET_REPO_SLUG", "my-repo")
+    monkeypatch.setenv("BITBUCKET_COMMIT", "abc123")
+    monkeypatch.setenv("BITBUCKET_TAG", "v1.0")
+    monkeypatch.setenv("BITBUCKET_STEP_TRIGGERER_UUID", "{uuid-1234}")
+    mocks = _patch_all_happy(mocker)
+    mock_pipe = mocker.MagicMock()
+    settings = _make_settings(inject_bitbucket_metadata=True)
+    action = UpgradeAction(settings)
+
+    action.run(mock_pipe)
+
+    call_kwargs = mocks["helm_client_cls"].return_value.upgrade_install.call_args.kwargs
+    set_args: list[str] = call_kwargs["set_args"]
+    bitbucket_args = [a for a in set_args if "bitbucket." in a]
+    assert len(bitbucket_args) == 5
+    assert "bitbucket.bitbucket_build_number=99" in bitbucket_args
+
+
+# ---------------------------------------------------------------------------
+# BITBUCKET_VALUES_REGEX correctness tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_bitbucket_values_regex_matches_top_level_key() -> None:
+    """BITBUCKET_VALUES_REGEX matches a top-level `bitbucket:` key."""
+    assert BITBUCKET_VALUES_REGEX.search("bitbucket:\n  foo: bar\n") is not None
+
+
+@pytest.mark.unit
+def test_bitbucket_values_regex_matches_indented_key() -> None:
+    """BITBUCKET_VALUES_REGEX matches an indented `bitbucket:` key."""
+    assert BITBUCKET_VALUES_REGEX.search("  bitbucket:\n    foo: bar\n") is not None
+
+
+@pytest.mark.unit
+def test_bitbucket_values_regex_does_not_match_comment() -> None:
+    """BITBUCKET_VALUES_REGEX does NOT match `# bitbucket:` (comment line)."""
+    assert BITBUCKET_VALUES_REGEX.search("# bitbucket:\n") is None
+
+
+@pytest.mark.unit
+def test_bitbucket_values_regex_does_not_match_partial_key() -> None:
+    """BITBUCKET_VALUES_REGEX does NOT match `not-bitbucket:` (partial key)."""
+    assert BITBUCKET_VALUES_REGEX.search("not-bitbucket:\n  foo: bar\n") is None

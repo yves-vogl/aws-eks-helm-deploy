@@ -36,7 +36,7 @@ def test_settings_defaults() -> None:
     assert s.dry_run is False
     assert s.log_format == "human"
     assert s.debug is False
-    assert s.inject_bitbucket_metadata is False
+    assert s.inject_bitbucket_metadata is None
 
 
 @pytest.mark.unit
@@ -116,6 +116,22 @@ def test_invalid_log_format_raises_validation_error(monkeypatch: pytest.MonkeyPa
         Settings()
     # pydantic reports the alias (LOG_FORMAT) in the error message
     assert "LOG_FORMAT" in str(exc_info.value)
+
+
+@pytest.mark.unit
+def test_action_accepts_diff(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ACTION=diff is accepted after Phase 5 Literal widening (PIPE-02)."""
+    monkeypatch.setenv("ACTION", "diff")
+    s = Settings()
+    assert s.action == "diff"
+
+
+@pytest.mark.unit
+def test_action_accepts_rollback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """ACTION=rollback is accepted after Phase 5 Literal widening (PIPE-04)."""
+    monkeypatch.setenv("ACTION", "rollback")
+    s = Settings()
+    assert s.action == "rollback"
 
 
 @pytest.mark.unit
@@ -393,3 +409,128 @@ def test_chart_verify_certificate_oidc_issuer_via_alias() -> None:
     """Settings(CHART_VERIFY_CERTIFICATE_OIDC_ISSUER=...) resolves the alias correctly."""
     s = Settings(CHART_VERIFY_CERTIFICATE_OIDC_ISSUER="https://token.actions.githubusercontent.com")
     assert s.chart_verify_certificate_oidc_issuer == "https://token.actions.githubusercontent.com"
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 — new/changed fields (META-02, PIPE-03, PIPE-04, PIPE-05)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_inject_bitbucket_metadata_default_is_none() -> None:
+    """Settings().inject_bitbucket_metadata is None (META-02/D4 tri-state flip from bool=False).
+
+    None is the sentinel that lets the META-03 detector distinguish 'unset' (fire WARN)
+    from 'explicit false' (do nothing silently) when values.yaml references 'bitbucket:'.
+    """
+    s = Settings()
+    assert s.inject_bitbucket_metadata is None
+
+
+@pytest.mark.unit
+def test_inject_bitbucket_metadata_env_true(monkeypatch: pytest.MonkeyPatch) -> None:
+    """INJECT_BITBUCKET_METADATA=true explicitly opts in to bitbucket metadata injection."""
+    monkeypatch.setenv("INJECT_BITBUCKET_METADATA", "true")
+    s = Settings()
+    assert s.inject_bitbucket_metadata is True
+
+
+@pytest.mark.unit
+def test_inject_bitbucket_metadata_env_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    """INJECT_BITBUCKET_METADATA=false is an explicit opt-out (distinct from unset=None)."""
+    monkeypatch.setenv("INJECT_BITBUCKET_METADATA", "false")
+    s = Settings()
+    assert s.inject_bitbucket_metadata is False
+
+
+@pytest.mark.unit
+def test_post_diff_as_comment_default_is_false() -> None:
+    """Settings().post_diff_as_comment is False when POST_DIFF_AS_COMMENT env var is unset."""
+    s = Settings()
+    assert s.post_diff_as_comment is False
+
+
+@pytest.mark.unit
+def test_post_diff_as_comment_env_true_sets_field_true(monkeypatch: pytest.MonkeyPatch) -> None:
+    """POST_DIFF_AS_COMMENT=true enables PR-comment posting (PIPE-03/D3)."""
+    monkeypatch.setenv("POST_DIFF_AS_COMMENT", "true")
+    s = Settings()
+    assert s.post_diff_as_comment is True
+
+
+@pytest.mark.unit
+def test_bitbucket_token_default_is_none() -> None:
+    """Settings().bitbucket_token is None when BITBUCKET_TOKEN env var is unset."""
+    s = Settings()
+    assert s.bitbucket_token is None
+
+
+@pytest.mark.unit
+def test_bitbucket_token_env_sets_secretstr_and_get_secret_value_returns_plaintext(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """BITBUCKET_TOKEN is stored as SecretStr; get_secret_value() returns the plaintext."""
+    monkeypatch.setenv("BITBUCKET_TOKEN", "xyz-token")
+    s = Settings()
+    assert isinstance(s.bitbucket_token, SecretStr)
+    assert s.bitbucket_token.get_secret_value() == "xyz-token"
+
+
+@pytest.mark.unit
+def test_bitbucket_token_repr_does_not_leak_plaintext(monkeypatch: pytest.MonkeyPatch) -> None:
+    """repr(settings) MUST NOT contain the BITBUCKET_TOKEN plaintext (T-05-02/R4 regression gate).
+
+    This test is the load-bearing anti-leak assertion: if a future contributor re-types
+    bitbucket_token as plain str, this test will fail, catching the regression before it ships.
+    """
+    monkeypatch.setenv("BITBUCKET_TOKEN", "MY-SECRET-TOKEN")
+    s = Settings()
+    assert "MY-SECRET-TOKEN" not in repr(s)
+
+
+@pytest.mark.unit
+def test_safe_upgrade_default_is_false() -> None:
+    """Settings().safe_upgrade is False when SAFE_UPGRADE env var is unset."""
+    s = Settings()
+    assert s.safe_upgrade is False
+
+
+@pytest.mark.unit
+def test_safe_upgrade_env_true_sets_field_true(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SAFE_UPGRADE=true adds --wait --atomic --description to helm upgrade argv (PIPE-05/D5)."""
+    monkeypatch.setenv("SAFE_UPGRADE", "true")
+    s = Settings()
+    assert s.safe_upgrade is True
+
+
+@pytest.mark.unit
+def test_revision_default_is_none() -> None:
+    """Settings().revision is None when REVISION env var is unset."""
+    s = Settings()
+    assert s.revision is None
+
+
+@pytest.mark.unit
+def test_revision_env_positive_int_sets_field(monkeypatch: pytest.MonkeyPatch) -> None:
+    """REVISION=5 coerces to int 5 (target revision for ACTION=rollback, PIPE-04)."""
+    monkeypatch.setenv("REVISION", "5")
+    s = Settings()
+    assert s.revision == 5
+
+
+@pytest.mark.unit
+def test_revision_env_zero_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
+    """REVISION=0 is valid; ge=0 constraint permits zero (mirrors history_max=0 pattern)."""
+    monkeypatch.setenv("REVISION", "0")
+    s = Settings()
+    assert s.revision == 0
+
+
+@pytest.mark.unit
+def test_revision_env_negative_raises_validation_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """REVISION=-1 raises pydantic ValidationError (ge=0 constraint mirrors history_max)."""
+    import pydantic
+
+    monkeypatch.setenv("REVISION", "-1")
+    with pytest.raises(pydantic.ValidationError):
+        Settings()

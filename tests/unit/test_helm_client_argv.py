@@ -243,3 +243,182 @@ def test_pull_oci_argv_without_version(snapshot: object) -> None:
     )
     assert argv == snapshot
     assert "--version" not in argv
+
+
+# ---------------------------------------------------------------------------
+# New argv builder for _build_diff_argv (Plan 05-03 — PIPE-02)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_build_diff_argv_minimal_returns_stable_prefix() -> None:
+    """Minimal call: no values files, no set_args — 9-element stable prefix."""
+    argv = _client()._build_diff_argv(
+        release="my-release",
+        chart_path=pathlib.Path("/path/to/chart"),
+        namespace="ns",
+        values_files=[],
+        set_args=[],
+    )
+    assert argv == [
+        "helm",
+        "diff",
+        "upgrade",
+        "my-release",
+        "/path/to/chart",
+        "--namespace",
+        "ns",
+        "--kubeconfig",
+        "/tmp/test-kubeconfig.yaml",
+    ]
+    assert len(argv) == 9
+
+
+@pytest.mark.unit
+def test_build_diff_argv_appends_values_files_in_order() -> None:
+    """Two values files produce two --values pairs appended in input order."""
+    argv = _client()._build_diff_argv(
+        release="my-release",
+        chart_path=pathlib.Path("/path/to/chart"),
+        namespace="ns",
+        values_files=["base.yaml", "prod.yaml"],
+        set_args=[],
+    )
+    assert "--values" in argv
+    idx_base = argv.index("base.yaml")
+    idx_prod = argv.index("prod.yaml")
+    # Each value file must be preceded by --values
+    assert argv[idx_base - 1] == "--values"
+    assert argv[idx_prod - 1] == "--values"
+    # Input order preserved: base before prod
+    assert idx_base < idx_prod
+
+
+@pytest.mark.unit
+def test_build_diff_argv_appends_set_args_with_set_string_flag() -> None:
+    """set_args produce --set-string (NOT --set) — Pitfall 4 / curly-brace handling."""
+    argv = _client()._build_diff_argv(
+        release="my-release",
+        chart_path=pathlib.Path("/path/to/chart"),
+        namespace="ns",
+        values_files=[],
+        set_args=["key1=val1", "key2=val2"],
+    )
+    assert "--set-string" in argv
+    assert argv.count("--set-string") == 2
+    # Must NOT use --set (plain) for any entry
+    assert "--set" not in argv
+
+
+@pytest.mark.unit
+def test_build_diff_argv_does_not_include_install_flag() -> None:
+    """--install must NOT appear in diff argv (helm diff upgrade != helm upgrade --install)."""
+    argv = _client()._build_diff_argv(
+        release="my-release",
+        chart_path=pathlib.Path("/path/to/chart"),
+        namespace="ns",
+        values_files=[],
+        set_args=[],
+    )
+    assert "--install" not in argv
+
+
+@pytest.mark.unit
+def test_build_diff_argv_does_not_include_timeout_or_history_max() -> None:
+    """--timeout and --history-max must NOT appear in diff argv (diff is read-only)."""
+    argv = _client()._build_diff_argv(
+        release="my-release",
+        chart_path=pathlib.Path("/path/to/chart"),
+        namespace="ns",
+        values_files=[],
+        set_args=[],
+    )
+    assert "--timeout" not in argv
+    assert "--history-max" not in argv
+
+
+# ---------------------------------------------------------------------------
+# SAFE_UPGRADE _build_argv extension (Plan 05-05 — PIPE-05)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_build_argv_safe_upgrade_false_does_not_add_wait_atomic() -> None:
+    """safe_upgrade=False (default) does NOT add --wait, --atomic, or --description to argv."""
+    argv = _client()._build_argv(
+        release="rel",
+        chart_path=pathlib.Path("/charts/c"),
+        namespace="default",
+        values_files=[],
+        set_args=[],
+        history_max=None,
+        timeout="600s",
+        safe_upgrade=False,
+    )
+    assert "--wait" not in argv
+    assert "--atomic" not in argv
+    assert "--description" not in argv
+
+
+@pytest.mark.unit
+def test_build_argv_safe_upgrade_true_appends_wait_atomic_description() -> None:
+    """safe_upgrade=True appends --wait --atomic --description pipe:safe-upgrade at argv tail."""
+    argv = _client()._build_argv(
+        release="rel",
+        chart_path=pathlib.Path("/charts/c"),
+        namespace="default",
+        values_files=[],
+        set_args=[],
+        history_max=None,
+        timeout="600s",
+        safe_upgrade=True,
+    )
+    assert argv[-4:] == ["--wait", "--atomic", "--description", "pipe:safe-upgrade"]
+
+
+@pytest.mark.unit
+def test_build_rollback_argv_minimal_shape() -> None:
+    """_build_rollback_argv returns exact 8-element stable shape (PIPE-04)."""
+    argv = _client()._build_rollback_argv(
+        release="my-release",
+        revision=3,
+        namespace="ns",
+    )
+    assert argv == [
+        "helm",
+        "rollback",
+        "my-release",
+        "3",
+        "--namespace",
+        "ns",
+        "--kubeconfig",
+        "/tmp/test-kubeconfig.yaml",
+    ]
+
+
+@pytest.mark.unit
+def test_build_rollback_argv_uses_str_of_revision_int() -> None:
+    """revision int is converted to str in argv (helm CLI requires string argv element)."""
+    argv = _client()._build_rollback_argv(
+        release="rel",
+        revision=42,
+        namespace="default",
+    )
+    assert argv[3] == "42"
+    assert isinstance(argv[3], str)
+
+
+@pytest.mark.unit
+def test_build_argv_safe_upgrade_does_not_duplicate_when_already_in_set_args() -> None:
+    """safe_upgrade=True adds --wait exactly once even when set_args has other content."""
+    argv = _client()._build_argv(
+        release="rel",
+        chart_path=pathlib.Path("/charts/c"),
+        namespace="default",
+        values_files=[],
+        set_args=["something=else"],
+        history_max=None,
+        timeout="600s",
+        safe_upgrade=True,
+    )
+    assert argv.count("--wait") == 1
