@@ -76,11 +76,17 @@ Every doc uses a full repo-relative path. Researcher and planner MUST read these
 
 **Decision:** A new multi-stage Dockerfile stage `helm-diff-fetch` mirrors the Phase 4 `cosign-fetch` pattern (D8) verbatim:
 
-1. `ARG HELM_DIFF_VERSION=3.10.x` (researcher resolves exact patch; pin to digest, not floating).
-2. Download `helm-diff-linux-amd64.tgz` from `https://github.com/databus23/helm-diff/releases/download/v${HELM_DIFF_VERSION}/...`.
-3. Verify SHA256 via either upstream checksum file (preferred) or a checksum committed under `dockerfiles/helm-diff-sha256.txt`.
-4. Extract to a deterministic path within the build stage.
-5. Runtime stage: `COPY --from=helm-diff-fetch /diff /root/.local/share/helm/plugins/helm-diff/`. helm picks it up automatically via plugin discovery.
+1. `ARG HELM_DIFF_VERSION=3.10.0` (RESOLVED by 05-RESEARCH.md — only 3.10.x release; SHA256 linux-amd64 = `a7875d4656b327b0b7f792f25a70f714801e402eb199ddd0f2df06a063e6bede`).
+2. Download `helm-diff-linux-amd64.tgz` from `https://github.com/databus23/helm-diff/releases/download/v${HELM_DIFF_VERSION}/helm-diff-linux-amd64.tgz`.
+3. Verify SHA256 via upstream checksum file `helm-diff_${HELM_DIFF_VERSION}_checksums.txt` (upstream provides this; preferred over committed checksum).
+4. Extract — `tar -xzf` produces a top-level `diff/` directory containing `plugin.yaml`, `bin/diff`, `LICENSE`, `README.md`.
+5. Runtime stage: `COPY --from=helm-diff-fetch /tmp/diff /home/pipe/.local/share/helm/plugins/diff`. helm picks it up automatically via plugin discovery.
+
+**⚠ RESEARCH CORRECTION (2026-06-20):** Earlier CONTEXT wording said `COPY --from=helm-diff-fetch /diff /root/.local/share/helm/plugins/helm-diff/`. Both segments were wrong:
+- Path: runtime user is `pipe` (per Dockerfile `USER pipe` + `HELM_PLUGINS=/home/pipe/.local/share/helm/plugins`), NOT `root`.
+- Plugin directory name: per upstream `plugin.yaml` `name: "diff"`, the plugin folder MUST be named `diff`, NOT `helm-diff`. helm uses the directory name as the subcommand alias.
+
+**Secondary benefit:** the runtime stage previously needed `git` + `curl` in `apt-get install` to support `helm plugin install`. With the fetch stage, those packages are no longer required at runtime — researcher recommends removing them from the runtime apt-get install + the purge step.
 
 **Why not runtime-install:** offline pipelines (air-gapped, internal artifact registries) break; cold-start budget grows; pin is non-reproducible.
 
@@ -104,7 +110,9 @@ Every doc uses a full repo-relative path. Researcher and planner MUST read these
 - API errors emit `logger.warning("bitbucket.pr_comment.api_error", status=resp.status_code, body=_sanitize_response_body(resp.text))` and **return** — the upgrade/diff action succeeds. PR-comment posting is observability, not critical path.
 - Integration test asserts an injected 401 response surfaces no token bytes in the captured log (per ROADMAP R2).
 
-**HTTP client:** prefer `bitbucket-pipes-toolkit` (project convention per global CLAUDE.md NIH rule). If that toolkit's surface area is heavier than needed, fall back to stdlib `urllib.request` — researcher decides.
+**HTTP client:** stdlib `urllib.request`. **⚠ RESEARCH CORRECTION (2026-06-20):** `bitbucket-pipes-toolkit` 6.2.0 does NOT expose a PR-comments wrapper. Its `HttpRequestsHandler.make_session_request` calls `fail()` on HTTP errors — that hard-fails the pipe on 4xx/5xx, directly violating D3's "4xx-tolerant, warning-only" contract. `urllib.request` is the correct choice here: zero-weight stdlib (no NIH violation per global CLAUDE.md — stdlib counts as standard), full control over error handling, easy to scrub tokens. Pattern in 05-RESEARCH.md "bitbucket-pipes-toolkit API surface" section.
+
+**`BITBUCKET_PR_ID` source:** read from `os.environ` directly (NOT a `Settings` field). Mirrors the existing `BITBUCKET_BUILD_NUMBER` / `BITBUCKET_META_VARS` pattern in `actions/upgrade.py`. Locked unilaterally to close the open question from 05-RESEARCH.md.
 
 **Idempotency edge:** if two concurrent pipe runs race for the same PR, last write wins. Acceptable — PR-comment is best-effort UX, not a transaction.
 
@@ -134,18 +142,22 @@ Every doc uses a full repo-relative path. Researcher and planner MUST read these
 
 ### D5 — Rollback safety + SAFE_UPGRADE wiring (PIPE-04, PIPE-05) — pre-locked, no discussion
 
-**Decision:** Mechanical. Locked without interactive discussion because the design follows the same patterns as Phase 3/4.
+**Decision:** Mechanical. Locked without interactive discussion because the design follows the same patterns as Phase 3/4. **⚠ RESEARCH-CORRECTED 2026-06-20** — see correction below D5 step 3.
 
 1. `Settings.safe_upgrade: bool = False` (env `SAFE_UPGRADE`).
-2. When `Settings.safe_upgrade is True`: `actions/upgrade.py` adds `--wait` AND `--atomic` to the helm-upgrade argv. No other side effects.
+2. When `Settings.safe_upgrade is True`: `actions/upgrade.py` adds `--wait`, `--atomic`, AND `--description "pipe:safe-upgrade"` to the helm-upgrade argv. The `--description` flag is the safety marker (helm persists it in release history, retrievable on rollback).
 3. `ACTION=rollback` + `REVISION=<n>`:
-   - Pre-flight: new typed method `HelmClient.history(release, max=20) -> list[Revision]` invokes `helm history <release> --output json` and parses the JSON.
-   - For each `Revision` we read `revision`, `chart`, `app_version`, and the `description` column (helm includes flags like `Install/Upgrade complete` — researcher confirms `--wait`-tracking via either `description` parsing or a deterministic side-channel like `helm get metadata`).
-   - If the target revision was NOT deployed with `--wait`: raise `ChartResolutionError("Refusing rollback to revision <n> — not deployed with --wait. Re-deploy with SAFE_UPGRADE=true first.")` BEFORE invoking `helm rollback`.
-   - Otherwise: `HelmClient.rollback(release, revision)` invokes `helm rollback <release> <revision>`.
-4. `ACTION=rollback` is permitted regardless of `SAFE_UPGRADE` — the safety check is on the **target revision's history**, not on the current run's setting. ROADMAP SC3 wording confirms this.
+   - Pre-flight: `HelmClient.history(release, max=20) -> list[HelmRevision]` is **already implemented from Phase 4** (`helm/client.py:316–371`) — Phase 5 reuses it, does NOT add a new history method.
+   - For the target revision, read `description` and check substring `"pipe:safe-upgrade"`.
+   - If absent: raise `ChartResolutionError("Refusing rollback to revision <n> — not deployed with SAFE_UPGRADE=true. Re-deploy with SAFE_UPGRADE=true first.")` BEFORE invoking `helm rollback`.
+   - Otherwise: new typed method `HelmClient.rollback(release, revision, namespace)` invokes `helm rollback <release> <revision>`.
+4. `ACTION=rollback` is permitted regardless of `SAFE_UPGRADE` on the current run — the safety check is on the **target revision's history**, not on the current run's setting. ROADMAP SC3 wording confirms this.
 
-**Why this is safe to lock without discussion:** the contract is dictated by ROADMAP SC3 + Pitfall #3 verbatim. No design choice — only mechanical wiring.
+**⚠ RESEARCH CORRECTION (2026-06-20):** Earlier D5 text said "detected via `description` column (helm includes flags like `Install/Upgrade complete`)". Research verified that helm 3.x does NOT record `--wait` status in the history `description` field. The description is just `"Install complete"` / `"Upgrade complete"` regardless of `--wait`. Workaround: the pipe explicitly sets `--description "pipe:safe-upgrade"` on upgrade when `safe_upgrade=True`, and detects by substring `"pipe:safe-upgrade"` in `HelmRevision.description` on rollback pre-flight.
+
+**Side effect of the workaround:** users cannot combine `SAFE_UPGRADE=true` with a custom `--description`. The pipe owns the description field when `safe_upgrade=True`. This is documented in the v1→v2 migration guide; combining with a custom description is deferred to v2.1+ (would require append-semantics, complicating substring detection).
+
+**Why this is safe to lock without further discussion:** the contract is dictated by ROADMAP SC3 + Pitfall #3; the only research-driven change is the marker mechanism (description vs nonexistent --wait field). No new design choice for the user.
 
 **Locks:** PIPE-04, PIPE-05.
 
@@ -205,13 +217,15 @@ None encountered during this discussion. User selected the four scoped gray area
 
 ---
 
-## Notes for the researcher
+## Notes for the researcher (resolved by 05-RESEARCH.md)
 
-1. **Verify `helm history --output json` schema** — `description` field naming and how `--wait` is recorded. Could be in `chart` metadata or a flag column. If unrecoverable, consider `helm get metadata <release> --revision <n>` as fallback.
-2. **Resolve helm-diff 3.10 exact patch version** — pin to latest 3.10.x with SHA256 from GitHub release.
-3. **Inspect bitbucket-pipes-toolkit Python API surface** — confirm it exposes a clean PR-comments wrapper. If too heavy, stdlib `urllib.request` is acceptable (no NIH violation: stdlib counts as standard).
-4. **Confirm `yaml.safe_dump_all` preserves key order** with `sort_keys=False`. If not, custom dumper.
-5. **Test fixture chart that emits a Secret** — there's likely one in `tests/integration/fixtures/` from Phase 3 work; reuse not recreate.
+All 5 notes resolved. Summary (full evidence in 05-RESEARCH.md):
+
+1. **`helm history --output json` schema** → CONFIRMED. `HelmRevision` dataclass already exists from Phase 4 (`helm/client.py:129–143`). `description` field is `"Install complete"` / `"Upgrade complete"`, does NOT encode `--wait`. → drives D5 correction above.
+2. **helm-diff 3.10** → CONFIRMED. Pin `3.10.0`, SHA256 `a7875d4656b327b0b7f792f25a70f714801e402eb199ddd0f2df06a063e6bede`, upstream checksum file exists. → drives D2 correction above.
+3. **bitbucket-pipes-toolkit** → CONFIRMED no PR-comment wrapper; `HttpRequestsHandler.make_session_request` hard-fails on errors. → drives D3 correction above (stdlib `urllib.request`).
+4. **PyYAML `safe_dump_all(sort_keys=False)`** → CONFIRMED preserves doc count + doc order + key order (Python 3.7+ dicts insertion-ordered). No custom dumper.
+5. **Secret-emitting fixture chart** → DOES NOT EXIST. Must be created in Wave 0: `tests/fixtures/charts/secret-emitting/` (Chart.yaml + templates/secret.yaml). Researcher provides minimal template.
 
 ---
 
