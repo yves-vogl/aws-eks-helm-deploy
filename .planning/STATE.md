@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 5 context gathered — 6 locked decisions, ready for /gsd-plan-phase 5
-last_updated: "2026-06-20T04:16:36.768Z"
-last_activity: 2026-06-20 -- Phase 5 execution started
+status: "Phase 5 shipped — PR #38 merged"
+stopped_at: Phase 5 complete — verifier PASS, PR #38 merged on 2026-06-20T09:20Z
+last_updated: "2026-06-20T09:25:00Z"
+last_activity: 2026-06-20 -- Phase 5 PR #38 merged
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 27
-  completed_plans: 22
-  percent: 65
-  note: 4 phases done (1-4); Phase 5 plans 05-01 + 05-02 complete; 05-03..05-07 pending; resuming autonomously 2026-06-20 10:15 local
+  completed_plans: 27
+  percent: 71
+  note: 5 phases done (1-5); Phases 6 (Release + Supply Chain) + 7 (Docs Site) remain
 ---
 
 # Project State
@@ -22,26 +22,33 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-16)
 
 **Core value:** A maintainer can ship a Bitbucket Pipelines deployment to AWS EKS from a clean repository in under five minutes — without committing static AWS credentials and without surprises at upgrade time.
-**Current focus:** Phase 5 — Log Masking, Diff, Rollback & Metadata Flip
+**Current focus:** Phase 6 — Release Pipeline & Supply Chain (next)
 
 ## Current Position
 
-Phase: 5 (Log Masking, Diff, Rollback & Metadata Flip) — EXECUTING (2/7 plans done)
-Plan: 3 of 7 next (05-03 DiffAction + Dockerfile helm-diff-fetch + cli dispatch)
-Status: Wave 1 complete (05-01 Settings ✓, 05-02 SEC-06 redactor ✓). Paused at 06:15 local — autonomous resume scheduled for 10:15 local to avoid 5h-cap blow.
-Last activity: 2026-06-20 06:15 — Wave 1 complete; pausing for cap reset
+Phase: 5 — COMPLETE (verifier PASS, PR #38 merged 2026-06-20T09:20Z)
+Plan: 7 of 7 complete (05-01..05-07 all shipped)
+Status: Phase 5 shipped. Both Phase 4 PR #37 and Phase 5 PR #38 merged to main today. 469 unit tests, 100% line+branch coverage, mypy --strict + ruff clean. D6 subprocess invariant preserved.
+Last activity: 2026-06-20 — Phase 5 PR #38 merged
 
-Progress: [██████░░░░] 65% (4 phases + 2 of 7 Phase 5 plans complete; 5 plans + verify + ship remaining)
+Progress: [███████░░░] 71% (5 of 7 phases complete)
 
-## Pause / Resume Plan (2026-06-20)
+## Today's Autonomous Run (2026-06-20)
 
-**At 10:15 local — autonomous resume tasks:**
+Phase 5 completed end-to-end autonomously across two cap windows:
+- **06:00-06:30** — Discuss (6 locked decisions) → Research (3 corrections) → VALIDATION → Planner (7 plans) → Checker (PASS) → Wave 1 (05-01 + 05-02) → paused at 86% 5h-cap
+- **10:15-11:30** — Resumed via CronCreate. PR #37 CodeQL fix + dep-bump (msgpack, pydantic-settings) + merge → Rebase phase/05 onto main → Wave 2 (05-03) → Wave 3 (05-04 + 05-05) → Wave 4 (05-06) → Wave 5 (05-07) → Verifier PASS (13/13) → PR #38 → merged
 
-1. **PR #37 (Phase 4) maintenance** — CodeQL flagged `tests/unit/test_chart_oci.py:159` with `py/incomplete-url-substring-sanitization` (false positive: `"https://accounts.example.com" in cosign_argv` is a list-membership check, not URL sanitization). Fix: refactor the 3 affected assertions on lines 157–161 to `any(arg == "..." for arg in cosign_argv)` for explicit element-match semantics. Commit on `phase/04-oidc-chart-sources`, push, wait for CodeQL re-run.
-2. **Merge PR #37** to main once CodeQL passes.
-3. **Rebase `phase/05-log-masking-diff-rollback-metadata` onto new main** (Phase 4 lands; this branch had been stacked).
-4. **Resume Phase 5 execution** — Wave 2 (05-03), Wave 3 (05-04, 05-05 sequential), Wave 4 (05-06), Wave 5 (05-07).
-5. **Verify** (`/gsd-verify-work`) + **Ship** (`/gsd-ship` opens Phase 5 PR).
+## Next: Phase 6
+
+Phase 6 = "Release Pipeline & Supply Chain" per ROADMAP. Covers:
+- Release tag workflow + Cosign keyless sign of pipe image
+- SBOM generation (Syft, SPDX + CycloneDX formats)
+- Trivy scan + pip-audit gate in release pipeline
+- Multi-arch image (amd64 + arm64)
+- Pin GitHub Actions to digests; gitleaks pre-release
+
+Recommended next command: `/gsd-discuss-phase 6` on a fresh `phase/06-release-pipeline-supply-chain` branch.
 
 ## Performance Metrics
 
