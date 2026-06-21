@@ -41,3 +41,6 @@ id_ed25519.*
 .aws/credentials
 .aws/config
 .trivyignore.bare
+
+# mkdocs build output (Phase 7)
+site/
