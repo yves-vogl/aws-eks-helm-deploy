@@ -12,15 +12,11 @@ edit_uri: edit/main/docs/
 # links AND missing nav references (RESEARCH Q9).
 strict: true
 
-# Phase 7 / Plan 07-01: Wave-1 excludes the pre-Phase-7 drafts that will be moved or
-# folded into the nav by later plans:
-#   - docs/build.md — superseded by per-section docs in Phase 7; Plan 07-04 removes.
-#   - docs/guides/v1-to-v2.md — Plan 07-04 does `git mv` to docs/migration/v1-to-v2.md.
-# Excluding here keeps `mkdocs build --strict` green during the Wave-1 → Wave-2 window
-# without modifying files owned by other plans.
+# Phase 7 / Plan 07-04: docs/guides/v1-to-v2.md was `git mv`-ed to
+# docs/migration/v1-to-v2.md in Wave 2. docs/build.md remains excluded — superseded
+# by per-section docs and removed in a later plan.
 exclude_docs: |
   build.md
-  guides/v1-to-v2.md
 
 theme:
   name: material
