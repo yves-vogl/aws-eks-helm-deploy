@@ -154,146 +154,172 @@ gh api repos/yves-vogl/aws-eks-helm-deploy --jq .allow_auto_merge
 
 ---
 
-## 5. Create the v2.0 GitHub Project Board (CMN-03)
+## 5. Enable GitHub Pages (DOC-02)
 
-GitHub Projects v2 board creation with column configuration is web-UI only as of
-2026-06. There is no `gh project create` subcommand that fully configures columns.
+The `.github/workflows/docs.yml` workflow (Plan 07-05) requires GitHub Pages to
+be enabled with `gh-pages` as the source branch BEFORE the first `mike deploy`
+run can succeed. This is a one-shot step.
 
-**Web UI navigation:**
-
-1. Go to `https://github.com/users/yves-vogl/projects/new`.
-2. Click "New project" → select the **Board** template.
-3. Name: **`aws-eks-helm-deploy v2.0`**.
-4. Description: "v2.0 milestone tracker."
-5. Configure columns (in order): `Backlog → Ready → In Progress → In Review → Done`.
-6. Link the project to the repo: from project Settings → "Manage access" → add
-   `yves-vogl/aws-eks-helm-deploy` as a linked repository.
-7. Add auto-add filter: configure the project to auto-add issues + PRs labeled
-   `milestone:v2.0.0`.
-
-**Verify:** The project appears at `https://github.com/users/yves-vogl/projects/<N>`
-with all 5 columns and the auto-add filter active.
-
----
-
-## 6. Create the Label Taxonomy (CMN-04)
-
-The label taxonomy covers `area/*`, `type/*`, `priority/*`, plus a handful of
-common labels (`breaking-change`, `good first issue`, `help wanted`,
-`dependencies`, `python`, `docker`, `ci`).
-
-**Command (one-shot — idempotent because `|| true` swallows the
-"already exists" error from `gh`):**
+**Command (idempotent — try POST first, fall back to PUT if Pages already enabled):**
 
 ```bash
-REPO=yves-vogl/aws-eks-helm-deploy
+# Try first-time enable:
+gh api repos/yves-vogl/aws-eks-helm-deploy/pages \
+  -X POST \
+  -f source[branch]=gh-pages \
+  -f source[path]=/
 
-# area/* labels (blue family)
-for label in \
-    "area/auth" "area/chart" "area/ci" "area/docs" \
-    "area/helm" "area/oidc" "area/security" "area/triage"; do
-  gh label create "$label" --color "0075ca" --repo "$REPO" 2>/dev/null || true
-done
-
-# type/* labels (orange-red family)
-for label in "type/bug" "type/feature" "type/chore" "type/docs" "type/security"; do
-  gh label create "$label" --color "d93f0b" --repo "$REPO" 2>/dev/null || true
-done
-
-# priority/* labels (yellow family)
-for label in "priority/p0" "priority/p1" "priority/p2" "priority/p3"; do
-  gh label create "$label" --color "e4e669" --repo "$REPO" 2>/dev/null || true
-done
-
-# Stand-alone labels
-gh label create "breaking-change"  --color "b60205" --repo "$REPO" 2>/dev/null || true
-gh label create "good first issue" --color "7057ff" --repo "$REPO" 2>/dev/null || true
-gh label create "help wanted"      --color "008672" --repo "$REPO" 2>/dev/null || true
-gh label create "dependencies"     --color "0366d6" --repo "$REPO" 2>/dev/null || true
-gh label create "python"           --color "2b67c6" --repo "$REPO" 2>/dev/null || true
-gh label create "docker"           --color "0db7ed" --repo "$REPO" 2>/dev/null || true
-gh label create "ci"               --color "f9d0c4" --repo "$REPO" 2>/dev/null || true
+# If POST returned 409 (already enabled), use PUT instead:
+gh api repos/yves-vogl/aws-eks-helm-deploy/pages \
+  -X PUT \
+  -f source[branch]=gh-pages \
+  -f source[path]=/
 ```
 
 **Verify:**
 
 ```bash
-gh label list --repo $REPO --json name --jq 'length'
-# Expected: at least 20 (8 area + 5 type + 4 priority + 7 standalone)
+gh api repos/yves-vogl/aws-eks-helm-deploy/pages \
+  --jq '{url:.html_url,source:.source}'
+# Expected: { "url": "https://yves-vogl.github.io/aws-eks-helm-deploy/",
+#             "source": { "branch": "gh-pages", "path": "/" } }
 ```
 
----
+**Permissions:** repo admin OR "manage GitHub Pages settings".
 
-## 7. Docker Hub README Update (MIG-01 / CONTEXT D10)
-
-This step depends on Plan 06-11's deliverable (`docs/guides/v1-to-v2.md`). When
-Plan 06-11 ships, run the following:
-
-**Manual web UI step:**
-
-1. Sign in to https://hub.docker.com as the Docker Hub owner of
-   `yvogl/aws-eks-helm-deploy`.
-2. Navigate to
-   https://hub.docker.com/repository/docker/yvogl/aws-eks-helm-deploy.
-3. Click **"Manage Repository"** → **"Description"**.
-4. Replace the description with the verbatim text from
-   `docs/guides/v1-to-v2.md` "Distribution change" section (sealed in
-   CONTEXT D10).
-5. Click **"Update"**.
-
-**Verify:** Open the Docker Hub page in an incognito browser; the deprecation
-notice + GHCR link is the first visible content.
+**Source:** RESEARCH Q6.
 
 ---
 
-## 8. Sanity-Check Post-Actions
+## 6. Set default mike alias to v2 (DOC-02 SC-3)
 
-After completing steps 1–7, run this one-liner to confirm everything is wired:
+`.github/workflows/docs.yml` deploys `v2 + latest` aliases on every `main`
+commit. Setting the default alias writes `index.html` at the gh-pages root
+redirecting to `/v2/`. This is a one-shot maintainer command — NOT in CI
+(RESEARCH Q10 pitfall #5: combining with concurrent CI deploys can produce a
+stale default).
+
+**Run ONCE after the first `mike deploy v2 latest` workflow run succeeds:**
 
 ```bash
-REPO=yves-vogl/aws-eks-helm-deploy
+git fetch origin gh-pages
+git worktree add /tmp/gh-pages gh-pages
+cd /tmp/gh-pages
 
-echo "=== Repo settings ==="
-gh api repos/$REPO --jq '{visibility, default_branch, allow_auto_merge}'
+uv sync --extra docs   # installs mike 2.2.0
+uv run mike set-default v2 --push
 
-echo "=== Private Vulnerability Reporting ==="
-gh api repos/$REPO/private-vulnerability-reporting --jq '{enabled}'
-
-echo "=== Branch protection ==="
-gh api repos/$REPO/branches/main/protection --jq '{
-  enforce_admins:     .enforce_admins.enabled,
-  required_reviews:   .required_pull_request_reviews.required_approving_review_count,
-  status_check_count: (.required_status_checks.contexts | length),
-  contexts:           .required_status_checks.contexts
-}'
-
-echo "=== Required signatures ==="
-gh api repos/$REPO/branches/main/protection/required_signatures --jq '.enabled'
-
-echo "=== Label count ==="
-gh label list --repo $REPO --json name --jq 'length'
+cd - && git worktree remove /tmp/gh-pages
 ```
 
-**Expected results:**
-- `allow_auto_merge: true`
-- Private Vulnerability Reporting `enabled: true`
-- `enforce_admins: true`, `required_reviews: 1`, `status_check_count: 8`
-- Required signatures `true`
-- Label count `>= 20`
+**Verify:**
+
+```bash
+curl -sI https://yves-vogl.github.io/aws-eks-helm-deploy/ | grep -F 'location'
+# Expected: location header redirecting to /v2/
+```
+
+**Re-run only if** the gh-pages branch is reset OR a future `mike deploy` is
+misconfigured.
 
 ---
 
-## Notes
+## 7. Deploy frozen v1 docs snapshot (D2 — Plan 07-01)
 
-- These actions are NOT in scope for the Phase 6 automated verifier — the
-  verifier checks that THIS DOCUMENT exists and is complete, but cannot verify
-  the maintainer ran the commands.
-- If a future Phase renames a `ci.yml` job's `name:` field, re-run Step 2 with
-  the updated `contexts` array. The structural test
-  `tests/structural/test_ci_yml_structure.py::JOB_NAMES_REQUIRED` is the
-  source-of-truth for the job-key list; human-readable `name:` strings are
-  recorded in each plan's SUMMARY.
-- The cosign-verify context string in Step 2 comes from Plan 06-05.
-- Steps 1–4 are `gh` CLI commands and are idempotent — safe to re-run.
-- Step 5 (Project board) and Step 7 (Docker Hub) are web-UI steps with no
-  programmatic idempotency guarantee; check the UI before re-running.
+The mike layout in CONTEXT D2 reserves `/v1/` for a single-page frozen v1.3.0
+reference. This deploy is a one-shot maintainer command (NEVER from CI —
+RESEARCH Q10 pitfall #6: running from CI would re-render `/v1/` on every push,
+potentially with newer mkdocs-material HTML; CI never touches it).
+
+**Run ONCE from a local workspace pinned at the v1 docs snapshot:**
+
+```bash
+# Check out the v1.3.0 docs snapshot (or a `v1.3.0-docs-snapshot` tag if one exists):
+git checkout v1.3.0  # or v1.3.0-docs-snapshot
+uv sync --extra docs
+uv run mike deploy --push v1
+
+git checkout main
+```
+
+**Banner on /v1/:** CONTEXT D2 specifies the banner "v1 is frozen — security-only
+patches until 2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.
+Use v2: <link>." Update the v1 docs site index manually with this banner before
+the `mike deploy --push v1` command.
+
+**Verify:**
+
+```bash
+uv run mike list
+# Expected output contains both `v1` and `v2`.
+curl -sf https://yves-vogl.github.io/aws-eks-helm-deploy/v1/ | head -5
+# Expected: v1 docs HTML renders.
+```
+
+---
+
+## 8. Update Bitbucket Pipe Marketplace listing (D11)
+
+After the v2.0.0 tag-cut, update the Bitbucket Pipe Marketplace listing to
+reflect the new image registry, version, and capabilities (OIDC, OCI charts,
+diff/rollback actions, signed images). The marketplace listing is a web-UI
+only step (no Bitbucket REST API for marketplace edits as of 2026-06).
+
+**Listing edit URL:**
+https://bitbucket.org/yvesvogl/aws-eks-helm-deploy/admin/pipelines/pipe-info
+
+**Fields to update:**
+- Image tag (point at `ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0`).
+- "What's new in 2.0" description: paste from `docs/migration/v1-to-v2.md` Quick
+  migration checklist.
+- Tags: add `oidc`, `signed`, `multi-arch`.
+- README pointer: link to the GitHub docs site (https://yves-vogl.github.io/aws-eks-helm-deploy/).
+
+This is **not idempotent via web UI** — verify visually after submitting.
+
+---
+
+## 9. Post Docker Hub README deprecation banner (MIG-01)
+
+The Docker Hub `yvogl/aws-eks-helm-deploy` repository is frozen at v1.3.0
+(MIG-01). Post a deprecation banner to its README so consumers searching
+Docker Hub land on the GHCR migration path.
+
+**Banner source:** `docs/migration/v1-to-v2.md`, section "Distribution change
+(Phase 6 / MIG-01)" — paste the prose verbatim.
+
+**Docker Hub README edit URL:**
+https://hub.docker.com/repository/docker/yvogl/aws-eks-helm-deploy/general
+
+**Recommended banner template** (copy into the top of the Docker Hub README,
+above the existing content):
+
+```markdown
+> **⚠️ Deprecated.** v1.3.0 is the final v1.x image and is frozen on Docker
+> Hub. New consumers should pull v2.x from GitHub Container Registry at
+> `ghcr.io/yves-vogl/aws-eks-helm-deploy` (rolling `:2` tag) or a pinned
+> version (`:2.0.0`).
+>
+> Security fixes for v1.x are released for 6 months from the v2.0.0 release
+> date — ending `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.`
+>
+> Migration guide: https://yves-vogl.github.io/aws-eks-helm-deploy/migration/v1-to-v2/
+```
+
+Web-UI only step; no API. **Not idempotent via API.** Confirm visually after
+submitting.
+
+---
+
+## Notes (Phase 7 — sections 5-9)
+
+- Sections 5–7 (Pages, mike set-default, mike deploy v1) are `gh api` + `mike`
+  commands and are idempotent for sections 5 and 6 (Section 7 is a one-shot
+  intent — re-running is harmless but unnecessary).
+- Sections 8–9 (Bitbucket Pipe Marketplace + Docker Hub banner) are web-UI
+  only with no programmatic idempotency guarantee; confirm visually.
+- The literal placeholder `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.` is the SI-07-07 invariant; it appears in three places in v2.0:
+  `SECURITY.md` (Plan 07-06), `docs/migration/v1-to-v2.md` (Plan 07-04), AND
+  `docs/admin/repo-settings.md` Section 7 + 9 (this plan). After the v2.0.0
+  tag-cut, the maintainer replaces all four occurrences in a single follow-up
+  PR.
