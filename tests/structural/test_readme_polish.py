@@ -1,7 +1,8 @@
 """Structural tests for Phase 7 DOC-01 — README badge row + quickstart + docs-site link.
 
-Wave-1 placeholder; Plan 07-06 extends with sponsor/stars/issues badge assertions
-and hardens the docs-site URL to the final GitHub Pages target.
+Hardened by Plan 07-06: sponsors/stars/open-issues badge assertions + docs-site URL
+locked to ``yves-vogl.github.io/aws-eks-helm-deploy``. D6 style invariant: new badges
+use ``?style=flat-square``; existing 7 badges keep their pre-edit form (no reorder).
 """
 
 from __future__ import annotations
@@ -20,9 +21,10 @@ pytestmark = pytest.mark.unit
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 README_MD = REPO_ROOT / "README.md"
 
-# The 7-badge row already shipped in Phase 6 — kept here as the DOC-01 gate.
+# The 10-badge row (7 existing from Phase 6 + 3 additive from Plan 07-06).
 REQUIRED_BADGE_SOURCES: frozenset[str] = frozenset(
     {
+        # Phase 6 baseline — byte-identical, no reorder.
         "img.shields.io/github/license",
         "img.shields.io/github/v/release",
         "GHCR Image",
@@ -30,6 +32,10 @@ REQUIRED_BADGE_SOURCES: frozenset[str] = frozenset(
         "coverage-100%25-brightgreen",
         "cosign-verified",
         "securityscorecards.dev",
+        # Plan 07-06 additive — appended after the OpenSSF Scorecard badge.
+        "img.shields.io/github/sponsors/yves-vogl",
+        "img.shields.io/github/stars/yves-vogl/aws-eks-helm-deploy",
+        "img.shields.io/github/issues/yves-vogl/aws-eks-helm-deploy",
     }
 )
 
@@ -45,13 +51,13 @@ def test_readme_exists() -> None:
 
 
 def test_readme_has_badge_row() -> None:
-    """The 7-badge row from Phase 6 must live in the first 30 lines of README.md (DOC-01)."""
+    """10-badge row (Phase 6 baseline + Plan 07-06 additions) lives in first 40 lines."""
     text = README_MD.read_text(encoding="utf-8")
-    head = "\n".join(text.splitlines()[:30])
+    head = "\n".join(text.splitlines()[:40])
     missing = sorted({badge for badge in REQUIRED_BADGE_SOURCES if badge not in head})
     assert not missing, (
-        "README.md badge row is missing required Phase 6 / DOC-01 entries: "
-        f"{missing}. The 7-badge row must remain in the first 30 lines."
+        "README.md badge row is missing required DOC-01 entries: "
+        f"{missing}. The 10-badge row must remain in the first 40 lines."
     )
 
 
@@ -63,21 +69,62 @@ def test_readme_has_quickstart_section() -> None:
     )
 
 
-def test_readme_has_docs_site_link() -> None:
-    """README.md must link to the docs site or the docs-site landing target.
-
-    TODO Plan 07-06: harden to the exact final URL ``https://yves-vogl.github.io/aws-eks-helm-deploy/v2/``
-    once GitHub Pages publishes. Wave-1 placeholder accepts any of:
-      - https://yves-vogl.github.io/aws-eks-helm-deploy/ (Pages root)
-      - https://yves-vogl.github.io/aws-eks-helm-deploy (bare form)
-      - the literal phrase ``docs site`` linked to GitHub Pages.
-    """
+def test_readme_has_sponsors_badge() -> None:
+    """Plan 07-06 additive badge: GitHub Sponsors."""
     text = README_MD.read_text(encoding="utf-8")
-    has_pages_url = "yves-vogl.github.io/aws-eks-helm-deploy" in text
-    has_docs_site_phrase = bool(re.search(r"\bdocs site\b", text, re.IGNORECASE))
-    if not (has_pages_url or has_docs_site_phrase):
-        pytest.skip(
-            "README.md docs-site link not present yet — Plan 07-06 wires this. "
-            "Wave-1 placeholder skips until then."
+    assert "img.shields.io/github/sponsors/yves-vogl" in text, (
+        "README.md must include the GitHub Sponsors badge (Plan 07-06 / DOC-01)."
+    )
+
+
+def test_readme_has_stars_badge() -> None:
+    """Plan 07-06 additive badge: GitHub stargazers count."""
+    text = README_MD.read_text(encoding="utf-8")
+    assert "img.shields.io/github/stars/yves-vogl/aws-eks-helm-deploy" in text, (
+        "README.md must include the GitHub Stars badge (Plan 07-06 / DOC-01)."
+    )
+
+
+def test_readme_has_open_issues_badge() -> None:
+    """Plan 07-06 additive badge: open issues count."""
+    text = README_MD.read_text(encoding="utf-8")
+    assert "img.shields.io/github/issues/yves-vogl/aws-eks-helm-deploy" in text, (
+        "README.md must include the GitHub Open Issues badge (Plan 07-06 / DOC-01)."
+    )
+
+
+def test_readme_has_docs_site_link_hardened() -> None:
+    """README.md must link to the live docs site at ``yves-vogl.github.io/aws-eks-helm-deploy``."""
+    text = README_MD.read_text(encoding="utf-8")
+    assert "yves-vogl.github.io/aws-eks-helm-deploy" in text, (
+        "README.md must surface the live docs-site URL "
+        "(https://yves-vogl.github.io/aws-eks-helm-deploy/) — Plan 07-06."
+    )
+
+
+def test_readme_links_to_migration_guide() -> None:
+    """README.md Status callout must link to the v1→v2 migration guide (DOC-01 + D6)."""
+    text = README_MD.read_text(encoding="utf-8")
+    assert "docs/migration/v1-to-v2.md" in text, (
+        "README.md must link to docs/migration/v1-to-v2.md (Plan 07-06 / Status callout)."
+    )
+
+
+def test_readme_new_badges_use_flat_square_style() -> None:
+    """D6 style invariant: sponsors / stars / open-issues badges use ``?style=flat-square``."""
+    text = README_MD.read_text(encoding="utf-8")
+    for new_badge_source in (
+        "img.shields.io/github/sponsors/yves-vogl",
+        "img.shields.io/github/stars/yves-vogl/aws-eks-helm-deploy",
+        "img.shields.io/github/issues/yves-vogl/aws-eks-helm-deploy",
+    ):
+        # Find the line with the badge; assert the flat-square query lives on the same line.
+        line = next(
+            (ln for ln in text.splitlines() if new_badge_source in ln),
+            None,
         )
-    assert has_pages_url or has_docs_site_phrase
+        assert line is not None, f"Badge source {new_badge_source!r} not found in README.md"
+        assert "style=flat-square" in line, (
+            f"Plan 07-06 / D6 style invariant: badge {new_badge_source!r} must use "
+            f"`?style=flat-square`. Offending line: {line!r}"
+        )
