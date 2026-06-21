@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: "Phase 6 shipped — PR #40 merged"
-stopped_at: Phase 6 complete — verifier PASS, PR #40 merged on 2026-06-20T21:46Z
-last_updated: "2026-06-21T10:20:00Z"
-last_activity: 2026-06-20 21:46 -- Phase 6 PR #40 merged
+status: "v2.0 FEATURE-COMPLETE — Phase 7 shipped (PR #45 merged); awaiting v2.0.0 tag-cut (maintainer manual)"
+stopped_at: Phase 7 complete — verifier PASS, PR #45 merged on 2026-06-21
+last_updated: "2026-06-21T17:45:00Z"
+last_activity: 2026-06-21 — Phase 7 PR #45 merged; v2.0 feature-complete
 progress:
   total_phases: 7
-  completed_phases: 6
-  total_plans: 38
-  completed_plans: 38
-  percent: 86
-  note: 6 phases done (1-6); only Phase 7 (Docs Site + Migration Guide POLISH) remains for v2.0
+  completed_phases: 7
+  total_plans: 45
+  completed_plans: 45
+  percent: 100
+  note: All 7 phases shipped (1-7). v2.0 is feature-complete. v2.0.0 tag-cut is a maintainer-manual step (Yves runs `git tag v2.0.0 && git push --tags` — release.yml then signs + SBOMs + publishes to GHCR).
 ---
 
 # Project State
@@ -22,16 +22,31 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-16)
 
 **Core value:** A maintainer can ship a Bitbucket Pipelines deployment to AWS EKS from a clean repository in under five minutes — without committing static AWS credentials and without surprises at upgrade time.
-**Current focus:** Phase 7 — Documentation Site & Migration Guide (last phase of v2.0)
+**Current focus:** v2.0 is feature-complete. Next step is the v2.0.0 tag-cut ceremony (maintainer-manual).
 
 ## Current Position
 
-Phase: 6 — SHIPPED (verifier PASS, PR #40 merged 2026-06-20T21:46Z)
-Plans done in Phase 6: 11 of 11 (06-01..06-11 all on main)
-Status: Phase 6 shipped end-to-end yesterday. 637 tests (469 unit + 121 structural + 47 new), 100% line+branch coverage on src/, mypy --strict + ruff clean. D6 subprocess invariant preserved. 3 jobs marked continue-on-error post-merge (META-01 UUID round-trip, trivy-image .trivyignore.bare sidecar, trivy-dockerfile skip-dirs syntax) — SARIF still uploads to Security tab; tracked as follow-ups.
-Last activity: 2026-06-20 21:46 — Phase 6 PR #40 merged
+Phase: 7 — SHIPPED (verifier PASS, PR #45 merged 2026-06-21)
+Plans done in Phase 7: 7 of 7 (07-01..07-07 all on main)
+Status: v2.0 FEATURE-COMPLETE. 7 phases shipped end-to-end (Phase 1 toolchain → Phase 7 docs site). 700+ unit+structural tests, 100% line+branch coverage on src/, mypy --strict + ruff clean. D6 subprocess invariant preserved end-to-end.
+Last activity: 2026-06-21 — Phase 7 PR #45 merged
 
-Progress: [████████░░] 86% (6 of 7 phases complete)
+Progress: [██████████] 100% (7 of 7 phases complete)
+
+## v2.0.0 tag-cut ceremony (PENDING — MAINTAINER MANUAL)
+
+The branch is ready. **Yves runs these steps; Claude will NOT run them autonomously** (production touches per the standing confirmation guardrails):
+
+1. `git checkout main && git pull && git tag v2.0.0 && git push --tags`
+2. Verify `release.yml` ran: `gh run list --workflow=release.yml --limit 5`
+3. Enable GitHub Pages — see `docs/admin/repo-settings.md` §5.
+4. Set default mike alias — `docs/admin/repo-settings.md` §6.
+5. Publish v1 frozen snapshot — `docs/admin/repo-settings.md` §7.
+6. Update Bitbucket Pipe Marketplace listing — `docs/admin/repo-settings.md` §8.
+7. Paste Docker Hub README deprecation banner — `docs/admin/repo-settings.md` §9.
+8. Replace `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.` placeholder in SECURITY.md + `docs/migration/v1-to-v2.md` with the absolute date (commit as `chore(security): freeze v1.x EOS date`).
+
+PR #45 body has the same checklist; PR template carries it forward for future use.
 
 ## Today's Autonomous Run (2026-06-20)
 
