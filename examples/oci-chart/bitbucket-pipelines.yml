@@ -1,0 +1,36 @@
+# Example: OCI Helm chart from GHCR, OIDC AWS auth, Cosign keyless verify.
+# Prerequisites:
+#   - IAM role per docs/guides/oidc-setup.md.
+#   - Chart published at oci://ghcr.io/<org>/<chart> and signed with Cosign keyless.
+#   - REGISTRY_USERNAME / REGISTRY_PASSWORD if the OCI registry is private.
+# Expected outcome:
+#   Cosign verifies the chart signature, then helm upgrade --install runs.
+# Reference: docs/migration/v1-to-v2.md + REQUIREMENTS CHART-03 + CHART-04.
+
+image: atlassian/default-image:4
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Deploy signed OCI chart
+          deployment: production
+          oidc: true
+          script:
+            - pipe: docker://ghcr.io/yves-vogl/aws-eks-helm-deploy:2
+              variables:
+                OIDC_AUDIENCE: $OIDC_AUDIENCE
+                ROLE_ARN: $DEPLOY_ROLE_ARN
+                AWS_REGION: eu-central-1
+                CLUSTER_NAME: my-eks-cluster
+                CHART: oci://ghcr.io/my-org/my-chart
+                CHART_VERSION: 1.4.2
+                REGISTRY_USERNAME: $GHCR_USERNAME
+                REGISTRY_PASSWORD: $GHCR_TOKEN
+                CHART_VERIFY: "true"
+                CHART_VERIFY_CERTIFICATE_IDENTITY: https://github.com/my-org/my-chart/.github/workflows/release.yml@refs/heads/main
+                CHART_VERIFY_CERTIFICATE_OIDC_ISSUER: https://token.actions.githubusercontent.com
+                RELEASE_NAME: my-app
+                NAMESPACE: production
+                WAIT: "true"
+                TIMEOUT: 10m

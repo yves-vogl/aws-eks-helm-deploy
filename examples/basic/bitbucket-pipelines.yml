@@ -1,0 +1,30 @@
+# Example: basic v2 pipeline — static AWS keys + local Helm chart at ./charts/my-app.
+# Prerequisites:
+#   - AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY in repository variables.
+#   - A target EKS cluster reachable from the access keys (kubectl perms via aws-auth or access entries).
+#   - A Helm chart checked into the same repo at ./charts/my-app.
+# Expected outcome:
+#   helm upgrade --install of release "my-app" into namespace "production".
+# Reference: docs/migration/v1-to-v2.md (Quick migration checklist + Distribution change).
+
+image: atlassian/default-image:4
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Deploy to EKS (basic)
+          deployment: production
+          script:
+            - pipe: docker://ghcr.io/yves-vogl/aws-eks-helm-deploy:2
+              variables:
+                AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+                AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+                AWS_REGION: eu-central-1
+                CLUSTER_NAME: my-eks-cluster
+                CHART: ./charts/my-app
+                RELEASE_NAME: my-app
+                NAMESPACE: production
+                CREATE_NAMESPACE: "true"
+                WAIT: "true"
+                TIMEOUT: 10m

@@ -1,0 +1,30 @@
+# Example (MIG-03): v1.x reference pipeline — for diff comparison only.
+# Prerequisites:
+#   - AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY repository variables.
+# Expected outcome:
+#   helm upgrade --install via the legacy v1 pipe (yvogl/aws-eks-helm-deploy:1.3.0).
+# Reference: docs/migration/v1-to-v2.md — every breaking-change section cites a line
+# range in this file or in after.yml.
+
+image: atlassian/default-image:4
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Deploy to EKS (v1)
+          deployment: production
+          script:
+            - pipe: docker://yvogl/aws-eks-helm-deploy:1.3.0
+              variables:
+                AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+                AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+                AWS_REGION: eu-central-1
+                CLUSTER_NAME: my-eks-cluster
+                CHART: ./charts/my-app
+                RELEASE_NAME: my-app
+                # NAMESPACE not set -> v1 BUG defaults it to "kube-public"
+                CREATE_NAMESPACE: "true"
+                WAIT: "true"
+                TIMEOUT: 10m
+                # v1 ALWAYS injects bitbucket.* values (META-02 -> v2 default flip)

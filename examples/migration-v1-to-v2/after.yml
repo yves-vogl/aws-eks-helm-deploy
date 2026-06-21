@@ -1,0 +1,35 @@
+# Example (MIG-03): v2.0 equivalent pipeline.
+# Diff lines vs before.yml:
+#   - Image tag: docker://ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0 (registry + version pin)
+#   - NAMESPACE: production explicit (was implicit kube-public bug in v1)
+#   - INJECT_BITBUCKET_METADATA: "true" if your chart references .Values.bitbucket.* (was unconditional in v1)
+#   - Optional: switch to OIDC (commented below)
+# Prerequisites:
+#   - AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY (or migrate to OIDC).
+# Expected outcome:
+#   helm upgrade --install of release "my-app" into namespace "production".
+# Reference: docs/migration/v1-to-v2.md — Quick migration checklist.
+
+image: atlassian/default-image:4
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Deploy to EKS (v2)
+          deployment: production
+          script:
+            - pipe: docker://ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0
+              variables:
+                AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+                AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+                AWS_REGION: eu-central-1
+                CLUSTER_NAME: my-eks-cluster
+                CHART: ./charts/my-app
+                RELEASE_NAME: my-app
+                NAMESPACE: production
+                CREATE_NAMESPACE: "true"
+                WAIT: "true"
+                TIMEOUT: 10m
+                # v2: set this ONLY if your chart references .Values.bitbucket.*
+                INJECT_BITBUCKET_METADATA: "true"
