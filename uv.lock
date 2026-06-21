@@ -72,6 +72,7 @@ dependencies = [
 docs = [
     { name = "mike" },
     { name = "mkdocs-material" },
+    { name = "settings-doc" },
 ]
 
 [package.dev-dependencies]
@@ -111,6 +112,7 @@ requires-dist = [
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = "==9.7.6" },
     { name = "pydantic-settings", specifier = "~=2.14" },
     { name = "pyyaml", specifier = "~=6.0" },
+    { name = "settings-doc", marker = "extra == 'docs'", specifier = "==4.3.2" },
     { name = "structlog", specifier = "~=26.1" },
 ]
 provides-extras = ["docs"]
@@ -1583,6 +1585,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f6/94/dcdaeb1713cab9c84def276cfac7388b17c7d9855bbcfe88d77e4dbafd44/s3transfer-0.19.0.tar.gz", hash = "sha256:ce436931687addc4c1712d52d40b32f53e88315723f107ffa20ba82b05a0f685", size = 165171, upload-time = "2026-06-16T19:44:51.599Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/46/5f/4c174edad94f82de888ac00a5ddd8d07b35609b6c94f0bdf4d74af57703e/s3transfer-0.19.0-py3-none-any.whl", hash = "sha256:777cc2415536f1debadb5c2ef7779275d0fc0fe0e042411cdd6caebeb2685262", size = 90101, upload-time = "2026-06-16T19:44:50.439Z" },
+]
+
+[[package]]
+name = "settings-doc"
+version = "4.3.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "jinja2" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cc/c8/ac0ebe94fc41e7c03a5be9f6aab1612e79a46bfad286a76fb7cd41a8cd50/settings_doc-4.3.2.tar.gz", hash = "sha256:cb06aee969f0639abc88e77554a333803191de95e95259a11929cf878d312fab", size = 16274, upload-time = "2025-01-02T19:37:27.573Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1d/48/86c853f6f98a0340594c751930ab876b09b28d4c29a0b218923eb95046c8/settings_doc-4.3.2-py3-none-any.whl", hash = "sha256:04b561093905cab8f5ebaa30c9dacca1d57cd1dc3dd404b7c929b90e2d2d7c0b", size = 14461, upload-time = "2025-01-02T19:37:23.641Z" },
 ]
 
 [[package]]
