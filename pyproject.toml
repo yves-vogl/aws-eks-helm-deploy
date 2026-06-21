@@ -11,6 +11,12 @@ dependencies = [
     "pydantic-settings ~= 2.14",
 ]
 
+[project.optional-dependencies]
+docs = [
+    "mkdocs-material == 9.7.6",
+    "mike == 2.2.0",
+]
+
 [project.scripts]
 aws-eks-helm-deploy = "aws_eks_helm_deploy.cli:main"
 
