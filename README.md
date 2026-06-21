@@ -7,6 +7,11 @@
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/yves-vogl/aws-eks-helm-deploy/actions/workflows/ci.yml)
 [![Cosign verified](https://img.shields.io/badge/cosign-verified-success?logo=sigstore)](https://github.com/yves-vogl/aws-eks-helm-deploy/actions/workflows/cosign-verify.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/yves-vogl/aws-eks-helm-deploy/badge)](https://scorecard.dev/viewer/?uri=github.com/yves-vogl/aws-eks-helm-deploy)
+[![Sponsors](https://img.shields.io/github/sponsors/yves-vogl?style=flat-square)](https://github.com/sponsors/yves-vogl)
+[![Stars](https://img.shields.io/github/stars/yves-vogl/aws-eks-helm-deploy?style=flat-square)](https://github.com/yves-vogl/aws-eks-helm-deploy/stargazers)
+[![Open issues](https://img.shields.io/github/issues/yves-vogl/aws-eks-helm-deploy?style=flat-square)](https://github.com/yves-vogl/aws-eks-helm-deploy/issues)
+
+📖 **Documentation site:** [yves-vogl.github.io/aws-eks-helm-deploy](https://yves-vogl.github.io/aws-eks-helm-deploy/) — versioned via `mike` (v1 frozen, v2 current).
 
 **Cold-start benchmark:** see [latest workflow artifact](https://github.com/yves-vogl/aws-eks-helm-deploy/actions/workflows/release.yml) (IMAGE-06 target: < 10s; documented per A6 — see [Phase 6 RESEARCH](.planning/phases/06-release-pipeline-supply-chain/06-RESEARCH.md)).
 
@@ -25,7 +30,7 @@ Deploy [Helm](https://helm.sh) charts to [AWS Elastic Kubernetes Service (EKS)](
 
 This pipe is purpose-built for **Bitbucket Pipelines**. For GitHub Actions, use upstream actions such as [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials) combined with a Helm action.
 
-> **Status:** v1.3.0 is the current stable release, published on Docker Hub (`yvogl/aws-eks-helm-deploy`). **v2.0 is in active development** and will publish exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`) — see [Milestone `v2.0.0`](https://github.com/yves-vogl/aws-eks-helm-deploy/milestones) for tracked work (OIDC/IRSA, OCI chart support, history pruning, dry-run, signed images, ADRs, 100% test coverage). Docker Hub is frozen at v1.3.0 as the v1.x archive.
+> **Status:** v2.0 is the active line published exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`). v1.3.0 is frozen on Docker Hub as the v1.x archive. See [docs/migration/v1-to-v2.md](https://github.com/yves-vogl/aws-eks-helm-deploy/blob/main/docs/migration/v1-to-v2.md) for upgrade steps, and the [v2.0.0 milestone](https://github.com/yves-vogl/aws-eks-helm-deploy/milestones) for tracked work.
 
 ---
 

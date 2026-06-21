@@ -1,0 +1,90 @@
+site_name: aws-eks-helm-deploy
+site_description: >-
+  Bitbucket Pipelines Pipe deploying Helm charts to AWS EKS — versioned docs for v2.x.
+site_url: https://yves-vogl.github.io/aws-eks-helm-deploy/
+repo_url: https://github.com/yves-vogl/aws-eks-helm-deploy
+repo_name: yves-vogl/aws-eks-helm-deploy
+edit_uri: edit/main/docs/
+
+# Phase 7 / DOC-02 / D1: mkdocs-material 9.7.6 + mike 2.2.0 (RESEARCH Q1 + Q2).
+# Strict mode is BELT-AND-BRACES: top-level `strict: true` AND `mkdocs build --strict`
+# in `.github/workflows/docs.yml` (Plan 07-05). Strict mode fails on broken internal
+# links AND missing nav references (RESEARCH Q9).
+strict: true
+
+# Phase 7 / Plan 07-04: docs/guides/v1-to-v2.md was `git mv`-ed to
+# docs/migration/v1-to-v2.md in Wave 2. docs/build.md remains excluded — superseded
+# by per-section docs and removed in a later plan.
+exclude_docs: |
+  build.md
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+# Phase 7 / D1 + RESEARCH Q3: ZERO additional plugins for v2.0. mkdocs-material's
+# bundled `pymdownx.*` extensions cover all Phase 7 content (admonitions, code tabs,
+# mermaid via superfences, snippets). Add plugins later only when concretely needed.
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+# Phase 7 / D7: Migration v1 → v2 is the second top-level nav entry (after Quickstart).
+# ADRs live under docs/adr/ and are auto-discovered (no per-file nav entries needed).
+# Reference / Variables is populated by Plan 07-03 (settings-doc generator).
+nav:
+  - Home: index.md
+  - Quickstart:
+      - Overview: quickstart/overview.md
+  - "Migration v1 → v2": migration/v1-to-v2.md
+  - Guides:
+      - OIDC Setup: guides/oidc-setup.md
+  - Reference:
+      - Variables: reference/variables.md
+  - ADRs:
+      - Overview: adr/index.md
+  - Admin:
+      - Repo Settings Runbook: admin/repo-settings.md

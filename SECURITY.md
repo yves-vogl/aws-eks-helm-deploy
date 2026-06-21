@@ -5,7 +5,7 @@
 | Version | Supported              |
 |---------|------------------------|
 | 2.x     | Yes (active development on `main`) |
-| 1.x     | No (frozen on Docker Hub; security-only patches at maintainer's discretion) |
+| 1.x     | Security fixes for 6 months from the v2.0.0 release date — ending `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.` Frozen at v1.3.0 on Docker Hub. |
 
 ## Reporting a vulnerability
 

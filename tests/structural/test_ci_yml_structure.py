@@ -122,6 +122,19 @@ def test_ci_workflow_does_not_use_pull_request_target(ci_workflow: dict[str, Any
         )
 
 
+def test_docs_drift_job_present(ci_workflow: dict[str, Any]) -> None:
+    """ci.yml must declare the 8th `docs-drift` job (Plan 07-03 / DOC-02 SC-2).
+
+    The job must run scripts/check-variables-drift.sh to regenerate variables.md
+    and fail on drift against the committed file.
+    """
+    jobs: dict[str, Any] = ci_workflow.get("jobs", {})
+    assert "docs-drift" in jobs, "Expected 'docs-drift' job in ci.yml (Plan 07-03)"
+    steps: list[dict[str, Any]] = jobs["docs-drift"].get("steps", [])
+    has_drift_step = any("check-variables-drift.sh" in (step.get("run") or "") for step in steps)
+    assert has_drift_step, "Expected 'docs-drift' job to invoke scripts/check-variables-drift.sh"
+
+
 def test_trivy_jobs_validate_trivyignore_grammar(ci_workflow: dict[str, Any]) -> None:
     """Both trivy jobs must validate .trivyignore grammar before scanning (SEC-04 + D2).
 

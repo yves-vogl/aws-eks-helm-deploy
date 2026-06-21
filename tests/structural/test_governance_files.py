@@ -71,19 +71,28 @@ def test_repo_settings_mentions_required_signatures() -> None:
     )
 
 
-def test_repo_settings_mentions_label_create() -> None:
-    """docs/admin/repo-settings.md must contain the gh label create taxonomy loop."""
+def test_repo_settings_mentions_pages_enablement() -> None:
+    """Phase 7 / Plan 07-07: runbook must document GitHub Pages enablement (DOC-02).
+
+    Note: Phase 6 sections 5 (Project board) + 6 (Label taxonomy) have been
+    replaced by Phase 7 release-ceremony sections 5-9. Project board + label
+    taxonomy creation moved into the Phase 6 follow-up workflow; the runbook
+    is now focused on the v2.0.0 tag-cut ceremony (D11).
+    """
     content = REPO_SETTINGS.read_text()
-    assert "gh label create" in content, (
-        "docs/admin/repo-settings.md must contain 'gh label create' taxonomy commands"
+    assert "Enable GitHub Pages" in content, (
+        "docs/admin/repo-settings.md must document GitHub Pages enablement (Phase 7 § 5)"
     )
 
 
-def test_repo_settings_mentions_project_board() -> None:
-    """docs/admin/repo-settings.md must document the Project board creation (CMN-03)."""
+def test_repo_settings_mentions_mike_one_shots() -> None:
+    """Phase 7 / Plan 07-07: runbook must document the mike one-shot maintainer commands."""
     content = REPO_SETTINGS.read_text()
-    assert "Backlog" in content, (
-        "docs/admin/repo-settings.md must document Project board columns (Backlog ...)"
+    assert "mike set-default" in content, (
+        "docs/admin/repo-settings.md must document `mike set-default v2 --push` (Phase 7 § 6)"
+    )
+    assert "mike deploy --push v1" in content, (
+        "docs/admin/repo-settings.md must document `mike deploy --push v1` (Phase 7 § 7)"
     )
 
 
@@ -266,4 +275,21 @@ def test_pr_template_mentions_digest_pin() -> None:
     content = PR_TEMPLATE.read_text()
     assert "Pitfall #5" in content or "40-char" in content or "SHA digest" in content, (
         ".github/PULL_REQUEST_TEMPLATE.md must mention SHA digest pinning for workflow actions"
+    )
+
+
+def test_pr_template_has_maintainer_checklist_for_v2_release_ceremony() -> None:
+    """Phase 7 / Plan 07-07 / D11: PR template surfaces the v2.0.0 maintainer checklist."""
+    text = PR_TEMPLATE.read_text()
+    assert "Maintainer manual steps after merge" in text, (
+        "Expected PR template to surface the v2.0.0 maintainer-checklist (D11)"
+    )
+    assert "git tag v2.0.0" in text, (
+        "PR template MUST include the `git tag v2.0.0 && git push --tags` command"
+    )
+    assert "mike set-default v2" in text, (
+        "PR template MUST reference the mike set-default v2 one-shot (Section 6)"
+    )
+    assert "Docker Hub README" in text, (
+        "PR template MUST reference the Docker Hub banner step (Section 9)"
     )

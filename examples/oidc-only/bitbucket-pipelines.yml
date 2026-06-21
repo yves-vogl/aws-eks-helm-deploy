@@ -1,0 +1,32 @@
+# Example: OIDC-only v2 pipeline (no static keys) + repo:// chart from a Helm repository.
+# Prerequisites:
+#   - IAM role configured per docs/guides/oidc-setup.md (trust policy scoped to
+#     BITBUCKET_WORKSPACE_UUID + BITBUCKET_REPO_UUID).
+#   - The role's OIDC audience matches OIDC_AUDIENCE below.
+# Expected outcome:
+#   helm upgrade --install of release "nginx" from the bitnami Helm repository.
+# Reference: docs/guides/oidc-setup.md + docs/migration/v1-to-v2.md AUTH section.
+
+image: atlassian/default-image:4
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Deploy to EKS (OIDC)
+          deployment: production
+          oidc: true
+          script:
+            - pipe: docker://ghcr.io/yves-vogl/aws-eks-helm-deploy:2
+              variables:
+                OIDC_AUDIENCE: $OIDC_AUDIENCE
+                ROLE_ARN: $DEPLOY_ROLE_ARN
+                AWS_REGION: eu-central-1
+                CLUSTER_NAME: my-eks-cluster
+                CHART: repo://bitnami/nginx
+                REPO_URL: https://charts.bitnami.com/bitnami
+                CHART_VERSION: 18.2.0
+                RELEASE_NAME: nginx
+                NAMESPACE: production
+                WAIT: "true"
+                TIMEOUT: 10m

@@ -1,0 +1,53 @@
+# Example: Multi-env (PR preview + production) deploy with helm-diff PR comment
+# posted to Bitbucket PRs.
+# Prerequisites:
+#   - OIDC role per docs/guides/oidc-setup.md.
+#   - BITBUCKET_TOKEN (repository or workspace variable with PR-write scope) for
+#     posting the diff comment.
+# Expected outcome:
+#   PR -> posts `helm diff upgrade` output as a PR comment, no cluster mutation.
+#   main -> deploys to production with --wait --atomic via SAFE_UPGRADE.
+# Reference: docs/migration/v1-to-v2.md ACTION=diff section + REQUIREMENTS PIPE-03 + PIPE-05.
+
+image: atlassian/default-image:4
+
+pipelines:
+  pull-requests:
+    "**":
+      - step:
+          name: helm diff against production (preview)
+          deployment: production-preview
+          oidc: true
+          script:
+            - pipe: docker://ghcr.io/yves-vogl/aws-eks-helm-deploy:2
+              variables:
+                ACTION: diff
+                OIDC_AUDIENCE: $OIDC_AUDIENCE
+                ROLE_ARN: $DEPLOY_ROLE_ARN
+                AWS_REGION: eu-central-1
+                CLUSTER_NAME: prod-eks
+                CHART: ./charts/my-app
+                RELEASE_NAME: my-app
+                NAMESPACE: production
+                POST_DIFF_AS_COMMENT: "true"
+                BITBUCKET_TOKEN: $BITBUCKET_TOKEN
+
+  branches:
+    main:
+      - step:
+          name: Deploy to production (safe upgrade)
+          deployment: production
+          oidc: true
+          script:
+            - pipe: docker://ghcr.io/yves-vogl/aws-eks-helm-deploy:2
+              variables:
+                OIDC_AUDIENCE: $OIDC_AUDIENCE
+                ROLE_ARN: $DEPLOY_ROLE_ARN
+                AWS_REGION: eu-central-1
+                CLUSTER_NAME: prod-eks
+                CHART: ./charts/my-app
+                RELEASE_NAME: my-app
+                NAMESPACE: production
+                SAFE_UPGRADE: "true"
+                WAIT: "true"
+                TIMEOUT: 10m
