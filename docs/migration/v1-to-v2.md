@@ -1,8 +1,11 @@
-# v1 → v2 Migration Guide (Draft)
+# v1 → v2 Migration Guide
 
-> **Draft status:** This guide covers Phase 5 breaking changes and new workflows.
-> Phase 7 will polish wording, add a table of contents, add mkdocs-material admonitions,
-> integrate screenshots, and publish the guide at `/v2/migration/v1-to-v2/` on the docs site.
+> **Status:** Published. This guide covers every v1.x → v2.0 breaking change. The 6-month v1.x security window ends `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.` (per D10).
+
+[TOC]
+
+!!! tip "Before you start"
+    Read this guide top-to-bottom once, then work through the [Quick migration checklist](#quick-migration-checklist) at the bottom. The matching before/after pipeline diff lives at [`examples/migration-v1-to-v2/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/migration-v1-to-v2) — every breaking-change section below cross-references it.
 
 v2.0 is a clean rewrite of the v1.x shell pipe in Python. The core action — `helm upgrade
 --install` targeting an AWS EKS cluster — is unchanged, but v2 ships OIDC authentication,
@@ -21,7 +24,7 @@ pipeline).
 | `INJECT_BITBUCKET_METADATA` default | Unconditional injection of `bitbucket.*` values | Opt-in only; defaults to unset | META-02 / issue #16 |
 | `SET` / `VALUES` env var syntax | Space-separated positional list | Comma-separated list (JSON-array fallback) | MIG-02 / `settings.py _CommaListEnvSource` |
 | Image registry | `docker.io/yvogl/aws-eks-helm-deploy:1.x` | `ghcr.io/yves-vogl/aws-eks-helm-deploy:2` (rolling) or `:2.x.y` (pinned) | Phase 6 / MIG-01 |
-| AWS auth | Static keys + `ROLE_ARN` | Static keys + `ROLE_ARN` + OIDC via `BITBUCKET_STEP_OIDC_TOKEN` | See [docs/guides/oidc-setup.md](../guides/oidc-setup.md) |
+| AWS auth | Static keys + `ROLE_ARN` | Static keys + `ROLE_ARN` + OIDC via `BITBUCKET_STEP_OIDC_TOKEN` | See [OIDC setup guide](../guides/oidc-setup.md) |
 | `NAMESPACE` default | `kube-public` (v1 bug) | `default` | `settings.py` — fix shipped in Phase 1 |
 | `awscli` dependency | Bundled in image | Removed; `boto3`-only EKS token generation | AUTH-07 / Phase 2 |
 | Auth precedence when both static keys AND OIDC token are present | n/a (no OIDC in v1) | Static keys win (mirrors AWS CLI / boto3 default chain); see `auth.precedence.static_keys_won_over_oidc` WARN | AUTH-04 revised / Phase 4 |
@@ -29,6 +32,9 @@ pipeline).
 ---
 
 ## INJECT_BITBUCKET_METADATA — the headline breaking change (META-02)
+
+!!! warning "Breaking change"
+    In v1.x, `INJECT_BITBUCKET_METADATA` was unconditionally `true`. v2.0 defaults to unset (tri-state). Charts referencing `.Values.bitbucket.*` will silently render `null` in v2 unless you set `INJECT_BITBUCKET_METADATA=true`. See the line-level diff at [`examples/migration-v1-to-v2/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/migration-v1-to-v2) (`after.yml` last variable).
 
 In v1.x the pipe unconditionally injected five `--set bitbucket.*` values on every
 `helm upgrade --install` call:
@@ -121,6 +127,9 @@ Omitting `INJECT_BITBUCKET_METADATA` in v2 produces NO `bitbucket.*` keys in
 ---
 
 ## SET and VALUES env var syntax (MIG-02)
+
+!!! warning "Breaking change"
+    v1.x used shell word-splitting (space-separated). v2 expects a comma-separated list (or a JSON array). The v2 pipe emits a startup WARN if it detects a v1-style value but does NOT auto-rewrite it. See [`examples/migration-v1-to-v2/before.yml` vs `after.yml`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/migration-v1-to-v2).
 
 ### v1.x: space-separated positional list
 
@@ -337,7 +346,7 @@ safe-upgraded revision is permitted from any pipeline step.
       (`VALUES: "base.yaml,overrides.yaml"`).
 - [ ] Change the `NAMESPACE` reference if your v1 pipeline relied on the (buggy) default
       `kube-public`; v2 defaults to `default`.
-- [ ] If using OIDC authentication: see [docs/guides/oidc-setup.md](../guides/oidc-setup.md) —
+- [ ] If using OIDC authentication: see [OIDC setup guide](../guides/oidc-setup.md) —
       static keys win when both `AWS_ACCESS_KEY_ID` and `BITBUCKET_STEP_OIDC_TOKEN` are set
       (`static keys win` per AUTH-04 revised). Remove static keys from the step to use OIDC.
 - [ ] (Optional) Add `SAFE_UPGRADE: "true"` to upgrade steps you want to be safely
@@ -345,26 +354,31 @@ safe-upgraded revision is permitted from any pipeline step.
 
 ---
 
-## Phase 7 will expand this guide
+## Cross-references
 
-This guide is a Phase 5 draft. Phase 7 will polish wording, add screenshots, generate a
-table of contents, add `mkdocs-material` admonitions, and integrate the guide at
-`/v2/migration/v1-to-v2/` on the docs site (using `mike` for version-stamped publishing).
+Related docs and copy-paste-ready examples:
 
-Phase 7 will also ship `examples/migration-v1-to-v2/` (MIG-03) — a before/after
-`bitbucket-pipelines.yml` diff with line-level explanations of every required change.
-
-Related guides:
-- [OIDC setup guide (Phase 4 draft)](../guides/oidc-setup.md) — IAM trust-policy template + OIDC
-  configuration walkthrough.
-- [Phase 5 breaking changes source on GitHub](https://github.com/yves-vogl/aws-eks-helm-deploy/blob/main/.planning/ROADMAP.md) — ROADMAP Phase 5 entry
-  lists the 8 requirements addressed in this phase.
-
-<!-- Draft authored in Phase 5; polished in Phase 7 alongside the mkdocs-material site. -->
+- [OIDC setup guide](../guides/oidc-setup.md) — IAM trust-policy template + OIDC configuration walkthrough.
+- [`examples/basic/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/basic) — minimal v2 pipeline (static keys + local chart).
+- [`examples/oidc-only/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/oidc-only) — OIDC + `repo://` chart from a Helm repository.
+- [`examples/oci-chart/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/oci-chart) — OIDC + signed OCI chart from GHCR with Cosign keyless verify.
+- [`examples/multi-env/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/multi-env) — multi-env pipeline with helm-diff PR comment.
+- [`examples/migration-v1-to-v2/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/migration-v1-to-v2) — paired `before.yml` / `after.yml` with line-level explanations.
 
 ---
 
+## NAMESPACE correction
+
+!!! warning "Breaking change"
+    v1.x defaulted `NAMESPACE` to `kube-public` (an upstream bug). v2 defaults to `default`. Always set `NAMESPACE` explicitly in your pipeline step — relying on the v1 default produced releases in `kube-public`, which is the wrong place for application workloads. See the diff at [`examples/migration-v1-to-v2/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/migration-v1-to-v2) — `after.yml` adds `NAMESPACE: production` explicitly.
+
 ## Distribution change (Phase 6 / MIG-01)
+
+!!! warning "Breaking change"
+    The v2.x image lives at `ghcr.io/yves-vogl/aws-eks-helm-deploy`, NOT at Docker Hub. v1.3.0 is the last Docker Hub tag and stays frozen indefinitely. Pin to `:2.0.0` for production; `:2` is the rolling major. See [`examples/migration-v1-to-v2/after.yml`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/migration-v1-to-v2) for the single-line image swap.
+
+!!! tip "Image-tag pinning policy"
+    Production pipelines SHOULD pin to a specific patch tag (`:2.0.0`). The `:2` tag follows the v2 major release line and may move on every v2.x.y patch. The `:latest` tag points to the freshly-published latest release across any major and is reserved for ad-hoc inspection — never use it in CI.
 
 **The v2.x image is published exclusively to GitHub Container Registry.** Docker Hub is frozen at v1.3.0.
 
