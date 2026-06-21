@@ -103,7 +103,7 @@ requires-dist = [
     { name = "jinja2", specifier = "~=3.1" },
     { name = "pydantic-settings", specifier = "~=2.14" },
     { name = "pyyaml", specifier = "~=6.0" },
-    { name = "structlog", specifier = "~=26.0" },
+    { name = "structlog", specifier = "~=26.1" },
 ]
 
 [package.metadata.requires-dev]
