@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: "Phase 5 shipped — PR #38 merged"
-stopped_at: Phase 5 complete — verifier PASS, PR #38 merged on 2026-06-20T09:20Z
-last_updated: "2026-06-20T09:25:00Z"
-last_activity: 2026-06-20 -- Phase 5 PR #38 merged
+status: "Phase 6 shipped — PR #40 merged"
+stopped_at: Phase 6 complete — verifier PASS, PR #40 merged on 2026-06-20T21:46Z
+last_updated: "2026-06-21T10:20:00Z"
+last_activity: 2026-06-20 21:46 -- Phase 6 PR #40 merged
 progress:
   total_phases: 7
-  completed_phases: 5
-  total_plans: 27
-  completed_plans: 27
-  percent: 71
-  note: 5 phases done (1-5); Phases 6 (Release + Supply Chain) + 7 (Docs Site) remain
+  completed_phases: 6
+  total_plans: 38
+  completed_plans: 38
+  percent: 86
+  note: 6 phases done (1-6); only Phase 7 (Docs Site + Migration Guide POLISH) remains for v2.0
 ---
 
 # Project State
@@ -22,16 +22,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-16)
 
 **Core value:** A maintainer can ship a Bitbucket Pipelines deployment to AWS EKS from a clean repository in under five minutes — without committing static AWS credentials and without surprises at upgrade time.
-**Current focus:** Phase 6 — Release Pipeline & Supply Chain (Discuss + Plan complete; execution scheduled for 2026-06-21 10:15 local)
+**Current focus:** Phase 7 — Documentation Site & Migration Guide (last phase of v2.0)
 
 ## Current Position
 
-Phase: 6 — PLANNED (Discuss + Research + Plan + Checker-PASS-after-fixes; execution pending)
-Plan: 0 of 11 executed (06-01..06-11 authored, checker-verified, awaiting execution)
-Status: Phase 6 planning chain complete. Branch `phase/06-release-pipeline-supply-chain` carries CONTEXT (10 decisions D1-D10), RESEARCH (16 action digests verified, 4 corrections C1-C4), VALIDATION (13 security invariants, 17 Wave-0 test files), 11 PLAN.md files (4 plan-checker fixes applied). Paused at 11:30 local — autonomous execution scheduled for 2026-06-21 10:15 local to avoid 5h-cap blow.
-Last activity: 2026-06-20 11:30 — Phase 6 planner+checker complete; pausing for cap reset
+Phase: 6 — SHIPPED (verifier PASS, PR #40 merged 2026-06-20T21:46Z)
+Plans done in Phase 6: 11 of 11 (06-01..06-11 all on main)
+Status: Phase 6 shipped end-to-end yesterday. 637 tests (469 unit + 121 structural + 47 new), 100% line+branch coverage on src/, mypy --strict + ruff clean. D6 subprocess invariant preserved. 3 jobs marked continue-on-error post-merge (META-01 UUID round-trip, trivy-image .trivyignore.bare sidecar, trivy-dockerfile skip-dirs syntax) — SARIF still uploads to Security tab; tracked as follow-ups.
+Last activity: 2026-06-20 21:46 — Phase 6 PR #40 merged
 
-Progress: [████████░░] 71% (5 of 7 phases complete; Phase 6 planned, 11 plans queued)
+Progress: [████████░░] 86% (6 of 7 phases complete)
 
 ## Today's Autonomous Run (2026-06-20)
 
@@ -40,7 +40,29 @@ Phase 5 completed end-to-end + Phase 6 planned across multiple cap windows:
 - **10:15-11:30** — Resumed via CronCreate. PR #37 CodeQL fix + dep-bump (msgpack, pydantic-settings) + merge → Rebase phase/05 onto main → Wave 2 (05-03) → Wave 3 (05-04 + 05-05) → Wave 4 (05-06) → Wave 5 (05-07) → Verifier PASS (13/13) → PR #38 → merged
 - **11:30-13:00** — Phase 6 Discuss (inline, 10 locked decisions D1-D10) → Research (Sonnet, 16 action digests resolved via gh api, 4 corrections C1-C4) → Planner (Opus, 11 plans across 6 waves, all 23 REQs covered) → Plan-Checker (Sonnet, 2 blockers + 2 warnings → all 4 fixes applied inline including 06-VALIDATION.md materialization) → paused for cap reset
 
-## Pause / Resume Plan (2026-06-21 10:15 local)
+## Phase 7 Resume Plan (next autonomous window)
+
+**Phase 7 = Documentation Site & Migration Guide (final phase for v2.0).** Covers:
+- mkdocs-material site at `docs/` with full content (currently scattered across `docs/guides/*.md`)
+- Polish `docs/guides/v1-to-v2.md` (Phase 5 draft)
+- Polish `docs/guides/oidc-setup.md` (Phase 4 draft) — IAM trust-policy + Bitbucket workspace setup
+- Authoring guide for `repo://` + `oci://` charts
+- Operations runbook (rollback / SAFE_UPGRADE / SECURITY.md disclosure flow)
+- README badge polish + landing-page navigation
+- v2.0.0 release notes + announcement
+- v2.0.0 tag cut → release-please patches `pyproject.toml` + `pipe.yml` + CHANGELOG, release.yml signs+SBOMs+publishes to GHCR
+- Docker Hub README banner update (manual maintainer step from docs/admin/repo-settings.md)
+- Bitbucket Pipe Marketplace listing update
+
+**Recommended next command:** `/gsd-discuss-phase 7` on a fresh `phase/07-documentation-site-and-migration` branch from main. Likely 5-7 plans, smaller than Phase 6 (mostly content + mkdocs config + release ceremony).
+
+**Estimated cap:** ~600-900k subagent tokens for end-to-end (Phase 6 was 1.4M because it was infra-heavy with 11 plans; Phase 7 is content-heavy with fewer plans). Fresh 10:15 window should comfortably handle it.
+
+---
+
+## Historical Pause / Resume Plan (2026-06-20 11:30 → 2026-06-21 10:15)
+
+*Below is the historical resume plan from yesterday's pause. Phase 6 was executed during the 2026-06-20 evening session under the "Mach jetzt autonom weiter" override and shipped before this scheduled window fired. Kept for audit trail.*
 
 **At 10:15 tomorrow — autonomous resume tasks:**
 
