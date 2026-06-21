@@ -71,8 +71,7 @@ def _parse_sarif(path: pathlib.Path) -> list[dict[str, str]]:
     findings: list[dict[str, str]] = []
     for run in sarif.get("runs", []):
         rules = {
-            rule["id"]: rule
-            for rule in run.get("tool", {}).get("driver", {}).get("rules", [])
+            rule["id"]: rule for rule in run.get("tool", {}).get("driver", {}).get("rules", [])
         }
         for result in run.get("results", []):
             rule_id = result.get("ruleId", "")

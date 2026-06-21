@@ -37,9 +37,7 @@ def _check_expiry(i: int, cve: str, expires_str: str, today: date) -> list[str]:
         errors.append(f"Line {i}: malformed expires= field: {expires_str!r}")
         return errors
     if expires < today:
-        errors.append(
-            f"Line {i}: {cve} expiry {expires.isoformat()} is PAST — remove or extend"
-        )
+        errors.append(f"Line {i}: {cve} expiry {expires.isoformat()} is PAST — remove or extend")
     elif (expires - today).days > MAX_DAYS:
         errors.append(
             f"Line {i}: {cve} expiry {expires.isoformat()} is > {MAX_DAYS} days — shorten"
@@ -96,7 +94,10 @@ def emit_bare(path: pathlib.Path, out: pathlib.Path) -> None:
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     if not args:
-        print("usage: trivyignore-check.sh <path-to-trivyignore> [--emit-bare <out>]", file=sys.stderr)
+        print(
+            "usage: trivyignore-check.sh <path-to-trivyignore> [--emit-bare <out>]",
+            file=sys.stderr,
+        )
         return 2
     path = pathlib.Path(args[0])
     errors = check(path)

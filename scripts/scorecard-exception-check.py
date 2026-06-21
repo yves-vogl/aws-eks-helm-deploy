@@ -28,17 +28,14 @@ def _parse_frontmatter(text: str) -> dict[str, Any]:
     return data
 
 
-def _check_review_date(
-    i: int, entry: dict[str, Any], today: date
-) -> list[str]:
+def _check_review_date(i: int, entry: dict[str, Any], today: date) -> list[str]:
     """Validate review_date for a single exception entry. Returns error list."""
     errors: list[str] = []
     raw_date = entry["review_date"]
     review = raw_date if isinstance(raw_date, date) else date.fromisoformat(str(raw_date))
     if review < today:
         errors.append(
-            f"Entry {i} ({entry.get('check', '?')}): review_date"
-            f" {review.isoformat()} is PAST"
+            f"Entry {i} ({entry.get('check', '?')}): review_date {review.isoformat()} is PAST"
         )
     elif (review - today).days > MAX_DAYS:
         errors.append(
