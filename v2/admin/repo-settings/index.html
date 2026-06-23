@@ -1547,16 +1547,14 @@ with a side-by-side <code>mkdocs.yml</code> pointing at a tiny <code>docs/</code
 <div class="highlight"><pre><span></span><code><span class="c1"># 1. Stage v1 snapshot source under a gitignored directory.</span>
 mkdir<span class="w"> </span>-p<span class="w"> </span>.v1-snapshot/docs
 
-<span class="c1"># 2. Author a minimal docs/index.md with the &quot;v1 frozen&quot; banner — the v1.x</span>
-<span class="c1">#    EOS is `2026-12-23` (v2.0.0 released 2026-06-23 + 6 months; per D10).</span>
+<span class="c1"># 2. Author a minimal docs/index.md with the &quot;v1 frozen&quot; banner.</span>
 cat<span class="w"> </span>&gt;<span class="w"> </span>.v1-snapshot/docs/index.md<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
 <span class="s"># aws-eks-helm-deploy v1 — frozen</span>
 
-<span class="s">!!! warning &quot;v1.x is frozen&quot;</span>
+<span class="s">!!! warning &quot;v1.x is not maintained&quot;</span>
 <span class="s">    The v1.x line of this pipe was distributed via Docker Hub at</span>
-<span class="s">    `yvogl/aws-eks-helm-deploy` and is **frozen at v1.3.0**.</span>
-<span class="s">    Security fixes for v1.x are released for **6 months from the v2.0.0</span>
-<span class="s">    release date** — ending `2026-12-23` (v2.0.0 released 2026-06-23 + 6 months).</span>
+<span class="s">    `yvogl/aws-eks-helm-deploy` and is **frozen at v1.3.0**. No active</span>
+<span class="s">    maintenance is provided — no security patches, no bug fixes.</span>
 
 <span class="s">    Use **v2** for all new and existing deployments:</span>
 <span class="s">    &lt;https://yves-vogl.github.io/aws-eks-helm-deploy/v2/&gt;</span>
@@ -1616,15 +1614,14 @@ Docker Hub land on the GHCR migration path.</p>
 https://hub.docker.com/repository/docker/yvogl/aws-eks-helm-deploy/general</p>
 <p><strong>Recommended banner template</strong> (copy into the top of the Docker Hub README,
 above the existing content):</p>
-<div class="highlight"><pre><span></span><code><span class="k">&gt; </span><span class="ge">**⚠️ Deprecated.** v1.3.0 is the final v1.x image and is frozen on Docker</span>
-<span class="k">&gt; </span><span class="ge">Hub. New consumers should pull v2.x from GitHub Container Registry at</span>
-<span class="k">&gt; </span><span class="ge">`ghcr.io/yves-vogl/aws-eks-helm-deploy` (rolling `:2` tag) or a pinned</span>
-<span class="k">&gt; </span><span class="ge">version (`:2.0.0`).</span>
+<div class="highlight"><pre><span></span><code><span class="k">&gt; </span><span class="ge">**⚠️ Not maintained.** v1.3.0 is the final v1.x image and is **frozen** on</span>
+<span class="k">&gt; </span><span class="ge">Docker Hub. No security patches or bug fixes will be released for v1.x.</span>
 <span class="k">&gt;</span>
-<span class="ge">&gt; Security fixes for v1.x are released for 6 months from the v2.0.0 release</span>
-<span class="k">&gt; </span><span class="ge">date — ending `2026-12-23` (v2.0.0 released 2026-06-23 + 6 months).</span>
+<span class="ge">&gt; New consumers — and existing v1 users — should pull v2.x from GitHub</span>
+<span class="k">&gt; </span><span class="ge">Container Registry at `ghcr.io/yves-vogl/aws-eks-helm-deploy` (rolling `:2`</span>
+<span class="k">&gt; </span><span class="ge">tag) or a pinned version (`:2.0.0`).</span>
 <span class="k">&gt;</span>
-<span class="ge">&gt; Migration guide: https://yves-vogl.github.io/aws-eks-helm-deploy/migration/v1-to-v2/</span>
+<span class="ge">&gt; Migration guide: https://yves-vogl.github.io/aws-eks-helm-deploy/v2/migration/v1-to-v2/</span>
 </code></pre></div>
 <p>Web-UI only step; no API. <strong>Not idempotent via API.</strong> Confirm visually after
 submitting.</p>
@@ -1671,12 +1668,12 @@ gh<span class="w"> </span>label<span class="w"> </span>list<span class="w"> </sp
   intent — re-running is harmless but unnecessary).</li>
 <li>Sections 10–11 (Bitbucket Pipe Marketplace + Docker Hub banner) are web-UI
   only with no programmatic idempotency guarantee; confirm visually.</li>
-<li>The v1.x EOS date is <code>2026-12-23</code> (v2.0.0 released 2026-06-23 + 6 months;
-  per D10 / SI-07-07). It appears in <code>SECURITY.md</code> (Plan 07-06),
-  <code>docs/migration/v1-to-v2.md</code> (Plan 07-04), AND <code>docs/admin/repo-settings.md</code>
-  Sections 9 + 11 (this plan). The pre-tag-cut placeholder
-  <code>2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.</code> was
-  replaced in the v1.x-EOS-freeze follow-up PR after v2.0.0 was tagged.</li>
+<li><strong>v1.x is not maintained.</strong> The v1.3.0 image on Docker Hub is the final v1
+  release; no security patches or bug fixes are committed to v1.x. The original
+  Phase 7 design assumed a 6-month security-fix window (D10 / SI-07-07 placeholder),
+  but the policy was revised post-v2.0.0 to a clean break — users should migrate
+  to v2.x. SECURITY.md, the migration guide, and §§9 + 11 of this runbook all
+  carry the "not maintained" wording verbatim.</li>
 </ul>
 
 
