@@ -3,7 +3,10 @@
 Requirements traceability:
     PIPE-04:   RollbackAction.run orchestrates ACTION=rollback with pre-flight check
     PIPE-05:   pre-flight uses SAFE_UPGRADE_DESCRIPTION to detect revisions deployed
-               with --wait --atomic (CONTEXT D5 / 05-RESEARCH CONTRADICTION 2 workaround)
+               with --wait --rollback-on-failure (CONTEXT D5 / 05-RESEARCH CONTRADICTION 2
+               workaround). In helm 3.x the flag was --atomic; helm 4 renamed it to
+               --rollback-on-failure (issue #70 migration). Both forms produce releases tagged
+               with SAFE_UPGRADE_DESCRIPTION, so historical helm-3 deploys remain rollback-safe.
 
 Architecture (CONTEXT D1):
     - This module is < 50 LOC in RollbackAction.run body.
@@ -13,11 +16,12 @@ Architecture (CONTEXT D1):
       select_chart_source is intentionally NOT imported here.
 
 Rollback safety contract (CONTEXT D5):
-    helm 3.x does NOT record --wait in the history description by default.
-    The pipe works around this by explicitly setting --description "pipe:safe-upgrade"
-    on upgrade (PIPE-05). The pre-flight check here searches for that substring in
-    HelmRevision.description before authorising rollback. If absent, the action raises
-    ChartResolutionError (exit=4) with a consumer-friendly error message.
+    helm does NOT record --wait status in the history description by default (this remains
+    true for both helm 3.x and helm 4.x as of v4.2.2). The pipe works around this by
+    explicitly setting --description "pipe:safe-upgrade" on upgrade (PIPE-05). The pre-flight
+    check here searches for that substring in HelmRevision.description before authorising
+    rollback. If absent, the action raises ChartResolutionError (exit=4) with a consumer-
+    friendly error message.
 """
 
 from __future__ import annotations
@@ -168,7 +172,7 @@ class RollbackAction:
             raise ChartResolutionError(
                 f"Refusing rollback to revision {revision} of release {release!r} "
                 f"— that revision was NOT deployed with SAFE_UPGRADE=true "
-                f"(no --wait/--atomic guarantee). "
+                f"(no --wait/--rollback-on-failure guarantee). "
                 f"Re-deploy with SAFE_UPGRADE=true first, then retry rollback."
             )
 

@@ -259,13 +259,20 @@ not critical path — your diff still succeeds even if the comment cannot be pos
 
 ### Deploying with SAFE_UPGRADE=true
 
-`SAFE_UPGRADE=true` causes `helm upgrade --install` to run with `--wait`, `--atomic`, AND
-`--description "pipe:safe-upgrade"`. The description marker is persisted in helm's release
-history and serves as the safety token for rollback pre-flight.
+`SAFE_UPGRADE=true` causes `helm upgrade --install` to run with `--wait`,
+`--rollback-on-failure`, AND `--description "pipe:safe-upgrade"`. The description marker is
+persisted in helm's release history and serves as the safety token for rollback pre-flight.
 
-When `--atomic` is set, helm rolls back the release automatically on a failed upgrade. The
-combination of `--wait` + `--atomic` ensures that only a deployment that passed Kubernetes
-readiness checks leaves a `pipe:safe-upgrade` description in history.
+> **Helm v4 note (issue #70):** The flag is `--rollback-on-failure` in helm v4 (bundled since
+> pipe `2.x` post-issue-#70). In helm 3.x this flag was named `--atomic`; the bundled binary
+> upgrade to helm 4.2.2 made the pipe switch to the canonical v4 name. The behaviour is
+> identical — automatic rollback on failure — and the `pipe:safe-upgrade` description marker is
+> unchanged, so historical releases tagged from older pipe builds remain recognised as
+> safe-upgrade rollback targets.
+
+When `--rollback-on-failure` is set, helm rolls back the release automatically on a failed
+upgrade. The combination of `--wait` + `--rollback-on-failure` ensures that only a deployment
+that passed Kubernetes readiness checks leaves a `pipe:safe-upgrade` description in history.
 
 ```yaml
 # bitbucket-pipelines.yml — upgrade with SAFE_UPGRADE=true
@@ -297,7 +304,8 @@ error message:
 
 ```text
 ERROR  ChartResolutionError: Refusing rollback to revision 3 of release 'my-release' —
-       that revision was NOT deployed with SAFE_UPGRADE=true (no --wait/--atomic guarantee).
+       that revision was NOT deployed with SAFE_UPGRADE=true
+       (no --wait/--rollback-on-failure guarantee).
        Re-deploy with SAFE_UPGRADE=true first, then retry rollback.
 ```
 
@@ -328,7 +336,7 @@ safe-upgraded revision is permitted from any pipeline step.
 |---------|------|---------|--------|-------|
 | `POST_DIFF_AS_COMMENT` | `bool` | `false` | PIPE-03 | Requires `BITBUCKET_TOKEN` and a PR build (`BITBUCKET_PR_ID` set by Bitbucket Pipelines). |
 | `BITBUCKET_TOKEN` | `secret` | (none) | PIPE-03 | Pipe never logs the literal value (`SecretStr` in source). Store as a secured repo variable. |
-| `SAFE_UPGRADE` | `bool` | `false` | PIPE-05 | Adds `--wait --atomic --description "pipe:safe-upgrade"` to upgrade argv. |
+| `SAFE_UPGRADE` | `bool` | `false` | PIPE-05 | Adds `--wait --rollback-on-failure --description "pipe:safe-upgrade"` to upgrade argv (helm v4; flag was `--atomic` in helm 3, see issue #70). |
 | `REVISION` | `int (≥ 0)` | (none) | PIPE-04 | Required when `ACTION=rollback`. |
 | `INJECT_BITBUCKET_METADATA` | `bool \| unset` | unset | META-02/03 | Tri-state. Unset triggers detection WARN if chart `values.yaml` declares `bitbucket:`. |
 | `ACTION` | `enum` | `upgrade` | PIPE-02/04 | v2 accepts `upgrade`, `diff`, `rollback`. |

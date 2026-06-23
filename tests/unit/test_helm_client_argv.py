@@ -373,8 +373,14 @@ def test_build_diff_argv_does_not_include_timeout_or_history_max() -> None:
 
 
 @pytest.mark.unit
-def test_build_argv_safe_upgrade_false_does_not_add_wait_atomic() -> None:
-    """safe_upgrade=False (default) does NOT add --wait, --atomic, or --description to argv."""
+def test_build_argv_safe_upgrade_false_does_not_add_wait_or_rollback_flag() -> None:
+    """safe_upgrade=False (default) omits --wait, --rollback-on-failure, --atomic, --description.
+
+    Issue #70 migration: helm 4.2.2 renamed --atomic to --rollback-on-failure. We assert that
+    neither the new nor the old flag form leaks into the default argv (the old --atomic is
+    still accepted by helm v4 as a deprecated alias, but the pipe must not emit either form
+    unless safe_upgrade=True).
+    """
     argv = _client()._build_argv(
         release="rel",
         chart_path=pathlib.Path("/charts/c"),
@@ -386,13 +392,20 @@ def test_build_argv_safe_upgrade_false_does_not_add_wait_atomic() -> None:
         safe_upgrade=False,
     )
     assert "--wait" not in argv
-    assert "--atomic" not in argv
+    assert "--rollback-on-failure" not in argv
+    assert "--atomic" not in argv  # helm 3 legacy form — must not appear either
     assert "--description" not in argv
 
 
 @pytest.mark.unit
-def test_build_argv_safe_upgrade_true_appends_wait_atomic_description() -> None:
-    """safe_upgrade=True appends --wait --atomic --description pipe:safe-upgrade at argv tail."""
+def test_build_argv_safe_upgrade_true_appends_wait_rollback_description() -> None:
+    """safe_upgrade=True appends helm-v4 canonical flags at argv tail.
+
+    Issue #70: argv tail is now ``--wait --rollback-on-failure --description
+    pipe:safe-upgrade`` (helm 4.2.2 pkg/cmd/upgrade.go L290 — --atomic is a deprecated alias).
+    The marker string ``"pipe:safe-upgrade"`` is INTENTIONALLY unchanged so RollbackAction
+    pre-flight can still match historical releases deployed by older pipe builds.
+    """
     argv = _client()._build_argv(
         release="rel",
         chart_path=pathlib.Path("/charts/c"),
@@ -403,7 +416,15 @@ def test_build_argv_safe_upgrade_true_appends_wait_atomic_description() -> None:
         timeout="600s",
         safe_upgrade=True,
     )
-    assert argv[-4:] == ["--wait", "--atomic", "--description", "pipe:safe-upgrade"]
+    assert argv[-4:] == [
+        "--wait",
+        "--rollback-on-failure",
+        "--description",
+        "pipe:safe-upgrade",
+    ]
+    # Defensive: the deprecated helm-3 alias must NOT appear (avoids stderr deprecation
+    # warnings on every safe upgrade).
+    assert "--atomic" not in argv
 
 
 @pytest.mark.unit

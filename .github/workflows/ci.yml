@@ -91,13 +91,13 @@ jobs:
       - name: Install integration dependencies
         run: uv sync --group integration --frozen
 
-      - name: Set up Helm (3.21.x — matches Dockerfile pin)
+      - name: Set up Helm (4.2.x — matches Dockerfile pin)
         # The GitHub-hosted runner's pre-installed helm version is unstable across
-        # runner image refreshes; pin to 3.21.x so tests that use --untar-dir and
-        # other flags introduced/preserved in 3.18+ run reliably.
+        # runner image refreshes; pin to 4.2.x to match the bundled binary in the
+        # Dockerfile (HELM_VERSION=4.2.2). Helm v3 EOL is 2026-11-11.
         uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
         with:
-          version: v3.21.2
+          version: v4.2.2
 
       - name: Create kind cluster
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0

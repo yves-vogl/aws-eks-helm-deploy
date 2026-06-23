@@ -127,8 +127,8 @@ The `ghcr.io/yves-vogl/aws-eks-helm-deploy:2` image bundles:
 | Component                      | Version             | Notes                                                                  |
 | ------------------------------ | ------------------- | ---------------------------------------------------------------------- |
 | Base image                     | `python:3.13-slim-bookworm` | Pinned by SHA; non-root user (`USER pipe`, uid ≥ 10000).        |
-| Helm                           | `3.21.2`            | Bundled (no `kubectl` required). See the [Helm version skew policy](https://helm.sh/docs/topics/version_skew/). |
-| `helm-diff`                    | `3.10.0`            | Plugin for `ACTION=diff`; SHA-pinned binary.                           |
+| Helm                           | `4.2.2`             | Bundled (no `kubectl` required). See the [Helm version skew policy](https://helm.sh/docs/topics/version_skew/). Helm v3 EOL: 2026-11-11. |
+| `helm-diff`                    | `3.15.10`           | Plugin for `ACTION=diff`; SHA-pinned binary; Helm v4 compatible (server-side apply default). |
 | Cosign                         | `3.1.1`             | Bundled for image-side signature operations.                           |
 | `kubectl`                      | not bundled         | The pipe generates a kubeconfig and talks to the EKS API directly.     |
 | `boto3`                        | latest stable       | Generates the EKS token natively — no `awscli` in the image.           |

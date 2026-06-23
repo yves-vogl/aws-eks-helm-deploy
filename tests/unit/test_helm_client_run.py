@@ -1143,7 +1143,13 @@ def test_rollback_timeout_with_none_stderr_does_not_crash(mocker: Any) -> None:
 def test_upgrade_install_safe_upgrade_true_argv_contains_description_marker(
     mocker: Any,
 ) -> None:
-    """upgrade_install(safe_upgrade=True) passes pipe:safe-upgrade in argv to subprocess.run."""
+    """upgrade_install(safe_upgrade=True) passes helm-v4 canonical flags + description marker.
+
+    Issue #70: argv now contains ``--wait --rollback-on-failure`` (the helm v4 canonical form);
+    the deprecated --atomic alias from helm 3.x must NOT appear to avoid the stderr
+    deprecation warning emitted by helm v4.2.2 (pkg/cmd/upgrade.go L292
+    MarkDeprecated("atomic", "use --rollback-on-failure instead")).
+    """
     mock_run = mocker.patch(
         _PATCH_TARGET,
         return_value=CompletedProcess(args=[], returncode=0, stdout="REVISION: 1", stderr=""),
@@ -1152,4 +1158,5 @@ def test_upgrade_install_safe_upgrade_true_argv_contains_description_marker(
     argv_passed = mock_run.call_args.args[0]
     assert "pipe:safe-upgrade" in argv_passed
     assert "--wait" in argv_passed
-    assert "--atomic" in argv_passed
+    assert "--rollback-on-failure" in argv_passed
+    assert "--atomic" not in argv_passed

@@ -157,7 +157,8 @@ class Settings(BaseSettings):
     # SecretStr prevents repr(settings) from leaking the token — R4/T-05-02 carry-forward.
     # Unwrap with .get_secret_value() at the single call site in bitbucket/pr_comment.py.
     bitbucket_token: SecretStr | None = Field(default=None, alias="BITBUCKET_TOKEN")
-    # PIPE-05 (D5): adds --wait --atomic --description "pipe:safe-upgrade" to helm upgrade argv
+    # PIPE-05 (D5): adds --wait --rollback-on-failure --description "pipe:safe-upgrade" to helm
+    # upgrade argv. (Helm 3 used --atomic; helm 4 renamed it to --rollback-on-failure — issue #70.)
     safe_upgrade: bool = Field(default=False, alias="SAFE_UPGRADE")
     # PIPE-04 (D5): target revision for ACTION=rollback; ge=0 mirrors history_max constraint
     revision: int | None = Field(default=None, ge=0, alias="REVISION")
