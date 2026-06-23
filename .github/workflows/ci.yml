@@ -217,7 +217,18 @@ jobs:
           skip-dirs: tests/fixtures,.planning
 
       - name: Run Trivy secret scan (filesystem)
-        # TODO(post-Phase-6): finds test-fixture dummy secrets; needs skip-dirs.
+        # skip-dirs excludes:
+        #  - `.venv/`: uv-generated virtualenv with third-party libraries that
+        #    embed placeholder mock-secrets (e.g. `moto`'s dummy AWS credentials).
+        #    These are not project secrets and surfaced as Critical findings in
+        #    the Security tab (alert #163 etc.).
+        #  - `tests/fixtures/`: chart fixtures that intentionally use dummy
+        #    secret-shaped strings for test ergonomics.
+        #  - `.planning/`: planning docs may quote example credentials in
+        #    threat-model walkthroughs.
+        # `continue-on-error: true` stays as a defense-in-depth so a single
+        # false-positive can never block a release; the SARIF upload still
+        # surfaces real findings to the Security tab.
         continue-on-error: true
         id: trivy-secret
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -229,6 +240,7 @@ jobs:
           exit-code: "1"
           format: sarif
           output: trivy-secret.sarif
+          skip-dirs: .venv,tests/fixtures,.planning
 
       - name: Upload secret-scan SARIF to Code Scanning
         # Only upload when Trivy actually wrote a SARIF file. With zero secret-scan
