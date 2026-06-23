@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#bitbucket-pipelines-oidc-iam-trust-policy-template" class="md-skip">
+        <a href="#bitbucket-pipelines-oidc-setup" class="md-skip">
           Skip to content
         </a>
       
@@ -673,13 +673,69 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#how-to-use" class="md-nav__link">
+  <a href="#step-1-register-the-bitbucket-oidc-provider-on-aws" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How to use
+        Step 1 — Register the Bitbucket OIDC provider on AWS
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Step 1 — Register the Bitbucket OIDC provider on AWS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-terraform-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A — Terraform (recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-aws-iam-create-open-id-connect-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B — aws iam create-open-id-connect-provider
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-iam-role-trust-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 — IAM role trust policy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 2 — IAM role trust policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#terraform-companion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terraform companion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -695,10 +751,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#notes" class="md-nav__link">
+  <a href="#step-3-wire-the-pipe-step" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notes
+        Step 3 — Wire the pipe step
       
     </span>
   </a>
@@ -706,10 +762,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#polish-coming-in-phase-7" class="md-nav__link">
+  <a href="#migrating-from-static-keys" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Polish coming in Phase 7
+        Migrating from static keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference
       
     </span>
   </a>
@@ -1026,13 +1093,69 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#how-to-use" class="md-nav__link">
+  <a href="#step-1-register-the-bitbucket-oidc-provider-on-aws" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How to use
+        Step 1 — Register the Bitbucket OIDC provider on AWS
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Step 1 — Register the Bitbucket OIDC provider on AWS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-terraform-recommended" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A — Terraform (recommended)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-aws-iam-create-open-id-connect-provider" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B — aws iam create-open-id-connect-provider
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-2-iam-role-trust-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2 — IAM role trust policy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Step 2 — IAM role trust policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#terraform-companion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terraform companion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1048,10 +1171,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#notes" class="md-nav__link">
+  <a href="#step-3-wire-the-pipe-step" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Notes
+        Step 3 — Wire the pipe step
       
     </span>
   </a>
@@ -1059,10 +1182,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#polish-coming-in-phase-7" class="md-nav__link">
+  <a href="#migrating-from-static-keys" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Polish coming in Phase 7
+        Migrating from static keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference
       
     </span>
   </a>
@@ -1089,18 +1223,53 @@
   
 
 
-<h1 id="bitbucket-pipelines-oidc-iam-trust-policy-template">Bitbucket Pipelines OIDC — IAM Trust-Policy Template<a class="headerlink" href="#bitbucket-pipelines-oidc-iam-trust-policy-template" title="Permanent link">&para;</a></h1>
-<blockquote>
-<p>Draft. Polished in Phase 7 alongside the mkdocs site.</p>
-</blockquote>
-<p>This page ships the AWS IAM trust-policy template the pipe expects when it authenticates to AWS
-via Bitbucket Pipelines OIDC (<code>AUTH-03</code>). The template is the <strong>consumer-side</strong> gate that
-constrains which Bitbucket workspace + repository can assume the role; the pipe's runtime path
-(<code>auth/oidc.py</code>) is the matching strategy that exchanges the OIDC JWT for STS credentials via
-<code>AssumeRoleWithWebIdentity</code>.</p>
-<h2 id="how-to-use">How to use<a class="headerlink" href="#how-to-use" title="Permanent link">&para;</a></h2>
+<h1 id="bitbucket-pipelines-oidc-setup">Bitbucket Pipelines OIDC setup<a class="headerlink" href="#bitbucket-pipelines-oidc-setup" title="Permanent link">&para;</a></h1>
+<p>OIDC removes the need for long-lived AWS access keys in your <code>bitbucket-pipelines.yml</code>.
+Bitbucket signs a short-lived JWT (the <code>BITBUCKET_STEP_OIDC_TOKEN</code>) once per step; the pipe
+exchanges it for AWS STS credentials via <code>AssumeRoleWithWebIdentity</code>, scoped to the role you
+configure on the AWS side.</p>
+<p>This guide covers the <strong>two pieces you need to provision on AWS</strong> before the pipe can use OIDC:</p>
 <ol>
-<li>Copy the JSON block below.</li>
+<li>The <strong>OIDC provider</strong> — one per AWS account, registers Bitbucket as a trusted issuer.</li>
+<li>The <strong>IAM role's trust policy</strong> — the consumer-side gate that constrains which Bitbucket
+   workspace + repository can assume the role.</li>
+</ol>
+<p>The pipe's runtime path (<code>src/aws_eks_helm_deploy/auth/oidc.py</code>) is the matching strategy that
+calls STS once the IAM role is in place.</p>
+<div class="admonition tip">
+<p class="admonition-title">Already running v1.x with static keys?</p>
+<p>Jump to the <a href="#migrating-from-static-keys">Migrating from static keys</a> section at the
+bottom — same role concept, no keys to rotate, fewer secrets to store in Bitbucket.</p>
+</div>
+<h2 id="step-1-register-the-bitbucket-oidc-provider-on-aws">Step 1 — Register the Bitbucket OIDC provider on AWS<a class="headerlink" href="#step-1-register-the-bitbucket-oidc-provider-on-aws" title="Permanent link">&para;</a></h2>
+<p>This is a one-shot per AWS account. Skip if a Bitbucket OIDC provider already exists in the
+target account (check <code>aws iam list-open-id-connect-providers</code>).</p>
+<h3 id="option-a-terraform-recommended">Option A — Terraform (recommended)<a class="headerlink" href="#option-a-terraform-recommended" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kr">data</span><span class="w"> </span><span class="nc">&quot;tls_certificate&quot;</span><span class="w"> </span><span class="nv">&quot;bitbucket_oidc&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="na">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://api.bitbucket.org/2.0/workspaces/${var.bitbucket_workspace_slug}/pipelines-config/identity/oidc/.well-known/openid-configuration&quot;</span>
+<span class="p">}</span>
+
+<span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_iam_openid_connect_provider&quot;</span><span class="w"> </span><span class="nv">&quot;bitbucket&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="na">url</span><span class="w">             </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://api.bitbucket.org/2.0/workspaces/${var.bitbucket_workspace_slug}/pipelines-config/identity/oidc&quot;</span>
+<span class="w">  </span><span class="na">client_id_list</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nv">var.bitbucket_oidc_audience</span><span class="p">]</span><span class="c1">   # ari:cloud:bitbucket::workspace/&lt;UUID&gt;</span>
+<span class="w">  </span><span class="na">thumbprint_list</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="nv">data.tls_certificate.bitbucket_oidc.certificates[0].sha1_fingerprint</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="option-b-aws-iam-create-open-id-connect-provider">Option B — <code>aws iam create-open-id-connect-provider</code><a class="headerlink" href="#option-b-aws-iam-create-open-id-connect-provider" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nv">WORKSPACE</span><span class="o">=</span><span class="s2">&quot;mycompany&quot;</span>
+<span class="nv">OIDC_AUDIENCE</span><span class="o">=</span><span class="s2">&quot;ari:cloud:bitbucket::workspace/&lt;WORKSPACE_UUID&gt;&quot;</span>
+<span class="nv">THUMBPRINT</span><span class="o">=</span><span class="k">$(</span><span class="nb">echo</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>s_client<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-servername<span class="w"> </span>api.bitbucket.org<span class="w"> </span>-connect<span class="w"> </span>api.bitbucket.org:443<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="p">|</span><span class="w"> </span>openssl<span class="w"> </span>x509<span class="w"> </span>-fingerprint<span class="w"> </span>-noout<span class="w"> </span>-sha1<span class="w"> </span><span class="p">|</span><span class="w"> </span>sed<span class="w"> </span><span class="s1">&#39;s/://g&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>cut<span class="w"> </span>-d<span class="o">=</span><span class="w"> </span>-f2<span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span><span class="s1">&#39;A-Z&#39;</span><span class="w"> </span><span class="s1">&#39;a-z&#39;</span><span class="k">)</span>
+
+aws<span class="w"> </span>iam<span class="w"> </span>create-open-id-connect-provider<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--url<span class="w"> </span><span class="s2">&quot;https://api.bitbucket.org/2.0/workspaces/</span><span class="si">${</span><span class="nv">WORKSPACE</span><span class="si">}</span><span class="s2">/pipelines-config/identity/oidc&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--client-id-list<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">OIDC_AUDIENCE</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--thumbprint-list<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">THUMBPRINT</span><span class="si">}</span><span class="s2">&quot;</span>
+</code></pre></div>
+<h2 id="step-2-iam-role-trust-policy">Step 2 — IAM role trust policy<a class="headerlink" href="#step-2-iam-role-trust-policy" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Copy the JSON block below (or the Terraform snippet that follows).</li>
 <li>Replace the 5 placeholders with values from your AWS account + Bitbucket workspace:</li>
 <li><code>&lt;ACCOUNT_ID&gt;</code> — your AWS 12-digit account ID.</li>
 <li><code>&lt;WORKSPACE&gt;</code> — your Bitbucket workspace slug (e.g. <code>mycompany</code>).</li>
@@ -1132,6 +1301,35 @@ constrains which Bitbucket workspace + repository can assume the role; the pipe'
   }]
 }
 </code></pre></div>
+<h3 id="terraform-companion">Terraform companion<a class="headerlink" href="#terraform-companion" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kr">resource</span><span class="w"> </span><span class="nc">&quot;aws_iam_role&quot;</span><span class="w"> </span><span class="nv">&quot;deploy&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="na">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;bitbucket-pipelines-eks-deploy&quot;</span>
+
+<span class="w">  </span><span class="na">assume_role_policy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">jsonencode</span><span class="p">({</span>
+<span class="w">    </span><span class="na">Version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2012-10-17&quot;</span>
+<span class="w">    </span><span class="na">Statement</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[{</span>
+<span class="w">      </span><span class="na">Effect</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Allow&quot;</span>
+<span class="w">      </span><span class="nb">Principal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="na">Federated</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">aws_iam_openid_connect_provider.bitbucket.arn</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">      </span><span class="na">Action</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sts:AssumeRoleWithWebIdentity&quot;</span>
+<span class="w">      </span><span class="nb">Condition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nb">StringEquals</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="s2">&quot;api.bitbucket.org/2.0/workspaces/${var.bitbucket_workspace_slug}/pipelines-config/identity/oidc:aud&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">var.bitbucket_oidc_audience</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="nb">StringLike</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="s2">&quot;api.bitbucket.org/2.0/workspaces/${var.bitbucket_workspace_slug}/pipelines-config/identity/oidc:sub&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;{${var.bitbucket_workspace_uuid}}:{${var.bitbucket_repo_uuid}}:*&quot;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}]</span>
+<span class="w">  </span><span class="p">})</span>
+<span class="p">}</span>
+
+<span class="c1"># Attach whatever managed/inline policies your deploy needs — typically EKS access entries</span>
+<span class="c1"># and any `aws-auth` group mappings the chart references. The pipe itself only needs to call</span>
+<span class="c1"># `eks:DescribeCluster` (token generation) plus whatever Kubernetes API access the Helm</span>
+<span class="c1"># release requires (gated via EKS access entries or the legacy aws-auth ConfigMap).</span>
+</code></pre></div>
 <h2 id="why-stringlike-not-stringequals-for-sub">Why <code>StringLike</code> (not <code>StringEquals</code>) for <code>sub</code><a class="headerlink" href="#why-stringlike-not-stringequals-for-sub" title="Permanent link">&para;</a></h2>
 <p>Bitbucket emits the <code>sub</code> claim as <code>{&lt;WORKSPACE_UUID&gt;}:{&lt;REPO_UUID&gt;}:&lt;step-UUID&gt;</code> — with
 literal curly braces and the step UUID as the third segment. IAM only treats <code>*</code> as a wildcard
@@ -1140,23 +1338,52 @@ under <code>StringLike</code>, NOT under <code>StringEquals</code>. The template
 + repo can assume the role; constraining at the step level is impractical (step UUIDs are
 ephemeral). If a downstream consumer wants step-level scoping, they can replace <code>*</code> with the
 exact step UUID and switch the condition back to <code>StringEquals</code>.</p>
-<h2 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h2>
+<h2 id="step-3-wire-the-pipe-step">Step 3 — Wire the pipe step<a class="headerlink" href="#step-3-wire-the-pipe-step" title="Permanent link">&para;</a></h2>
+<p>With the role provisioned, the <code>bitbucket-pipelines.yml</code> step looks like:</p>
+<div class="highlight"><pre><span></span><code><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">step</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deploy to EKS</span>
+<span class="w">    </span><span class="nt">deployment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">production</span>
+<span class="w">    </span><span class="nt">oidc</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                                       </span><span class="c1"># Bitbucket emits BITBUCKET_STEP_OIDC_TOKEN</span>
+<span class="w">    </span><span class="nt">script</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pipe</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">docker://ghcr.io/yves-vogl/aws-eks-helm-deploy:2</span>
+<span class="w">        </span><span class="nt">variables</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">OIDC_AUDIENCE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OIDC_AUDIENCE</span><span class="w">              </span><span class="c1"># ari:cloud:bitbucket::workspace/&lt;UUID&gt;</span>
+<span class="w">          </span><span class="nt">ROLE_ARN</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$DEPLOY_ROLE_ARN</span>
+<span class="w">          </span><span class="nt">AWS_REGION</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">eu-central-1</span>
+<span class="w">          </span><span class="nt">CLUSTER_NAME</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-eks-cluster</span>
+<span class="w">          </span><span class="nt">CHART</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./charts/my-app</span>
+<span class="w">          </span><span class="nt">RELEASE_NAME</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-app</span>
+<span class="w">          </span><span class="nt">NAMESPACE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">production</span>
+<span class="w">          </span><span class="nt">WAIT</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;true&quot;</span>
+<span class="w">          </span><span class="nt">TIMEOUT</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10m</span>
+</code></pre></div>
+<p>The <code>oidc: true</code> step setting is what tells Bitbucket to mint the OIDC token. Store
+<code>OIDC_AUDIENCE</code> and <code>DEPLOY_ROLE_ARN</code> as repository or deployment variables; neither is a
+secret in the cryptographic sense (the audience is per-workspace public; the role ARN is
+trivial to discover from AWS) but keeping them in Bitbucket variables makes per-environment
+overrides clean.</p>
+<h2 id="migrating-from-static-keys">Migrating from static keys<a class="headerlink" href="#migrating-from-static-keys" title="Permanent link">&para;</a></h2>
+<p>If you're on v1.x today with <code>AWS_ACCESS_KEY_ID</code> + <code>AWS_SECRET_ACCESS_KEY</code> in repo variables:</p>
+<ol>
+<li>Stand up the OIDC provider (Step 1) and the IAM role with the trust policy (Step 2). Give
+   the role <strong>the same managed/inline policies</strong> that the IAM user behind your access keys had.</li>
+<li>Update one pipeline step to use the OIDC pattern (Step 3); leave the rest on static keys.</li>
+<li>Verify a deploy succeeds on the OIDC step. Inspect the WARN log
+   <code>auth.precedence.static_keys_won_over_oidc</code> — this surfaces only when <strong>both</strong> static keys
+   AND the OIDC token are present in the same step. Static keys win (mirrors the botocore
+   default-chain order). To switch to OIDC, <strong>unset</strong> <code>AWS_ACCESS_KEY_ID</code> +
+   <code>AWS_SECRET_ACCESS_KEY</code> in the step.</li>
+<li>Roll the remaining steps. Once all steps are on OIDC, delete the IAM user + access keys
+   from AWS and remove the secured Bitbucket variables.</li>
+</ol>
+<h2 id="reference">Reference<a class="headerlink" href="#reference" title="Permanent link">&para;</a></h2>
 <ul>
 <li>The pipe does NOT re-validate the JWT — STS validates the <code>aud</code> claim against the
   trust-policy condition above.</li>
 <li>The <code>Principal.Federated</code> URL is the OIDC provider ARN; the OIDC provider itself must be
-  created once per AWS account (typically via Terraform <code>aws_iam_openid_connect_provider</code>).
-  The Phase 7 docs site will ship the full Terraform setup alongside the trust policy.</li>
-<li>The pipe's WARN log <code>auth.precedence.static_keys_won_over_oidc</code> (Phase 4, AUTH-04 revised)
-  surfaces when a consumer has both static AWS keys AND <code>BITBUCKET_STEP_OIDC_TOKEN</code> set —
-  static keys win per the boto3 default chain order. To use OIDC instead, unset
-  <code>AWS_ACCESS_KEY_ID</code> + <code>AWS_SECRET_ACCESS_KEY</code> in your <code>bitbucket-pipelines.yml</code>.</li>
-</ul>
-<h2 id="polish-coming-in-phase-7">Polish coming in Phase 7<a class="headerlink" href="#polish-coming-in-phase-7" title="Permanent link">&para;</a></h2>
-<ul>
-<li>mkdocs-material rendering (<code>docs/guides/oidc-setup.md</code> lands in the published v2 site).</li>
-<li>Companion Terraform snippet (<code>aws_iam_role</code> + <code>data.tls_certificate</code> patterns).</li>
-<li>Migration notes for v1 → v2 OIDC setup.</li>
+  created once per AWS account (Step 1 above).</li>
+<li>Source: <code>src/aws_eks_helm_deploy/auth/oidc.py</code> (<code>OidcWebIdentityStrategy</code>).</li>
+<li>ADR: <a href="../../adr/0006-oidc-default-precedence/"><code>0006-oidc-default-precedence.md</code></a>.</li>
 </ul>
 
 
