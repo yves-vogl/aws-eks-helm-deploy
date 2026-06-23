@@ -103,13 +103,16 @@ class DiffAction:
         # Step 6: chart source factory
         chart_source = select_chart_source(s)
 
-        # Step 7: Bitbucket metadata args (opt-in per META-01; None/False = skip)
-        from aws_eks_helm_deploy.actions.upgrade import build_bitbucket_set_args
+        # Step 7: Bitbucket metadata args (opt-in per META-01; None/False = skip).
+        # Routed through --set-json (set_json_args) to preserve curly braces
+        # in BITBUCKET_STEP_TRIGGERER_UUID — see actions.upgrade for the
+        # full rationale.
+        from aws_eks_helm_deploy.actions.upgrade import build_bitbucket_set_json_args
 
-        bitbucket_args: list[str] = (
-            build_bitbucket_set_args(logger) if s.inject_bitbucket_metadata else []
+        bitbucket_set_json: list[str] = (
+            build_bitbucket_set_json_args(logger) if s.inject_bitbucket_metadata else []
         )
-        set_args = bitbucket_args + s.set_values  # user-supplied AFTER bitbucket (last-wins)
+        set_args = s.set_values
 
         # Step 8: chart resolve + kubeconfig write + helm diff (read-only)
         start = time.monotonic()
@@ -123,6 +126,7 @@ class DiffAction:
                     values_files=s.values_files,
                     set_args=set_args,
                     timeout=s.timeout,
+                    set_json_args=bitbucket_set_json,
                 )
                 cluster_name = s.cluster_name
             else:
@@ -136,6 +140,7 @@ class DiffAction:
                             values_files=s.values_files,
                             set_args=set_args,
                             timeout=s.timeout,
+                            set_json_args=bitbucket_set_json,
                         )
                 except OSError as exc:
                     raise KubeconfigError(f"Failed to write kubeconfig: {exc}") from exc

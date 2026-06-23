@@ -1,4 +1,19 @@
 # serializer version: 1
+# name: test_diff_argv_with_set_json_args
+  list([
+    'helm',
+    'diff',
+    'upgrade',
+    'rel',
+    '/charts/c',
+    '--namespace',
+    'default',
+    '--kubeconfig',
+    '/tmp/test-kubeconfig.yaml',
+    '--set-json',
+    'bitbucket.bitbucket_step_triggerer_uuid="{deadbeef-cafe-1234}"',
+  ])
+# ---
 # name: test_pull_oci_argv_with_version
   list([
     'helm',
@@ -210,6 +225,23 @@
     'image.tag=latest',
     '--set-string',
     'replicas=3',
+  ])
+# ---
+# name: test_upgrade_argv_with_set_json_args
+  list([
+    'helm',
+    'upgrade',
+    'rel',
+    '/charts/c',
+    '--install',
+    '--namespace',
+    'default',
+    '--kubeconfig',
+    '/tmp/test-kubeconfig.yaml',
+    '--timeout',
+    '600s',
+    '--set-json',
+    'bitbucket.bitbucket_step_triggerer_uuid="{deadbeef-cafe-1234}"',
   ])
 # ---
 # name: test_upgrade_argv_with_values

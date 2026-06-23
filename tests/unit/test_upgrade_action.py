@@ -397,10 +397,14 @@ def test_inject_false_omits_bitbucket_set_args(
 
 
 @pytest.mark.unit
-def test_inject_true_with_all_5_vars_adds_5_set_args(
+def test_inject_true_with_all_5_vars_adds_5_set_json_args(
     mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """All 5 BITBUCKET_* vars present -> 5 set_args entries in documented order."""
+    """All 5 BITBUCKET_* vars present -> 5 set_json_args entries in documented order.
+
+    Values land on the --set-json pathway (META-01 / Pitfall 4 fix) so curly
+    braces in BITBUCKET_STEP_TRIGGERER_UUID don't get parsed as YAML flow-set.
+    """
     monkeypatch.setenv("BITBUCKET_BUILD_NUMBER", "99")
     monkeypatch.setenv("BITBUCKET_REPO_SLUG", "my-repo")
     monkeypatch.setenv("BITBUCKET_COMMIT", "abc123def456")
@@ -414,21 +418,21 @@ def test_inject_true_with_all_5_vars_adds_5_set_args(
     action.run(mock_pipe)
 
     call_kwargs = mocks["helm_client_cls"].return_value.upgrade_install.call_args.kwargs
-    set_args: list[str] = call_kwargs["set_args"]
-    bitbucket_args = [a for a in set_args if "bitbucket." in a]
-    assert len(bitbucket_args) == 5
-    assert bitbucket_args[0] == "bitbucket.bitbucket_build_number=99"
-    assert bitbucket_args[1] == "bitbucket.bitbucket_repo_slug=my-repo"
-    assert bitbucket_args[2] == "bitbucket.bitbucket_commit=abc123def456"
-    assert bitbucket_args[3] == "bitbucket.bitbucket_tag=v1.2.3"
-    assert bitbucket_args[4] == "bitbucket.bitbucket_step_triggerer_uuid={deadbeef-cafe-1234}"
+    sja: list[str] = call_kwargs["set_json_args"]
+    bb = [a for a in sja if "bitbucket." in a]
+    assert len(bb) == 5
+    assert bb[0] == 'bitbucket.bitbucket_build_number="99"'
+    assert bb[1] == 'bitbucket.bitbucket_repo_slug="my-repo"'
+    assert bb[2] == 'bitbucket.bitbucket_commit="abc123def456"'
+    assert bb[3] == 'bitbucket.bitbucket_tag="v1.2.3"'
+    assert bb[4] == 'bitbucket.bitbucket_step_triggerer_uuid="{deadbeef-cafe-1234}"'
 
 
 @pytest.mark.unit
 def test_inject_true_with_uuid_curly_braces_passes_through_verbatim(
     mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Curly braces in BITBUCKET_STEP_TRIGGERER_UUID survive verbatim (T-03-04-01)."""
+    """Curly braces survive verbatim via --set-json (T-03-04-01, META-01 fix)."""
     monkeypatch.setenv("BITBUCKET_BUILD_NUMBER", "1")
     monkeypatch.setenv("BITBUCKET_REPO_SLUG", "repo")
     monkeypatch.setenv("BITBUCKET_COMMIT", "abc")
@@ -442,10 +446,10 @@ def test_inject_true_with_uuid_curly_braces_passes_through_verbatim(
     action.run(mock_pipe)
 
     call_kwargs = mocks["helm_client_cls"].return_value.upgrade_install.call_args.kwargs
-    set_args: list[str] = call_kwargs["set_args"]
-    uuid_arg = next(a for a in set_args if "triggerer" in a)
-    assert (
-        uuid_arg == "bitbucket.bitbucket_step_triggerer_uuid={deadbeef-cafe-1234-5678-abcdef012345}"
+    sja: list[str] = call_kwargs["set_json_args"]
+    uuid_arg = next(a for a in sja if "triggerer" in a)
+    assert uuid_arg == (
+        'bitbucket.bitbucket_step_triggerer_uuid="{deadbeef-cafe-1234-5678-abcdef012345}"'
     )
 
 
@@ -453,7 +457,7 @@ def test_inject_true_with_uuid_curly_braces_passes_through_verbatim(
 def test_inject_true_with_missing_var_warns_and_omits_that_arg(
     mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """inject=True with only BUILD_NUMBER set -> 4 warnings + 1 set_arg (CONTEXT D5)."""
+    """inject=True with only BUILD_NUMBER set -> 4 warnings + 1 set_json_arg (CONTEXT D5)."""
     monkeypatch.setenv("BITBUCKET_BUILD_NUMBER", "42")
     # Leave all other 4 BITBUCKET_* vars unset
     for env_var, _ in BITBUCKET_META_VARS[1:]:
@@ -472,9 +476,9 @@ def test_inject_true_with_missing_var_warns_and_omits_that_arg(
     assert len(missing_key_warns) == 4
 
     call_kwargs = mocks["helm_client_cls"].return_value.upgrade_install.call_args.kwargs
-    set_args: list[str] = call_kwargs["set_args"]
-    bitbucket_args = [a for a in set_args if "bitbucket." in a]
-    assert bitbucket_args == ["bitbucket.bitbucket_build_number=42"]
+    sja: list[str] = call_kwargs["set_json_args"]
+    bb = [a for a in sja if "bitbucket." in a]
+    assert bb == ['bitbucket.bitbucket_build_number="42"']
 
 
 @pytest.mark.unit
@@ -510,10 +514,15 @@ def test_inject_true_with_empty_string_treated_as_missing(
 
 
 @pytest.mark.unit
-def test_user_supplied_set_values_come_after_bitbucket_in_set_args(
+def test_user_set_values_on_set_string_bitbucket_on_set_json(
     mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """User-supplied set_values appear AFTER bitbucket args (helm last-wins semantics)."""
+    """User-supplied set_values go on --set-string; bitbucket metadata on --set-json.
+
+    Helm processes --set-string and --set-json independently; last-wins per
+    key-path. Since bitbucket.* keys and user keys are distinct namespaces,
+    ordering between the two flag groups is not observable on the chart side.
+    """
     monkeypatch.setenv("BITBUCKET_BUILD_NUMBER", "1")
     monkeypatch.setenv("BITBUCKET_REPO_SLUG", "repo")
     monkeypatch.setenv("BITBUCKET_COMMIT", "abc")
@@ -529,12 +538,10 @@ def test_user_supplied_set_values_come_after_bitbucket_in_set_args(
 
     call_kwargs = mocks["helm_client_cls"].return_value.upgrade_install.call_args.kwargs
     set_args: list[str] = call_kwargs["set_args"]
-    bb_indices = [i for i, a in enumerate(set_args) if "bitbucket." in a]
-    user_indices = [i for i, a in enumerate(set_args) if a == "my.key=value"]
-    assert len(bb_indices) == 5
-    assert len(user_indices) == 1
-    # All bitbucket entries come before user-supplied entries
-    assert max(bb_indices) < user_indices[0]
+    sja: list[str] = call_kwargs["set_json_args"]
+    assert set_args == ["my.key=value"]
+    assert len([a for a in sja if "bitbucket." in a]) == 5
+    assert not any("my.key" in a for a in sja)
 
 
 # ---------------------------------------------------------------------------
@@ -660,6 +667,21 @@ def test_build_bitbucket_set_args_meta_vars_order() -> None:
     assert env_var_names[2] == "BITBUCKET_COMMIT"
     assert env_var_names[3] == "BITBUCKET_TAG"
     assert env_var_names[4] == "BITBUCKET_STEP_TRIGGERER_UUID"
+
+
+@pytest.mark.unit
+def test_build_bitbucket_set_args_returns_unquoted_strings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Deprecated wrapper still returns raw `key=value` strings for back-compat."""
+    monkeypatch.setenv("BITBUCKET_BUILD_NUMBER", "42")
+    for env_var, _ in BITBUCKET_META_VARS[1:]:
+        monkeypatch.delenv(env_var, raising=False)
+
+    mock_logger = MagicMock()
+    result = build_bitbucket_set_args(mock_logger)
+
+    assert result == ["bitbucket.bitbucket_build_number=42"]
 
 
 # ---------------------------------------------------------------------------
@@ -899,7 +921,7 @@ def test_upgrade_action_does_not_inject_bitbucket_args_when_metadata_is_false(
 def test_upgrade_action_injects_bitbucket_args_when_metadata_is_true(
     mocker: MockerFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """inject_bitbucket_metadata=True -> bitbucket.* entries appear in set_args."""
+    """inject_bitbucket_metadata=True -> bitbucket.* entries appear in set_json_args."""
     monkeypatch.setenv("BITBUCKET_BUILD_NUMBER", "99")
     monkeypatch.setenv("BITBUCKET_REPO_SLUG", "my-repo")
     monkeypatch.setenv("BITBUCKET_COMMIT", "abc123")
@@ -913,10 +935,10 @@ def test_upgrade_action_injects_bitbucket_args_when_metadata_is_true(
     action.run(mock_pipe)
 
     call_kwargs = mocks["helm_client_cls"].return_value.upgrade_install.call_args.kwargs
-    set_args: list[str] = call_kwargs["set_args"]
-    bitbucket_args = [a for a in set_args if "bitbucket." in a]
-    assert len(bitbucket_args) == 5
-    assert "bitbucket.bitbucket_build_number=99" in bitbucket_args
+    sja: list[str] = call_kwargs["set_json_args"]
+    bb = [a for a in sja if "bitbucket." in a]
+    assert len(bb) == 5
+    assert 'bitbucket.bitbucket_build_number="99"' in bb
 
 
 # ---------------------------------------------------------------------------

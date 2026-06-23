@@ -67,6 +67,36 @@ def test_upgrade_argv_with_set_args(snapshot: object) -> None:
 
 
 @pytest.mark.unit
+def test_upgrade_argv_with_set_json_args(snapshot: object) -> None:
+    """set_json_args produce ``--set-json`` for each entry (META-01 fix)."""
+    argv = _client()._build_argv(
+        release="rel",
+        chart_path=pathlib.Path("/charts/c"),
+        namespace="default",
+        values_files=[],
+        set_args=[],
+        history_max=None,
+        timeout="600s",
+        set_json_args=['bitbucket.bitbucket_step_triggerer_uuid="{deadbeef-cafe-1234}"'],
+    )
+    assert argv == snapshot
+
+
+@pytest.mark.unit
+def test_diff_argv_with_set_json_args(snapshot: object) -> None:
+    """_build_diff_argv: set_json_args produce ``--set-json`` for each entry."""
+    argv = _client()._build_diff_argv(
+        release="rel",
+        chart_path=pathlib.Path("/charts/c"),
+        namespace="default",
+        values_files=[],
+        set_args=[],
+        set_json_args=['bitbucket.bitbucket_step_triggerer_uuid="{deadbeef-cafe-1234}"'],
+    )
+    assert argv == snapshot
+
+
+@pytest.mark.unit
 def test_upgrade_argv_with_history_max(snapshot: object) -> None:
     """history_max=5 produces ``--history-max 5`` in argv."""
     argv = _client()._build_argv(

@@ -193,6 +193,7 @@ def test_diff_action_happy_path_calls_helm_client_diff(mocker: MockerFixture) ->
         values_files=["base.yaml"],
         set_args=settings.set_values,
         timeout="300s",
+        set_json_args=[],
     )
 
 
