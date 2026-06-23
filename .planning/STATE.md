@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: "v2.0 FEATURE-COMPLETE — Phase 7 shipped (PR #45 merged); awaiting v2.0.0 tag-cut (maintainer manual)"
-stopped_at: Phase 7 complete — verifier PASS, PR #45 merged on 2026-06-21
-last_updated: "2026-06-21T17:45:00Z"
-last_activity: 2026-06-21 — Phase 7 PR #45 merged; v2.0 feature-complete
+status: "v2.0.0 RELEASED — tag cut, signed + SBOMs published to GHCR, docs site live"
+stopped_at: v2.0.0 release ceremony complete on 2026-06-23 — only web-UI maintainer steps remain (Marketplace listing + Docker Hub banner)
+last_updated: "2026-06-23T01:30:00Z"
+last_activity: 2026-06-23 — v2.0.0 released; v1.x EOS frozen at 2026-12-23 (PR #56)
 progress:
   total_phases: 7
   completed_phases: 7
   total_plans: 45
   completed_plans: 45
   percent: 100
-  note: All 7 phases shipped (1-7). v2.0 is feature-complete. v2.0.0 tag-cut is a maintainer-manual step (Yves runs `git tag v2.0.0 && git push --tags` — release.yml then signs + SBOMs + publishes to GHCR).
+  note: All 7 phases shipped (1-7). v2.0.0 RELEASED 2026-06-23 — signed via Cosign keyless, SPDX+CycloneDX SBOMs attested, multi-arch (amd64+arm64) on GHCR. Docs site live at https://yves-vogl.github.io/aws-eks-helm-deploy/ with /v1/ (frozen) + /v2/ (default/latest).
 ---
 
 # Project State
@@ -22,31 +22,42 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-16)
 
 **Core value:** A maintainer can ship a Bitbucket Pipelines deployment to AWS EKS from a clean repository in under five minutes — without committing static AWS credentials and without surprises at upgrade time.
-**Current focus:** v2.0 is feature-complete. Next step is the v2.0.0 tag-cut ceremony (maintainer-manual).
+**Current focus:** v2.0.0 RELEASED. Only two web-UI-only ceremony steps remain (Bitbucket Pipe Marketplace + Docker Hub banner).
 
 ## Current Position
 
-Phase: 7 — SHIPPED (verifier PASS, PR #45 merged 2026-06-21)
-Plans done in Phase 7: 7 of 7 (07-01..07-07 all on main)
-Status: v2.0 FEATURE-COMPLETE. 7 phases shipped end-to-end (Phase 1 toolchain → Phase 7 docs site). 700+ unit+structural tests, 100% line+branch coverage on src/, mypy --strict + ruff clean. D6 subprocess invariant preserved end-to-end.
-Last activity: 2026-06-21 — Phase 7 PR #45 merged
+v2.0.0 RELEASED 2026-06-23. 7 phases shipped end-to-end (Phase 1 toolchain → Phase 7 docs site). 700+ unit+structural tests, 100% line+branch coverage on src/, mypy --strict + ruff clean. D6 subprocess invariant preserved end-to-end.
 
-Progress: [██████████] 100% (7 of 7 phases complete)
+Progress: [██████████] 100% (7 of 7 phases complete; release ceremony complete except web-UI maintainer steps)
 
-## v2.0.0 tag-cut ceremony (PENDING — MAINTAINER MANUAL)
+## v2.0.0 Release Ceremony Status
 
-The branch is ready. **Yves runs these steps; Claude will NOT run them autonomously** (production touches per the standing confirmation guardrails):
+| Step | Status | Reference |
+|---|---|---|
+| v2.0.0 tag pushed | ✅ done 2026-06-23 | `git tag v2.0.0` |
+| release.yml: build linux/amd64 + linux/arm64 | ✅ done | run 27995499495 |
+| release.yml: sign + SPDX + CycloneDX SBOMs + SLSA provenance | ✅ done | Cosign keyless via Fulcio/Rekor |
+| release.yml: benchmark cold-start (IMAGE-06) | ✅ done | run 27995499495 |
+| GitHub Release v2.0.0 with SBOM JSON assets | ✅ done | https://github.com/yves-vogl/aws-eks-helm-deploy/releases/tag/v2.0.0 |
+| GHCR multi-arch images `:2.0.0` + `:2` + `:latest` | ✅ done | ghcr.io/yves-vogl/aws-eks-helm-deploy |
+| GitHub Pages enabled (`gh api pages -X POST`) | ✅ done | runbook §7 |
+| `mike set-default v2 --push` (root → /v2/) | ✅ done | runbook §8 |
+| `mike deploy v1` (frozen snapshot live at /v1/) | ✅ done | runbook §9 |
+| v1.x EOS date frozen at `2026-12-23` (= 2026-06-23 + 6 months) | ✅ done | PR #56 |
+| **Bitbucket Pipe Marketplace listing update** | ⏳ Yves | runbook §10 (web-UI only) |
+| **Docker Hub README deprecation banner** | ⏳ Yves | runbook §11 (web-UI only) |
 
-1. `git checkout main && git pull && git tag v2.0.0 && git push --tags`
-2. Verify `release.yml` ran: `gh run list --workflow=release.yml --limit 5`
-3. Enable GitHub Pages — see `docs/admin/repo-settings.md` §7.
-4. Set default mike alias — `docs/admin/repo-settings.md` §8.
-5. Publish v1 frozen snapshot — `docs/admin/repo-settings.md` §9.
-6. Update Bitbucket Pipe Marketplace listing — `docs/admin/repo-settings.md` §10.
-7. Paste Docker Hub README deprecation banner — `docs/admin/repo-settings.md` §11.
-8. Replace `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.` placeholder in SECURITY.md + `docs/migration/v1-to-v2.md` with the absolute date (commit as `chore(security): freeze v1.x EOS date`).
+Docs site live:
+- https://yves-vogl.github.io/aws-eks-helm-deploy/ (root redirects to /v2/)
+- https://yves-vogl.github.io/aws-eks-helm-deploy/v2/ (current, default + latest)
+- https://yves-vogl.github.io/aws-eks-helm-deploy/v1/ (frozen)
 
-PR #45 body has the same checklist; PR template carries it forward for future use.
+## Carry-forward backlog (post-v2.0.0)
+
+Three Phase 6 follow-ups still marked `continue-on-error: true` in `.github/workflows/ci.yml`; SARIF uploads preserve visibility:
+- META-01 curly-brace UUID round-trip in helm-template / get-values
+- trivy-image `.trivyignore.bare` sidecar honored (upgrade `trivy-action` OR migrate `.trivyignore` → YAML)
+- trivy-dockerfile `skip-dirs` syntax (KSV-0014 / KSV-0118 chart-fixture findings leak)
 
 ## Today's Autonomous Run (2026-06-20)
 
