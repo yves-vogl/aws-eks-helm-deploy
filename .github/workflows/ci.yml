@@ -108,12 +108,17 @@ jobs:
   trivy-image:
     name: "trivy-image"
     runs-on: ubuntu-24.04
-    # TODO(phase-6 follow-up): the .trivyignore.bare sidecar mechanism is wired
-    # but Trivy v0.36 action still surfaces the 9 helm-stdlib Go CVEs as findings.
-    # SARIF still uploads to the Security tab so visibility is preserved. Fix is
-    # to either upgrade trivy-action to a version that respects --ignorefile
-    # with bare-id files, OR migrate .trivyignore to YAML format (.trivyignore.yaml).
-    # Tracking issue to be filed post-merge.
+    # TODO(security-review): the 9-entry .trivyignore covers Go stdlib CVEs in
+    # the pinned helm 3.18.6 binary. The current Trivy DB additionally surfaces
+    # ~12 HIGH findings across go-binary internals (containerd, docker/cli,
+    # otel, oauth2, x/crypto, x/net, go-jose) AND CVE-2025-53547 in
+    # helm.sh/helm/v3 itself — the helm CLI surface IS reachable through the
+    # pipe and that CVE needs explicit security-engineer review before being
+    # suppressed. Until that review lands, the gate stays advisory (SARIF still
+    # uploads to Code Scanning, so visibility is preserved). The two-pass
+    # split-scan workaround below (table → gate, sarif → visibility) is the
+    # mechanism fix for the Trivy SARIF+ignorefile interaction reported in the
+    # ship-checklist; the remaining failure is a content-curation TODO.
     continue-on-error: true
     permissions:
       contents: read
@@ -142,22 +147,41 @@ jobs:
       - name: Build Docker image
         run: docker build -t aws-eks-helm-deploy:ci-test .
 
-      - name: Run Trivy image scan
-        # TODO(post-Phase-6): .trivyignore.bare sidecar not honoured by trivy-action
-        # v0.36 for the 9 helm-stdlib Go CVEs. SARIF still uploads. Tracked.
-        continue-on-error: true
+      # Two-pass scan: Trivy v0.71.x has a known interaction where `format: sarif`
+      # does not honour the .trivyignore.bare sidecar for the exit-code gate
+      # (SARIF output is correctly filtered, but the action still exits non-zero
+      # on findings the sidecar should suppress). Workaround: run the gate as
+      # `format: table` (where ignorefile + exit-code work as documented), then
+      # run a second scan in SARIF mode purely for Code Scanning visibility.
+      # Trivy version pinned to v0.71.2 (newer than the action's v0.70.0 default)
+      # so the gate uses the latest stable scanner.
+      - name: Run Trivy image scan (gate — table format honours .trivyignore)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: aws-eks-helm-deploy:ci-test
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+          trivyignores: .trivyignore.bare
+          version: v0.71.2
+
+      - name: Run Trivy image scan (SARIF — visibility only, no gate)
+        if: always()
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: aws-eks-helm-deploy:ci-test
           format: sarif
           output: trivy-image.sarif
           severity: CRITICAL,HIGH
-          exit-code: "1"
+          limit-severities-for-sarif: true
+          exit-code: "0"
           ignore-unfixed: true
           trivyignores: .trivyignore.bare
+          version: v0.71.2
 
       - name: Upload SARIF to Code Scanning
-        if: always()
+        if: always() && hashFiles('trivy-image.sarif') != ''
         uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           sarif_file: trivy-image.sarif
@@ -165,12 +189,6 @@ jobs:
   trivy-dockerfile:
     name: "trivy-dockerfile"
     runs-on: ubuntu-24.04
-    # TODO(phase-6 follow-up): skip-dirs: tests/fixtures,.planning does not exclude
-    # the chart-fixture k8s-securityContext findings (KSV-0014/KSV-0118) because the
-    # action's skip-dirs format may need different syntax (one --skip-dirs per dir).
-    # SARIF still uploads. Migrate to passing --skip-dirs via additional-args or
-    # to a Trivy config file. Tracking issue post-merge.
-    continue-on-error: true
     permissions:
       contents: read
       security-events: write
@@ -192,9 +210,6 @@ jobs:
         run: bash scripts/trivyignore-check.sh .trivyignore .trivyignore.bare
 
       - name: Run Trivy config scan (Dockerfile + IaC)
-        # TODO(post-Phase-6): skip-dirs syntax tweak needed for chart-fixture
-        # findings. SARIF still uploads. Tracked.
-        continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: config
@@ -206,7 +221,10 @@ jobs:
           # contexts for test ergonomics and are NEVER deployed to a cluster.
           # Production chart consumers are responsible for their own k8s
           # securityContext hardening; the pipe itself just helm-upgrades.
-          skip-dirs: tests/fixtures,.planning
+          # `test/acceptance` holds the chart fixture (KSV-0014/KSV-0118 findings);
+          # `tests/fixtures` holds Python fixtures; `.planning` holds threat-model
+          # walkthroughs that may quote loose example contexts.
+          skip-dirs: test/acceptance,tests/fixtures,.planning
 
       - name: Run Trivy secret scan (filesystem)
         # skip-dirs excludes:
