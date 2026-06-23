@@ -25,6 +25,10 @@ pytestmark = pytest.mark.unit
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 MKDOCS_YML = REPO_ROOT / "mkdocs.yml"
 
+# Note: the "Admin" slot (docs/admin/repo-settings.md) was removed from the
+# published nav post-v2.0.0 — the runbook is for maintainers only and the
+# file is excluded via exclude_docs in mkdocs.yml. It stays in the repo for
+# version control but does not belong on the public docs site.
 REQUIRED_NAV_TITLES: frozenset[str] = frozenset(
     {
         "Home",
@@ -33,7 +37,6 @@ REQUIRED_NAV_TITLES: frozenset[str] = frozenset(
         "Guides",
         "Reference",
         "ADRs",
-        "Admin",
     }
 )
 
