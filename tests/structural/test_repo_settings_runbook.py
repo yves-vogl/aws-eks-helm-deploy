@@ -67,10 +67,13 @@ def test_runbook_has_mike_v1_deploy_section() -> None:
 
 
 def test_runbook_section_9_uses_mike_deploy_push_v1() -> None:
-    """Section 9 must invoke `mike deploy --push v1` and note CI-exclusion."""
+    """Section 9 must invoke `mike deploy ... v1` and note CI-exclusion."""
     text = RUNBOOK.read_text()
-    assert "mike deploy --push v1" in text, (
-        "Section 9 must invoke `mike deploy --push v1` per RESEARCH Q10 pitfall #6"
+    # Tolerate either form: `mike deploy --push v1` (direct) OR
+    # `mike deploy --push --config-file ... v1` (current procedure when v1
+    # source is staged under .v1-snapshot/). Substring check on both halves.
+    assert "mike deploy --push" in text and " v1" in text, (
+        "Section 9 must invoke `mike deploy --push ... v1` per RESEARCH Q10 pitfall #6"
     )
     assert "CI never touches it" in text or "NEVER from CI" in text, (
         "Section 9 must explicitly note this command MUST NOT run from CI (Q10 pitfall #6)"
