@@ -39,11 +39,11 @@ The branch is ready. **Yves runs these steps; Claude will NOT run them autonomou
 
 1. `git checkout main && git pull && git tag v2.0.0 && git push --tags`
 2. Verify `release.yml` ran: `gh run list --workflow=release.yml --limit 5`
-3. Enable GitHub Pages — see `docs/admin/repo-settings.md` §5.
-4. Set default mike alias — `docs/admin/repo-settings.md` §6.
-5. Publish v1 frozen snapshot — `docs/admin/repo-settings.md` §7.
-6. Update Bitbucket Pipe Marketplace listing — `docs/admin/repo-settings.md` §8.
-7. Paste Docker Hub README deprecation banner — `docs/admin/repo-settings.md` §9.
+3. Enable GitHub Pages — see `docs/admin/repo-settings.md` §7.
+4. Set default mike alias — `docs/admin/repo-settings.md` §8.
+5. Publish v1 frozen snapshot — `docs/admin/repo-settings.md` §9.
+6. Update Bitbucket Pipe Marketplace listing — `docs/admin/repo-settings.md` §10.
+7. Paste Docker Hub README deprecation banner — `docs/admin/repo-settings.md` §11.
 8. Replace `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.` placeholder in SECURITY.md + `docs/migration/v1-to-v2.md` with the absolute date (commit as `chore(security): freeze v1.x EOS date`).
 
 PR #45 body has the same checklist; PR template carries it forward for future use.
