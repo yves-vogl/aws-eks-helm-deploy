@@ -1,6 +1,6 @@
 """Structural tests for the sign-and-attest job in .github/workflows/release.yml.
 
-Phase 6 / SEC-01 / SEC-02 / SEC-03 / CI-03. Asserts: cosign keyless + bundle,
+Phase 6 / SEC-01 / SEC-02 / SEC-03 / CI-03. Asserts: cosign keyless (registry-side bundle in 2.x),
 both SBOM formats attested, SLSA provenance via attest-build-provenance@v4 (RESEARCH C1).
 """
 
@@ -125,19 +125,30 @@ def test_sign_attest_installs_cosign_v_2_6_3(release_workflow: dict[str, Any]) -
     )
 
 
-def test_sign_attest_signs_with_bundle(release_workflow: dict[str, Any]) -> None:
-    """cosign sign step must include --bundle cosign.bundle — Pitfall #4: offline verifiability."""
+def test_sign_attest_has_cosign_sign_step(release_workflow: dict[str, Any]) -> None:
+    """A cosign sign step against the image manifest must exist (SEC-01).
+
+    Cosign 2.x stores signature + cert + Rekor inclusion proof as OCI artifacts
+    alongside the image in the registry; no local `--bundle` file is required.
+    The v1.x `--bundle` flag was removed from `cosign sign` in 2.x.
+    Consumers fetch the registry-side bundle for offline verify via
+    ``cosign download signature ${IMAGE_REF} > cosign.bundle``.
+    """
     steps = _get_sign_attest_steps(release_workflow)
     found = False
     for step in steps:
         run_script: str = step.get("run", "")
-        if "cosign sign" in run_script and "--bundle cosign.bundle" in run_script:
+        if "cosign sign" in run_script and "--yes" in run_script:
             found = True
+            # Guard against re-introducing the v1.x --bundle flag (regression check).
+            assert "--bundle" not in run_script, (
+                "cosign 2.x: `cosign sign` does NOT accept `--bundle` (removed). "
+                "Use registry-side artifacts; see SEC-01 step comment."
+            )
             break
     assert found, (
-        "Pitfall #4 violation: no 'cosign sign --bundle cosign.bundle' step found in "
-        "sign-and-attest job. Without --bundle, offline verification requires Rekor (online). "
-        "See 06-RESEARCH.md §Common Pitfalls #4."
+        "SEC-01 violation: no `cosign sign --yes <image>` step found in sign-and-attest job. "
+        "Cosign 2.x keyless image signing requires this exact invocation shape."
     )
 
 
