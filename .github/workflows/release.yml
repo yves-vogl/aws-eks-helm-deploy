@@ -298,11 +298,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
+      - name: Resolve tag (handles workflow_dispatch with `inputs.tag`)
+        id: resolve_tag
+        run: |
+          REF="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            REF="${{ inputs.tag }}"
+          fi
+          echo "tag=${REF}" >> "$GITHUB_OUTPUT"
+
       - name: Run benchmark
         run: |
           chmod +x scripts/benchmark-cold-start.sh
           bash scripts/benchmark-cold-start.sh \
-            "ghcr.io/yves-vogl/aws-eks-helm-deploy:${{ github.ref_name }}" \
+            "ghcr.io/yves-vogl/aws-eks-helm-deploy:${{ steps.resolve_tag.outputs.tag }}" \
             5 \
             cold-start-results.json
 
@@ -310,6 +319,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: cold-start-benchmark-${{ github.ref_name }}
+          name: cold-start-benchmark-${{ steps.resolve_tag.outputs.tag }}
           path: cold-start-results.json
           retention-days: 90
