@@ -247,17 +247,25 @@ def test_sign_attest_manifest_assembly_has_three_tags(release_workflow: dict[str
 
 
 def test_sign_attest_has_qemu_smoke_check(release_workflow: dict[str, Any]) -> None:
-    """Smoke-test step must grep for 'Platform:.*unknown' — QEMU-broken arm64 guard (Pitfall #2)."""
+    """Smoke-test step must detect unknown platforms while ignoring attestation-manifests.
+
+    Pitfall #2 guard: a real (non-attestation) manifest entry with
+    platform=unknown/unknown is the QEMU-broken arm64 telltale. SLSA attestation
+    manifests legitimately carry platform=unknown/unknown plus annotation
+    ``vnd.docker.reference.type=attestation-manifest`` and must NOT trigger the
+    guard. The check uses ``jq`` on ``--raw`` JSON output to distinguish.
+    """
     steps = _get_sign_attest_steps(release_workflow)
     smoke_step: dict[str, Any] | None = None
     for step in steps:
         run_script: str = step.get("run", "")
-        if "Platform:.*unknown" in run_script:
+        if "attestation-manifest" in run_script and "imagetools inspect" in run_script:
             smoke_step = step
             break
     assert smoke_step is not None, (
-        "Pitfall #2 guard missing: no step in sign-and-attest contains 'Platform:.*unknown' — "
-        "this grep check is required to detect QEMU-broken arm64 manifests at release time."
+        "Pitfall #2 guard missing: no step in sign-and-attest filters out "
+        "'attestation-manifest' before checking for unknown platforms — this is "
+        "required so SLSA attestation manifests don't false-trip the QEMU broken-arm64 guard."
     )
     run_script = smoke_step.get("run", "")
     assert "linux/amd64" in run_script, (
@@ -266,5 +274,9 @@ def test_sign_attest_has_qemu_smoke_check(release_workflow: dict[str, Any]) -> N
     )
     assert "linux/arm64" in run_script, (
         f"Smoke-test step must assert 'linux/arm64' present in manifest inspect output; "
+        f"run script:\n{run_script}"
+    )
+    assert "unknown" in run_script, (
+        f"Smoke-test step must still check for unknown platforms (the QEMU bug); "
         f"run script:\n{run_script}"
     )

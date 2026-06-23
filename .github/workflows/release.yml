@@ -172,17 +172,36 @@ jobs:
 
       - name: Smoke-test multi-arch manifest (Pitfall #2 / R2 mitigation)
         # `imagetools inspect` lists the platforms baked into the manifest.
-        # Assertion: both linux/amd64 AND linux/arm64 present as real entries
+        # Assertion: both linux/amd64 AND linux/arm64 present as REAL entries
         # (NOT 'unknown/unknown' which is the QEMU-broken-arm64 telltale).
+        #
+        # Modern buildx adds SLSA attestation manifests as additional entries
+        # with platform=unknown/unknown and annotation
+        # `vnd.docker.reference.type=attestation-manifest`. Those are LEGITIMATE
+        # and must be excluded from the broken-platform check.
         run: |
           set -euo pipefail
-          INSPECT_OUT=$(docker buildx imagetools inspect "${{ steps.manifest.outputs.image-ref }}")
-          echo "$INSPECT_OUT"
-          echo "$INSPECT_OUT" | grep -F 'linux/amd64'
-          echo "$INSPECT_OUT" | grep -F 'linux/arm64'
-          # Defensive: fail if the manifest has any 'unknown' platform entry
-          if echo "$INSPECT_OUT" | grep -E 'Platform:.*unknown'; then
-            echo "ERROR: manifest contains an 'unknown' platform entry — Pitfall #2 (QEMU broken arm64?)" >&2
+          # Use --raw to get the actual OCI image index JSON for reliable jq parsing.
+          INSPECT_JSON=$(docker buildx imagetools inspect "${{ steps.manifest.outputs.image-ref }}" --raw)
+          echo "$INSPECT_JSON" | jq '.'
+          # Extract real platforms (excluding attestation-manifest entries).
+          REAL_PLATFORMS=$(echo "$INSPECT_JSON" | jq -r '
+            .manifests[]
+            | select(.annotations["vnd.docker.reference.type"] != "attestation-manifest")
+            | "\(.platform.os)/\(.platform.architecture)"
+          ' | sort -u)
+          echo "Real platforms: $REAL_PLATFORMS"
+          echo "$REAL_PLATFORMS" | grep -Fx 'linux/amd64'
+          echo "$REAL_PLATFORMS" | grep -Fx 'linux/arm64'
+          # Defensive: fail if any REAL (non-attestation) manifest is unknown — that's the QEMU bug.
+          BROKEN=$(echo "$INSPECT_JSON" | jq -r '
+            .manifests[]
+            | select(.annotations["vnd.docker.reference.type"] != "attestation-manifest")
+            | select(.platform.architecture == "unknown" or .platform.os == "unknown")
+            | "\(.platform.os)/\(.platform.architecture)"
+          ')
+          if [ -n "$BROKEN" ]; then
+            echo "ERROR: real manifest entry has unknown platform: $BROKEN — Pitfall #2 (QEMU broken arm64?)" >&2
             exit 1
           fi
 
