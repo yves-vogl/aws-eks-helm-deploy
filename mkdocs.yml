@@ -15,8 +15,13 @@ strict: true
 # Phase 7 / Plan 07-04: docs/guides/v1-to-v2.md was `git mv`-ed to
 # docs/migration/v1-to-v2.md in Wave 2. docs/build.md remains excluded — superseded
 # by per-section docs and removed in a later plan.
+# Post-v2.0.0: docs/admin/ is the maintainer-only runbook (gh api commands for
+# branch protection, label taxonomy, Pages enablement, mike one-shots, etc.) —
+# stays in the repo for version control but does NOT belong on the public docs
+# site. Excluded here so mkdocs --strict doesn't include it in nav / search.
 exclude_docs: |
   build.md
+  admin/
 
 theme:
   name: material
@@ -86,5 +91,3 @@ nav:
       - Variables: reference/variables.md
   - ADRs:
       - Overview: adr/index.md
-  - Admin:
-      - Repo Settings Runbook: admin/repo-settings.md

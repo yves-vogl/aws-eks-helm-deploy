@@ -438,7 +438,8 @@ gh attestation verify --owner yves-vogl ghcr.io/yves-vogl/aws-eks-helm-deploy:2
 
 The following text is to be pasted verbatim into the Docker Hub repo description
 at https://hub.docker.com/repository/docker/yvogl/aws-eks-helm-deploy (per
-`docs/admin/repo-settings.md` §7 maintainer runbook):
+`docs/admin/repo-settings.md` §11 in the in-repo maintainer runbook —
+intentionally not published on this docs site):
 
 ```
 ⚠ This repository is FROZEN at v1.3.0.
