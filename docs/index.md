@@ -16,7 +16,7 @@ and supply-chain hardened. v2.x is the active line; v1.x is frozen.
 This site uses [mike](https://github.com/jimporter/mike) for versioning:
 
 - `/v2/` — current (this site).
-- `/v1/` — frozen v1.3.0 reference; security-only patches until 6 months post-v2.0.0 release.
+- `/v1/` — frozen v1.3.0 reference (not maintained; users should migrate to v2).
 
 ## Supply chain
 
