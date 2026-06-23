@@ -35,47 +35,13 @@ This pipe is purpose-built for **Bitbucket Pipelines**. For GitHub Actions, use 
 
 ---
 
-## Quick start (v2 — OIDC + repo:// chart)
+## Quick start
 
-Drop the following step into your `bitbucket-pipelines.yml`. The IAM trust policy that pairs with this snippet is in the [OIDC setup guide](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/guides/oidc-setup/).
+The 60-second quickstart — OIDC + `repo://` chart, with cross-links to the four other ready-to-copy examples — lives on the docs site:
 
-```yaml
-image: atlassian/default-image:4
+📖 **[Quickstart →](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/quickstart/overview/)**
 
-pipelines:
-  branches:
-    main:
-      - step:
-          name: Deploy to EKS
-          deployment: production
-          oidc: true                                     # Bitbucket sets BITBUCKET_STEP_OIDC_TOKEN
-          script:
-            - pipe: docker://ghcr.io/yves-vogl/aws-eks-helm-deploy:2
-              variables:
-                OIDC_AUDIENCE: $OIDC_AUDIENCE            # ari:cloud:bitbucket::workspace/<UUID>
-                ROLE_ARN: $DEPLOY_ROLE_ARN
-                AWS_REGION: eu-central-1
-                CLUSTER_NAME: my-eks-cluster
-                CHART: repo://bitnami/nginx
-                REPO_URL: https://charts.bitnami.com/bitnami
-                CHART_VERSION: 18.2.0
-                RELEASE_NAME: nginx
-                NAMESPACE: production
-                WAIT: "true"
-                TIMEOUT: 10m
-```
-
-Pin the pipe to `:2` (rolling major) or to a specific version like `:2.0.0`. `:latest` is also published but pinning to a major is the recommended pattern.
-
-**Need to keep static AWS keys for now?** See [`examples/basic/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/basic) — same shape, swap OIDC for `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
-
-More copy-paste-ready snippets:
-
-- [`examples/basic/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/basic) — static keys + `local://` chart
-- [`examples/oidc-only/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/oidc-only) — OIDC + `repo://` chart
-- [`examples/oci-chart/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/oci-chart) — OIDC + `oci://` chart from GHCR
-- [`examples/multi-env/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/multi-env) — multi-env with `ACTION=diff` PR comments
-- [`examples/migration-v1-to-v2/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/migration-v1-to-v2) — before/after diff with line-level explanations
+The matching IAM trust policy is in the [OIDC setup guide](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/guides/oidc-setup/).
 
 ---
 
