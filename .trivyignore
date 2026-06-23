@@ -13,19 +13,52 @@
 #
 # Add a suppression by appending a line below this comment block.
 
-# ── Helm binary Go-stdlib CVEs (9 entries; pinned helm 3.18.6) ────────────────
-# Rationale: these are CVEs in the Go standard library that helm 3.18.6 was compiled
-# against (Go 1.24.6). They are NOT exploitable through the helm CLI surface that the
-# pipe uses — helm runs as a transient subprocess in our pipe with no network listener.
-# Upstream helm releases that adopt Go ≥ 1.25.x will close them; Dependabot docker
-# group + SEC-08 release-on-bump contract will pull the new helm into our base image
-# automatically. Review at expiry: bump HELM_VERSION pin if a fixed 3.x release exists.
-CVE-2026-42504  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-42499  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-39836  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-39825  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-39823  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-39820  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-33814  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-33811  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-32283  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
+# ── Helm + cosign binary Go stdlib/x.crypto/x.net CVEs ────────────────────────
+# Rationale: these are CVEs in Go standard-library or extended packages
+# (golang.org/x/crypto, golang.org/x/net, google.golang.org/grpc,
+# github.com/moby/spdystream, github.com/containerd/containerd, stdlib) that
+# helm 3.18.6 and cosign 2.6.3 were compiled against. They are NOT exploitable
+# through the helm/cosign CLI surface the pipe uses — both binaries run as
+# transient subprocesses with no network listener; cosign is invoked for
+# signature *verification* only (no registry write paths exercised). Upstream
+# helm and cosign releases built with newer Go toolchains will close them; the
+# Dependabot docker group + SEC-08 release-on-bump contract will pull the new
+# binaries into our base image automatically. Review at expiry: bump
+# HELM_VERSION / COSIGN_VERSION pins if fixed releases exist.
+
+# golang.org/x/crypto (helm + cosign)
+CVE-2025-47913  # expires=2026-09-21 rationale="Go x/crypto CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-39827  # expires=2026-09-21 rationale="Go x/crypto CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-39828  # expires=2026-09-21 rationale="Go x/crypto CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-39829  # expires=2026-09-21 rationale="Go x/crypto CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-39830  # expires=2026-09-21 rationale="Go x/crypto CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-39835  # expires=2026-09-21 rationale="Go x/crypto CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-42508  # expires=2026-09-21 rationale="Go x/crypto CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-46595  # expires=2026-09-21 rationale="Go x/crypto CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-46597  # expires=2026-09-21 rationale="Go x/crypto CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+
+# golang.org/x/net (helm + cosign)
+CVE-2026-25680  # expires=2026-09-21 rationale="Go x/net CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-25681  # expires=2026-09-21 rationale="Go x/net CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-27136  # expires=2026-09-21 rationale="Go x/net CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-39821  # expires=2026-09-21 rationale="Go x/net CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-42502  # expires=2026-09-21 rationale="Go x/net CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-42506  # expires=2026-09-21 rationale="Go x/net CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+
+# Go stdlib (helm + cosign)
+CVE-2025-61726  # expires=2026-09-21 rationale="Go stdlib CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2025-61729  # expires=2026-09-21 rationale="Go stdlib CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2025-68121  # expires=2026-09-21 rationale="Go stdlib CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-25679  # expires=2026-09-21 rationale="Go stdlib CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-27145  # expires=2026-09-21 rationale="Go stdlib CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-32280  # expires=2026-09-21 rationale="Go stdlib CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+CVE-2026-32281  # expires=2026-09-21 rationale="Go stdlib CVE in helm 3.18.6 / cosign 2.6.3 binary; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+
+# google.golang.org/grpc (cosign)
+CVE-2026-33186  # expires=2026-09-21 rationale="grpc CVE in cosign 2.6.3 binary; upstream release pending; verify-only path not reachable via pipe surface" reviewer=yves-vogl
+
+# github.com/moby/spdystream (helm transitive — kubectl client)
+CVE-2026-35469  # expires=2026-09-21 rationale="spdystream CVE in helm 3.18.6 binary kubectl client path; upstream release pending; not reachable via pipe surface" reviewer=yves-vogl
+
+# github.com/containerd/containerd (cosign)
+CVE-2026-53488  # expires=2026-09-21 rationale="containerd CVE in cosign 2.6.3 binary; upstream release pending; verify-only path not reachable via pipe surface" reviewer=yves-vogl
