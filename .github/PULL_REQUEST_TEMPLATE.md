@@ -62,9 +62,9 @@
 
 - [ ] `git tag v2.0.0 && git push --tags` — triggers `.github/workflows/release.yml`.
 - [ ] Monitor release.yml run; verify Cosign signature + SBOM attestations attached.
-- [ ] After the v2 docs site is live: enable GitHub Pages per [`docs/admin/repo-settings.md` §5](../blob/main/docs/admin/repo-settings.md#5-enable-github-pages-doc-02).
-- [ ] After the first `mike deploy v2 latest` workflow run succeeds: run [`mike set-default v2 --push`](../blob/main/docs/admin/repo-settings.md#6-set-default-mike-alias-to-v2-doc-02-sc-3).
-- [ ] Deploy the frozen v1 docs snapshot per [`docs/admin/repo-settings.md` §7](../blob/main/docs/admin/repo-settings.md#7-deploy-frozen-v1-docs-snapshot-d2--plan-07-01).
-- [ ] Update the Bitbucket Pipe Marketplace listing per [`docs/admin/repo-settings.md` §8](../blob/main/docs/admin/repo-settings.md#8-update-bitbucket-pipe-marketplace-listing-d11).
-- [ ] Post the Docker Hub README deprecation banner per [`docs/admin/repo-settings.md` §9](../blob/main/docs/admin/repo-settings.md#9-post-docker-hub-readme-deprecation-banner-mig-01).
-- [ ] Compute the absolute end-of-support date for v1.x (= v2.0.0 release date + 6 months) and open a follow-up PR replacing the literal `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.` placeholder in `SECURITY.md`, `docs/migration/v1-to-v2.md`, AND `docs/admin/repo-settings.md` sections 7 + 9 (SI-07-07 invariant gate enforces).
+- [ ] After the v2 docs site is live: enable GitHub Pages per [`docs/admin/repo-settings.md` §7](../blob/main/docs/admin/repo-settings.md#7-enable-github-pages-doc-02).
+- [ ] After the first `mike deploy v2 latest` workflow run succeeds: run [`mike set-default v2 --push`](../blob/main/docs/admin/repo-settings.md#8-set-default-mike-alias-to-v2-doc-02-sc-3).
+- [ ] Deploy the frozen v1 docs snapshot per [`docs/admin/repo-settings.md` §9](../blob/main/docs/admin/repo-settings.md#9-deploy-frozen-v1-docs-snapshot-d2--plan-07-01).
+- [ ] Update the Bitbucket Pipe Marketplace listing per [`docs/admin/repo-settings.md` §10](../blob/main/docs/admin/repo-settings.md#10-update-bitbucket-pipe-marketplace-listing-d11).
+- [ ] Post the Docker Hub README deprecation banner per [`docs/admin/repo-settings.md` §11](../blob/main/docs/admin/repo-settings.md#11-post-docker-hub-readme-deprecation-banner-mig-01).
+- [ ] Compute the absolute end-of-support date for v1.x (= v2.0.0 release date + 6 months) and open a follow-up PR replacing the literal `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.` placeholder in `SECURITY.md`, `docs/migration/v1-to-v2.md`, AND `docs/admin/repo-settings.md` sections 9 + 11 (SI-07-07 invariant gate enforces).

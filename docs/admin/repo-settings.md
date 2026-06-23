@@ -154,7 +154,77 @@ gh api repos/yves-vogl/aws-eks-helm-deploy --jq .allow_auto_merge
 
 ---
 
-## 5. Enable GitHub Pages (DOC-02)
+## 5. Create the v2.0 GitHub Project Board (CMN-03)
+
+GitHub Projects v2 board creation with column configuration is web-UI only as of
+2026-06. There is no `gh project create` subcommand that fully configures columns.
+
+**Web UI navigation:**
+
+1. Go to `https://github.com/users/yves-vogl/projects/new`.
+2. Click "New project" → select the **Board** template.
+3. Name: **`aws-eks-helm-deploy v2.0`**.
+4. Description: "v2.0 milestone tracker."
+5. Configure columns (in order): `Backlog → Ready → In Progress → In Review → Done`.
+6. Link the project to the repo: from project Settings → "Manage access" → add
+   `yves-vogl/aws-eks-helm-deploy` as a linked repository.
+7. Add auto-add filter: configure the project to auto-add issues + PRs labeled
+   `milestone:v2.0.0`.
+
+**Verify:** The project appears at `https://github.com/users/yves-vogl/projects/<N>`
+with all 5 columns and the auto-add filter active.
+
+---
+
+## 6. Create the Label Taxonomy (CMN-04)
+
+The label taxonomy covers `area/*`, `type/*`, `priority/*`, plus a handful of
+common labels (`breaking-change`, `good first issue`, `help wanted`,
+`dependencies`, `python`, `docker`, `ci`).
+
+**Command (one-shot — idempotent because `|| true` swallows the
+"already exists" error from `gh`):**
+
+```bash
+REPO=yves-vogl/aws-eks-helm-deploy
+
+# area/* labels (blue family)
+for label in \
+    "area/auth" "area/chart" "area/ci" "area/docs" \
+    "area/helm" "area/oidc" "area/security" "area/triage"; do
+  gh label create "$label" --color "0075ca" --repo "$REPO" 2>/dev/null || true
+done
+
+# type/* labels (orange-red family)
+for label in "type/bug" "type/feature" "type/chore" "type/docs" "type/security"; do
+  gh label create "$label" --color "d93f0b" --repo "$REPO" 2>/dev/null || true
+done
+
+# priority/* labels (yellow family)
+for label in "priority/p0" "priority/p1" "priority/p2" "priority/p3"; do
+  gh label create "$label" --color "e4e669" --repo "$REPO" 2>/dev/null || true
+done
+
+# Stand-alone labels
+gh label create "breaking-change"  --color "b60205" --repo "$REPO" 2>/dev/null || true
+gh label create "good first issue" --color "7057ff" --repo "$REPO" 2>/dev/null || true
+gh label create "help wanted"      --color "008672" --repo "$REPO" 2>/dev/null || true
+gh label create "dependencies"     --color "0366d6" --repo "$REPO" 2>/dev/null || true
+gh label create "python"           --color "2b67c6" --repo "$REPO" 2>/dev/null || true
+gh label create "docker"           --color "0db7ed" --repo "$REPO" 2>/dev/null || true
+gh label create "ci"               --color "f9d0c4" --repo "$REPO" 2>/dev/null || true
+```
+
+**Verify:**
+
+```bash
+gh label list --repo $REPO --json name --jq 'length'
+# Expected: at least 20 (8 area + 5 type + 4 priority + 7 standalone)
+```
+
+---
+
+## 7. Enable GitHub Pages (DOC-02)
 
 The `.github/workflows/docs.yml` workflow (Plan 07-05) requires GitHub Pages to
 be enabled with `gh-pages` as the source branch BEFORE the first `mike deploy`
@@ -191,7 +261,7 @@ gh api repos/yves-vogl/aws-eks-helm-deploy/pages \
 
 ---
 
-## 6. Set default mike alias to v2 (DOC-02 SC-3)
+## 8. Set default mike alias to v2 (DOC-02 SC-3)
 
 `.github/workflows/docs.yml` deploys `v2 + latest` aliases on every `main`
 commit. Setting the default alias writes `index.html` at the gh-pages root
@@ -224,7 +294,7 @@ misconfigured.
 
 ---
 
-## 7. Deploy frozen v1 docs snapshot (D2 — Plan 07-01)
+## 9. Deploy frozen v1 docs snapshot (D2 — Plan 07-01)
 
 The mike layout in CONTEXT D2 reserves `/v1/` for a single-page frozen v1.3.0
 reference. This deploy is a one-shot maintainer command (NEVER from CI —
@@ -258,7 +328,7 @@ curl -sf https://yves-vogl.github.io/aws-eks-helm-deploy/v1/ | head -5
 
 ---
 
-## 8. Update Bitbucket Pipe Marketplace listing (D11)
+## 10. Update Bitbucket Pipe Marketplace listing (D11)
 
 After the v2.0.0 tag-cut, update the Bitbucket Pipe Marketplace listing to
 reflect the new image registry, version, and capabilities (OIDC, OCI charts,
@@ -279,7 +349,7 @@ This is **not idempotent via web UI** — verify visually after submitting.
 
 ---
 
-## 9. Post Docker Hub README deprecation banner (MIG-01)
+## 11. Post Docker Hub README deprecation banner (MIG-01)
 
 The Docker Hub `yvogl/aws-eks-helm-deploy` repository is frozen at v1.3.0
 (MIG-01). Post a deprecation banner to its README so consumers searching
@@ -309,17 +379,57 @@ above the existing content):
 Web-UI only step; no API. **Not idempotent via API.** Confirm visually after
 submitting.
 
+## 12. Sanity-Check Post-Actions
+
+After completing steps 1–7, run this one-liner to confirm everything is wired:
+
+```bash
+REPO=yves-vogl/aws-eks-helm-deploy
+
+echo "=== Repo settings ==="
+gh api repos/$REPO --jq '{visibility, default_branch, allow_auto_merge}'
+
+echo "=== Private Vulnerability Reporting ==="
+gh api repos/$REPO/private-vulnerability-reporting --jq '{enabled}'
+
+echo "=== Branch protection ==="
+gh api repos/$REPO/branches/main/protection --jq '{
+  enforce_admins:     .enforce_admins.enabled,
+  required_reviews:   .required_pull_request_reviews.required_approving_review_count,
+  status_check_count: (.required_status_checks.contexts | length),
+  contexts:           .required_status_checks.contexts
+}'
+
+echo "=== Required signatures ==="
+gh api repos/$REPO/branches/main/protection/required_signatures --jq '.enabled'
+
+echo "=== Label count ==="
+gh label list --repo $REPO --json name --jq 'length'
+```
+
+**Expected results:**
+- `allow_auto_merge: true`
+- Private Vulnerability Reporting `enabled: true`
+- `enforce_admins: true`, `required_reviews: 1`, `status_check_count: 8`
+- Required signatures `true`
+- Label count `>= 20`
+
 ---
 
-## Notes (Phase 7 — sections 5-9)
+## Notes
 
-- Sections 5–7 (Pages, mike set-default, mike deploy v1) are `gh api` + `mike`
-  commands and are idempotent for sections 5 and 6 (Section 7 is a one-shot
+- **Section grouping:** §§1-4 are Phase 6 commit-time settings (PVR + branch
+  protection + GPG + auto-merge). §§5-6 are Phase 6 web-UI / one-shot CLI
+  steps (Project Board + Labels). §§7-11 are Phase 7 v2.0.0 release-ceremony
+  steps (Pages enablement + mike one-shots + Marketplace + Docker Hub banner).
+  §12 is the post-actions sanity-check covering all 11 prior sections.
+- Sections 7–9 (Pages, mike set-default, mike deploy v1) are `gh api` + `mike`
+  commands and are idempotent for sections 7 and 8 (Section 9 is a one-shot
   intent — re-running is harmless but unnecessary).
-- Sections 8–9 (Bitbucket Pipe Marketplace + Docker Hub banner) are web-UI
+- Sections 10–11 (Bitbucket Pipe Marketplace + Docker Hub banner) are web-UI
   only with no programmatic idempotency guarantee; confirm visually.
-- The literal placeholder `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.` is the SI-07-07 invariant; it appears in three places in v2.0:
-  `SECURITY.md` (Plan 07-06), `docs/migration/v1-to-v2.md` (Plan 07-04), AND
-  `docs/admin/repo-settings.md` Section 7 + 9 (this plan). After the v2.0.0
-  tag-cut, the maintainer replaces all four occurrences in a single follow-up
-  PR.
+- The literal placeholder `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.`
+  is the SI-07-07 invariant; it appears in v2.0 in `SECURITY.md` (Plan 07-06),
+  `docs/migration/v1-to-v2.md` (Plan 07-04), AND `docs/admin/repo-settings.md`
+  Section 9 + 11 (this plan). After the v2.0.0 tag-cut, the maintainer
+  replaces all occurrences in a single follow-up PR.
