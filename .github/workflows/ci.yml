@@ -141,6 +141,10 @@ jobs:
         # filter for SARIF (see action entrypoint.sh "Building SARIF report with
         # all severities"), which causes exit-code: "1" to trip on unrelated
         # LOW/MEDIUM findings the .trivyignore.bare sidecar does not cover.
+        #
+        # Trivy version override: v0.71.2 (action default is v0.70.0); pin matches
+        # the latest stable release at time of writing — newer Trivy DB ships
+        # better SARIF + --ignorefile interaction for plain-text bare-id files.
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: aws-eks-helm-deploy:ci-test
@@ -151,6 +155,7 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
           trivyignores: .trivyignore.bare
+          version: v0.71.2
 
       - name: Upload SARIF to Code Scanning
         if: always()
