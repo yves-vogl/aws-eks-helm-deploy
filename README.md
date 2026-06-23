@@ -31,7 +31,7 @@ Deploy [Helm](https://helm.sh) charts to [AWS Elastic Kubernetes Service (EKS)](
 
 This pipe is purpose-built for **Bitbucket Pipelines**. For GitHub Actions, use upstream actions such as [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials) combined with a Helm action.
 
-> **Status:** v2.0 is the active line published exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`). v1.3.0 is frozen on Docker Hub as the v1.x archive — security fixes only until `2026-12-23`. See [docs/migration/v1-to-v2.md](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/migration/v1-to-v2/) for upgrade steps.
+> **Status:** v2.0 is the active line published exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`). **v1.3.0 is frozen on Docker Hub and is not maintained** — no security fixes, no bug fixes; please migrate to v2.x. See [docs/migration/v1-to-v2.md](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/migration/v1-to-v2/) for upgrade steps.
 
 ---
 
@@ -221,7 +221,7 @@ SLSA build provenance is also attached to every release; see the per-release ent
 
 ## Sponsor
 
-If this pipe saves you time or production headaches, consider [sponsoring the work on GitHub Sponsors](https://github.com/sponsors/yves-vogl). Sponsorships fund ongoing v2.x maintenance + the v1.x security-fix window through `2026-12-23`.
+If this pipe saves you time or production headaches, consider [sponsoring the work on GitHub Sponsors](https://github.com/sponsors/yves-vogl). Sponsorships fund ongoing v2.x maintenance.
 
 Maintained by [Yves Vogl](https://github.com/yves-vogl) · [Sponsor](https://github.com/sponsors/yves-vogl).
 
