@@ -9,10 +9,10 @@ v2.0.0 release ceremony per D11 (Phase 6 §§5-6 + §12 restored alongside):
 - Section 10: Update Bitbucket Pipe Marketplace listing (D11).
 - Section 11: Post Docker Hub README deprecation banner (MIG-01 / D10).
 
-Also asserts the SI-07-07 invariant: the v1.x EOS date `2026-12-23`
-(v2.0.0 released 2026-06-23 + 6 months) appears at least twice in the
-runbook (sections 9 + 11). The pre-tag-cut placeholder was replaced
-after v2.0.0 was tagged on 2026-06-23.
+Also asserts the v1.x maintenance policy: the "not maintained" wording
+appears at least twice in the runbook (sections 9 + 11). The original
+Phase 7 SI-07-07 placeholder + 6-month-window framing was dropped
+post-v2.0.0 in favor of a clean break.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ import pytest
 pytestmark = pytest.mark.unit
 
 RUNBOOK = pathlib.Path(__file__).resolve().parents[2] / "docs" / "admin" / "repo-settings.md"
-V1_EOS_DATE = "2026-12-23"
+V1_NOT_MAINTAINED_WORDING = "not maintained"
 
 
 def test_runbook_exists() -> None:
@@ -95,13 +95,17 @@ def test_runbook_has_docker_hub_banner_section() -> None:
     )
 
 
-def test_runbook_propagates_v1_eos_date() -> None:
-    """SI-07-07: the v1.x EOS date 2026-12-23 must appear ≥ 2 times (Sections 9 + 11)."""
-    text = RUNBOOK.read_text()
-    count = text.count(V1_EOS_DATE)
+def test_runbook_propagates_v1_not_maintained_wording() -> None:
+    """v1.x policy: 'not maintained' must appear ≥ 2 times (Sections 9 + 11).
+
+    Sections 9 (v1 frozen-snapshot index.md banner heredoc) and 11 (Docker Hub
+    deprecation banner template) both carry the consumer-facing wording.
+    """
+    text = RUNBOOK.read_text().lower()
+    count = text.count(V1_NOT_MAINTAINED_WORDING)
     assert count >= 2, (
-        f"SI-07-07 invariant broken: v1.x EOS date `{V1_EOS_DATE}` appears {count} time(s), "
-        f"expected ≥ 2 (Section 9 v1 banner + Section 11 Docker Hub banner)"
+        f"v1.x maintenance policy: `{V1_NOT_MAINTAINED_WORDING}` appears {count} time(s); "
+        f"expected ≥ 2 (Section 9 v1 banner + Section 11 Docker Hub banner)."
     )
 
 

@@ -51,7 +51,7 @@ Chosen option: **"Clean break with migration guide"**, because v1.x has a mainta
 * Good, because v2 codebase stays clean and modern.
 * Good, because the migration boundary is visible (different registry, different image, different version).
 * Bad, because consumers must consciously read the migration guide.
-* Neutral, because v1.x retains a security-supported path for 6 months (D10).
+* Bad, because v1.x is **not maintained** — no security fixes, no bug fixes (clean-break policy revised post-v2.0.0 from the original Phase 7 D10 6-month window).
 
 ### Versioned API (runtime compat flag)
 

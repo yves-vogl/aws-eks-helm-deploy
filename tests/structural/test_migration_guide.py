@@ -36,10 +36,11 @@ REQUIRED_BREAKING_CHANGE_TOKENS: frozenset[str] = frozenset(
     },
 )
 
-# SI-07-07 gate (post tag-cut): the v1.x EOS date appears verbatim in this
-# file AND in SECURITY.md (Plan 07-06). v2.0.0 was released 2026-06-23,
-# so EOS = 2026-12-23 (6 months later).
-V1_EOS_DATE = "2026-12-23"
+# v1.x maintenance policy: NOT maintained (post-v2.0.0 clean break, see
+# SECURITY.md). The original Phase 7 plan (D10 / SI-07-07) committed to a
+# 6-month security-fix window — that was dropped after v2.0.0. The migration
+# guide must say so unambiguously.
+V1_NOT_MAINTAINED_WORDING = "not maintained"
 
 
 # ---------------------------------------------------------------------------
@@ -84,10 +85,13 @@ def test_migration_guide_covers_inject_bitbucket_metadata() -> None:
     )
 
 
-def test_migration_guide_has_v1_eos_date() -> None:
-    """SI-07-07 gate (post tag-cut): the v1.x EOS date is committed verbatim."""
+def test_migration_guide_states_v1_not_maintained() -> None:
+    """v1.x policy: not maintained (clean break post-v2.0.0)."""
     text = MIGRATION_MD.read_text(encoding="utf-8")
-    assert V1_EOS_DATE in text, f"v1.x EOS date `{V1_EOS_DATE}` missing from {MIGRATION_MD}"
+    assert V1_NOT_MAINTAINED_WORDING in text.lower(), (
+        f"migration guide must contain `{V1_NOT_MAINTAINED_WORDING}` "
+        "(post-v2.0.0 policy: v1.x has no maintenance window)."
+    )
 
 
 def test_migration_guide_cross_references_examples_diff() -> None:
