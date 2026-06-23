@@ -135,16 +135,27 @@ jobs:
       - name: Build Docker image
         run: docker build -t aws-eks-helm-deploy:ci-test .
 
-      - name: Run Trivy image scan
-        # `limit-severities-for-sarif: true` keeps TRIVY_SEVERITY=CRITICAL,HIGH in
-        # effect for SARIF output too. Without it trivy-action unsets the severity
-        # filter for SARIF (see action entrypoint.sh "Building SARIF report with
-        # all severities"), which causes exit-code: "1" to trip on unrelated
-        # LOW/MEDIUM findings the .trivyignore.bare sidecar does not cover.
-        #
-        # Trivy version override: v0.71.2 (action default is v0.70.0); pin matches
-        # the latest stable release at time of writing — newer Trivy DB ships
-        # better SARIF + --ignorefile interaction for plain-text bare-id files.
+      # Two-pass scan: Trivy v0.71.x has a known interaction where `format: sarif`
+      # does not honour the .trivyignore.bare sidecar for the exit-code gate
+      # (SARIF output is correctly filtered, but the action still exits non-zero
+      # on findings the sidecar should suppress). Workaround: run the gate as
+      # `format: table` (where ignorefile + exit-code work as documented), then
+      # run a second scan in SARIF mode purely for Code Scanning visibility.
+      # Trivy version pinned to v0.71.2 (newer than the action's v0.70.0 default)
+      # so the gate uses the latest stable scanner.
+      - name: Run Trivy image scan (gate — table format honours .trivyignore)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: aws-eks-helm-deploy:ci-test
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+          trivyignores: .trivyignore.bare
+          version: v0.71.2
+
+      - name: Run Trivy image scan (SARIF — visibility only, no gate)
+        if: always()
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: aws-eks-helm-deploy:ci-test
@@ -152,13 +163,13 @@ jobs:
           output: trivy-image.sarif
           severity: CRITICAL,HIGH
           limit-severities-for-sarif: true
-          exit-code: "1"
+          exit-code: "0"
           ignore-unfixed: true
           trivyignores: .trivyignore.bare
           version: v0.71.2
 
       - name: Upload SARIF to Code Scanning
-        if: always()
+        if: always() && hashFiles('trivy-image.sarif') != ''
         uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           sarif_file: trivy-image.sarif
