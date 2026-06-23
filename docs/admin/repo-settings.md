@@ -312,9 +312,8 @@ with a side-by-side `mkdocs.yml` pointing at a tiny `docs/` tree):**
 # 1. Stage v1 snapshot source under a gitignored directory.
 mkdir -p .v1-snapshot/docs
 
-# 2. Author a minimal docs/index.md with the "v1 frozen" banner — note the
-#    `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.`
-#    placeholder (SI-07-07; replaced in the v1.x-EOS follow-up PR).
+# 2. Author a minimal docs/index.md with the "v1 frozen" banner — the v1.x
+#    EOS is `2026-12-23` (v2.0.0 released 2026-06-23 + 6 months; per D10).
 cat > .v1-snapshot/docs/index.md <<'EOF'
 # aws-eks-helm-deploy v1 — frozen
 
@@ -322,7 +321,7 @@ cat > .v1-snapshot/docs/index.md <<'EOF'
     The v1.x line of this pipe was distributed via Docker Hub at
     `yvogl/aws-eks-helm-deploy` and is **frozen at v1.3.0**.
     Security fixes for v1.x are released for **6 months from the v2.0.0
-    release date** — ending `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.`
+    release date** — ending `2026-12-23` (v2.0.0 released 2026-06-23 + 6 months).
 
     Use **v2** for all new and existing deployments:
     <https://yves-vogl.github.io/aws-eks-helm-deploy/v2/>
@@ -405,7 +404,7 @@ above the existing content):
 > version (`:2.0.0`).
 >
 > Security fixes for v1.x are released for 6 months from the v2.0.0 release
-> date — ending `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.`
+> date — ending `2026-12-23` (v2.0.0 released 2026-06-23 + 6 months).
 >
 > Migration guide: https://yves-vogl.github.io/aws-eks-helm-deploy/migration/v1-to-v2/
 ```
@@ -462,8 +461,9 @@ gh label list --repo $REPO --json name --jq 'length'
   intent — re-running is harmless but unnecessary).
 - Sections 10–11 (Bitbucket Pipe Marketplace + Docker Hub banner) are web-UI
   only with no programmatic idempotency guarantee; confirm visually.
-- The literal placeholder `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.`
-  is the SI-07-07 invariant; it appears in v2.0 in `SECURITY.md` (Plan 07-06),
+- The v1.x EOS date is `2026-12-23` (v2.0.0 released 2026-06-23 + 6 months;
+  per D10 / SI-07-07). It appears in `SECURITY.md` (Plan 07-06),
   `docs/migration/v1-to-v2.md` (Plan 07-04), AND `docs/admin/repo-settings.md`
-  Section 9 + 11 (this plan). After the v2.0.0 tag-cut, the maintainer
-  replaces all occurrences in a single follow-up PR.
+  Sections 9 + 11 (this plan). The pre-tag-cut placeholder
+  `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.` was
+  replaced in the v1.x-EOS-freeze follow-up PR after v2.0.0 was tagged.

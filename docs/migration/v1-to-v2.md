@@ -1,6 +1,6 @@
 # v1 → v2 Migration Guide
 
-> **Status:** Published. This guide covers every v1.x → v2.0 breaking change. The 6-month v1.x security window ends `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.` (per D10).
+> **Status:** Published. This guide covers every v1.x → v2.0 breaking change. The 6-month v1.x security window ends `2026-12-23` (v2.0.0 released 2026-06-23 + 6 months; per D10).
 
 [TOC]
 
