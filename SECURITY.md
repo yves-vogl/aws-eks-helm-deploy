@@ -5,7 +5,7 @@
 | Version | Supported              |
 |---------|------------------------|
 | 2.x     | Yes (active development on `main`) |
-| 1.x     | Security fixes for 6 months from the v2.0.0 release date — ending `2026-12-23` (v2.0.0 released 2026-06-23 + 6 months). Frozen at v1.3.0 on Docker Hub. |
+| 1.x     | **Not maintained.** Frozen at v1.3.0 on Docker Hub. No security fixes are committed to v1.x; please migrate to v2.x. |
 
 ## Reporting a vulnerability
 

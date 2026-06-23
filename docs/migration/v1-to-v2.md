@@ -1,6 +1,6 @@
 # v1 → v2 Migration Guide
 
-> **Status:** Published. This guide covers every v1.x → v2.0 breaking change. The 6-month v1.x security window ends `2026-12-23` (v2.0.0 released 2026-06-23 + 6 months; per D10).
+> **Status:** Published. This guide covers every v1.x → v2.0 breaking change. **v1.x is frozen at v1.3.0 on Docker Hub and is not maintained** — migrate to v2.x.
 
 [TOC]
 

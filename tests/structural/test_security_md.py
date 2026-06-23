@@ -19,9 +19,10 @@ pytestmark = pytest.mark.unit
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 SECURITY_MD = REPO_ROOT / "SECURITY.md"
 
-# Post tag-cut: the v1.x EOS date is now absolute (SI-07-07 invariant).
-# v2.0.0 was released 2026-06-23 → EOS = 2026-12-23.
-V1_EOS_DATE = "2026-12-23"
+# v1.x maintenance policy: NOT maintained — the 6-month security-fix window
+# from the original Phase 7 design (D10 / SI-07-07) was dropped post-v2.0.0
+# to a clean break. SECURITY.md must say so unambiguously.
+V1_NOT_MAINTAINED_WORDING = "Not maintained"
 
 
 # ---------------------------------------------------------------------------
@@ -34,20 +35,17 @@ def test_security_md_exists() -> None:
     assert SECURITY_MD.is_file(), f"SECURITY.md missing at {SECURITY_MD}"
 
 
-def test_security_md_has_v1_eos_date() -> None:
-    """SI-07-07 gate: the v1.x EOS date 2026-12-23 must be present verbatim."""
-    text = SECURITY_MD.read_text(encoding="utf-8")
-    assert V1_EOS_DATE in text, (
-        f"SECURITY.md must contain the v1.x EOS date `{V1_EOS_DATE}` "
-        "(v2.0.0 released 2026-06-23 + 6 months). SI-07-07 gate failure."
-    )
+def test_security_md_states_v1_not_maintained() -> None:
+    """v1.x maintenance policy: NOT maintained.
 
-
-def test_security_md_mentions_v1_x_six_month_window() -> None:
-    """DOC-06: the v1.x supported-versions row mentions the 6-month security-fix window."""
+    The original Phase 7 design assumed a 6-month security-fix window for v1.x
+    (D10 / SI-07-07). Policy revised post-v2.0.0 to a clean break — SECURITY.md
+    must say "Not maintained" so readers don't expect patches.
+    """
     text = SECURITY_MD.read_text(encoding="utf-8")
-    assert "6 months" in text, (
-        "SECURITY.md must mention the 6-month security-fix window for v1.x (DOC-06 / D10)."
+    assert V1_NOT_MAINTAINED_WORDING in text, (
+        f"SECURITY.md must contain `{V1_NOT_MAINTAINED_WORDING}` in the v1.x "
+        "supported-versions row (post-v2.0.0 policy: v1.x has no maintenance window)."
     )
 
 
