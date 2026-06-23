@@ -1535,27 +1535,61 @@ uv<span class="w"> </span>run<span class="w"> </span>mike<span class="w"> </span
 misconfigured.</p>
 <hr />
 <h2 id="9-deploy-frozen-v1-docs-snapshot-d2-plan-07-01">9. Deploy frozen v1 docs snapshot (D2 — Plan 07-01)<a class="headerlink" href="#9-deploy-frozen-v1-docs-snapshot-d2-plan-07-01" title="Permanent link">&para;</a></h2>
-<p>The mike layout in CONTEXT D2 reserves <code>/v1/</code> for a single-page frozen v1.3.0
-reference. This deploy is a one-shot maintainer command (NEVER from CI —
+<p>The mike layout in CONTEXT D2 reserves <code>/v1/</code> for a single-page frozen v1.x
+reference. The v1.x line was distributed only via Docker Hub (no <code>v1.3.0</code> git
+tag exists in this repo), so the snapshot is <strong>authored fresh</strong> with a single
+landing page that explains v1 is frozen and points readers at v2.</p>
+<p>This deploy is a one-shot maintainer command (NEVER from CI —
 RESEARCH Q10 pitfall #6: running from CI would re-render <code>/v1/</code> on every push,
 potentially with newer mkdocs-material HTML; CI never touches it).</p>
-<p><strong>Run ONCE from a local workspace pinned at the v1 docs snapshot:</strong></p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Check out the v1.3.0 docs snapshot (or a `v1.3.0-docs-snapshot` tag if one exists):</span>
-git<span class="w"> </span>checkout<span class="w"> </span>v1.3.0<span class="w">  </span><span class="c1"># or v1.3.0-docs-snapshot</span>
-uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>docs
-uv<span class="w"> </span>run<span class="w"> </span>mike<span class="w"> </span>deploy<span class="w"> </span>--push<span class="w"> </span>v1
+<p><strong>One-shot procedure (mike needs a git repo, so we run it from the main worktree
+with a side-by-side <code>mkdocs.yml</code> pointing at a tiny <code>docs/</code> tree):</strong></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># 1. Stage v1 snapshot source under a gitignored directory.</span>
+mkdir<span class="w"> </span>-p<span class="w"> </span>.v1-snapshot/docs
 
-git<span class="w"> </span>checkout<span class="w"> </span>main
+<span class="c1"># 2. Author a minimal docs/index.md with the &quot;v1 frozen&quot; banner — note the</span>
+<span class="c1">#    `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.`</span>
+<span class="c1">#    placeholder (SI-07-07; replaced in the v1.x-EOS follow-up PR).</span>
+cat<span class="w"> </span>&gt;<span class="w"> </span>.v1-snapshot/docs/index.md<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
+<span class="s"># aws-eks-helm-deploy v1 — frozen</span>
+
+<span class="s">!!! warning &quot;v1.x is frozen&quot;</span>
+<span class="s">    The v1.x line of this pipe was distributed via Docker Hub at</span>
+<span class="s">    `yvogl/aws-eks-helm-deploy` and is **frozen at v1.3.0**.</span>
+<span class="s">    Security fixes for v1.x are released for **6 months from the v2.0.0</span>
+<span class="s">    release date** — ending `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.`</span>
+
+<span class="s">    Use **v2** for all new and existing deployments:</span>
+<span class="s">    &lt;https://yves-vogl.github.io/aws-eks-helm-deploy/v2/&gt;</span>
+<span class="s">EOF</span>
+<span class="c1"># (Expand with a v1 environment-variable table and the &quot;Migration&quot; cross-link;</span>
+<span class="c1"># see the README excerpt for canonical content.)</span>
+
+<span class="c1"># 3. Author a minimal mkdocs.yml.</span>
+cat<span class="w"> </span>&gt;<span class="w"> </span>.v1-snapshot/mkdocs.yml<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
+<span class="s">site_name: aws-eks-helm-deploy (v1 — frozen)</span>
+<span class="s">site_url: https://yves-vogl.github.io/aws-eks-helm-deploy/v1/</span>
+<span class="s">repo_url: https://github.com/yves-vogl/aws-eks-helm-deploy</span>
+<span class="s">docs_dir: docs</span>
+<span class="s">theme: { name: material, features: [content.code.copy] }</span>
+<span class="s">nav:</span>
+<span class="s">  - Frozen v1: index.md</span>
+<span class="s">markdown_extensions:</span>
+<span class="s">  - admonition</span>
+<span class="s">EOF</span>
+
+<span class="c1"># 4. Deploy via mike (pushes to gh-pages, adds a `v1` entry to versions.json).</span>
+uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>docs
+uv<span class="w"> </span>run<span class="w"> </span>--extra<span class="w"> </span>docs<span class="w"> </span>mike<span class="w"> </span>deploy<span class="w"> </span>--push<span class="w"> </span>--config-file<span class="w"> </span>.v1-snapshot/mkdocs.yml<span class="w"> </span>v1
+
+<span class="c1"># 5. Drop the snapshot tree (it is gitignored — see `.gitignore`).</span>
+rm<span class="w"> </span>-rf<span class="w"> </span>.v1-snapshot
 </code></pre></div>
-<p><strong>Banner on /v1/:</strong> CONTEXT D2 specifies the banner "v1 is frozen — security-only
-patches until 2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.
-Use v2: <link>." Update the v1 docs site index manually with this banner before
-the <code>mike deploy --push v1</code> command.</p>
 <p><strong>Verify:</strong></p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>mike<span class="w"> </span>list
 <span class="c1"># Expected output contains both `v1` and `v2`.</span>
-curl<span class="w"> </span>-sf<span class="w"> </span>https://yves-vogl.github.io/aws-eks-helm-deploy/v1/<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-5
-<span class="c1"># Expected: v1 docs HTML renders.</span>
+curl<span class="w"> </span>-sI<span class="w"> </span>https://yves-vogl.github.io/aws-eks-helm-deploy/v1/
+<span class="c1"># Expected: HTTP/2 200 from server: GitHub.com</span>
 </code></pre></div>
 <hr />
 <h2 id="10-update-bitbucket-pipe-marketplace-listing-d11">10. Update Bitbucket Pipe Marketplace listing (D11)<a class="headerlink" href="#10-update-bitbucket-pipe-marketplace-listing-d11" title="Permanent link">&para;</a></h2>
