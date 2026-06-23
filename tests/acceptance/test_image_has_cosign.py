@@ -1,4 +1,4 @@
-"""Acceptance test: the built runtime image bundles cosign 2.6.3 in /usr/local/bin/.
+"""Acceptance test: the built runtime image bundles cosign 3.1.1 in /usr/local/bin/.
 
 Requirements traceability:
     CHART-04 (Phase 4): cosign must be present in the runtime image to support
@@ -26,7 +26,7 @@ def test_cosign_binary_in_path(built_image: str) -> None:
 
     Asserts:
         - ``which cosign`` exits 0 and returns ``/usr/local/bin/cosign``
-        - ``cosign version`` exits 0 and prints ``GitVersion`` (cosign 2.x version output)
+        - ``cosign version`` exits 0 and prints ``GitVersion`` (cosign 3.x version output)
     """
     result = subprocess.run(
         [
