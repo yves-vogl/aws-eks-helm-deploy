@@ -206,12 +206,16 @@ jobs:
           fi
 
       - name: Sign manifest with Cosign keyless (SEC-01)
-        # --bundle is REQUIRED (Pitfall #4): without it, verification needs Rekor online.
+        # cosign 2.x stores the signature + cert + Rekor inclusion proof as OCI
+        # artifacts alongside the image in the registry; no local --bundle file
+        # is needed (the v1.x --bundle flag was removed from `cosign sign` in
+        # 2.x). For offline verify, consumers fetch the registry-side bundle via
+        # `cosign download signature ${IMAGE_REF} > cosign.bundle`.
         # --yes accepts the Fulcio TOS (required in non-interactive CI).
         env:
           IMAGE_REF: ${{ steps.manifest.outputs.image-ref }}
         run: |
-          cosign sign --yes --bundle cosign.bundle "${IMAGE_REF}"
+          cosign sign --yes "${IMAGE_REF}"
 
       - name: Generate SPDX SBOM (SEC-02)
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
@@ -230,10 +234,13 @@ jobs:
           upload-artifact: false
 
       - name: Attest SPDX SBOM via Cosign (CONTEXT D8)
+        # cosign 2.x: the attestation is stored as an OCI artifact alongside
+        # the image. The v1.x --bundle flag is no longer accepted on `cosign
+        # attest`; consumers verify via `cosign verify-attestation --type spdxjson`.
         env:
           IMAGE_REF: ${{ steps.manifest.outputs.image-ref }}
         run: |
-          cosign attest --yes --bundle sbom.spdx.bundle \
+          cosign attest --yes \
             --predicate sbom.spdx.json \
             --type spdxjson \
             "${IMAGE_REF}"
@@ -242,7 +249,7 @@ jobs:
         env:
           IMAGE_REF: ${{ steps.manifest.outputs.image-ref }}
         run: |
-          cosign attest --yes --bundle sbom.cyclonedx.bundle \
+          cosign attest --yes \
             --predicate sbom.cyclonedx.json \
             --type cyclonedx \
             "${IMAGE_REF}"
@@ -264,17 +271,20 @@ jobs:
           VERSION: ${{ steps.tags.outputs.version }}
         run: |
           set -euo pipefail
+          # Cosign 2.x stores signatures + attestations as OCI artifacts in the
+          # registry alongside the image. Only the raw SBOM JSON files are
+          # attached to the GitHub Release for human convenience; the canonical
+          # supply-chain artifacts (signature, cert, Rekor entry, attestations)
+          # live at ${IMAGE_REF} and are fetched via `cosign verify*`.
           if gh release view "v${VERSION}" >/dev/null 2>&1; then
             gh release upload "v${VERSION}" \
               sbom.spdx.json sbom.cyclonedx.json \
-              cosign.bundle sbom.spdx.bundle sbom.cyclonedx.bundle \
               --clobber
             gh release edit "v${VERSION}" --notes-file <(gh release view "v${VERSION}" --json body --jq .body; echo -e "\n\n## Supply chain artifacts\n\n- Manifest: \`${IMAGE_REF}\`\n- Cosign verify: \`cosign verify --certificate-identity-regexp '^https://github.com/${{ github.repository }}/' --certificate-oidc-issuer https://token.actions.githubusercontent.com ${IMAGE_REF}\`\n- SBOM (SPDX): \`cosign verify-attestation --type spdxjson ${IMAGE_REF}\`\n- SBOM (CycloneDX): \`cosign verify-attestation --type cyclonedx ${IMAGE_REF}\`")
           else
             echo "WARNING: GitHub Release v${VERSION} not found — release-please may have failed or this is workflow_dispatch" >&2
             gh release create "v${VERSION}" --title "v${VERSION}" --generate-notes \
-              sbom.spdx.json sbom.cyclonedx.json \
-              cosign.bundle sbom.spdx.bundle sbom.cyclonedx.bundle
+              sbom.spdx.json sbom.cyclonedx.json
           fi
 
   benchmark-cold-start:
