@@ -13,30 +13,31 @@
 
 📖 **Documentation site:** [yves-vogl.github.io/aws-eks-helm-deploy](https://yves-vogl.github.io/aws-eks-helm-deploy/) — versioned via `mike` (v1 frozen, v2 current).
 
-**Cold-start benchmark:** see [latest workflow artifact](https://github.com/yves-vogl/aws-eks-helm-deploy/actions/workflows/release.yml) (IMAGE-06 target: < 10s; documented per A6 — see [Phase 6 RESEARCH](.planning/phases/06-release-pipeline-supply-chain/06-RESEARCH.md)).
-
 Deploy [Helm](https://helm.sh) charts to [AWS Elastic Kubernetes Service (EKS)](https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html) from [Bitbucket Pipelines](https://bitbucket.org/product/features/pipelines) — a thin, opinionated wrapper around `helm upgrade --install` that handles EKS authentication for you.
 
 ![Logo](logo.png)
 
 ---
 
-## What this pipe does
+## What this pipe does (v2.0)
 
-- Resolves AWS credentials (static keys, optionally with `ROLE_ARN` assumption via STS).
-- Builds a kubeconfig for your EKS cluster on the fly — **no `kubectl` install required in your pipeline image**.
-- Runs `helm upgrade --install` against the cluster with the variables you provide.
-- Injects Bitbucket build metadata (build number, commit, tag, …) as Helm values so your charts can reference them.
+- **OIDC-first AWS auth** — no static AWS keys in your pipeline; Bitbucket OIDC → STS `AssumeRoleWithWebIdentity`. Static keys remain supported for legacy migrations.
+- **Three chart sources** — `local://` (path in repo), `repo://` (Helm repository), `oci://` (OCI registry).
+- **Three actions** — `ACTION=upgrade` (default), `ACTION=diff` (preview + optional PR comment), `ACTION=rollback`.
+- **SAFE_UPGRADE** — atomic-flagged upgrades that auto-rollback on failure.
+- Builds a kubeconfig for the EKS cluster on the fly — **no `kubectl` install required in your pipeline image**.
+- Injects Bitbucket build metadata (build number, commit, tag, …) as Helm values (opt-out via `INJECT_BITBUCKET_METADATA=false`).
+- **Supply-chain hardened** — Cosign keyless signature + SPDX + CycloneDX SBOMs + SLSA build provenance on every release. Multi-arch (`linux/amd64` + `linux/arm64`).
 
 This pipe is purpose-built for **Bitbucket Pipelines**. For GitHub Actions, use upstream actions such as [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials) combined with a Helm action.
 
-> **Status:** v2.0 is the active line published exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`). v1.3.0 is frozen on Docker Hub as the v1.x archive. See [docs/migration/v1-to-v2.md](https://github.com/yves-vogl/aws-eks-helm-deploy/blob/main/docs/migration/v1-to-v2.md) for upgrade steps, and the [v2.0.0 milestone](https://github.com/yves-vogl/aws-eks-helm-deploy/milestones) for tracked work.
+> **Status:** v2.0 is the active line published exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`). **v1.3.0 is frozen on Docker Hub and is not maintained** — no security fixes, no bug fixes; please migrate to v2.x. See [docs/migration/v1-to-v2.md](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/migration/v1-to-v2/) for upgrade steps.
 
 ---
 
-## Quick start
+## Quick start (v2 — OIDC + repo:// chart)
 
-Drop the following step into your `bitbucket-pipelines.yml`:
+Drop the following step into your `bitbucket-pipelines.yml`. The IAM trust policy that pairs with this snippet is in the [OIDC setup guide](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/guides/oidc-setup/).
 
 ```yaml
 image: atlassian/default-image:4
@@ -47,155 +48,180 @@ pipelines:
       - step:
           name: Deploy to EKS
           deployment: production
+          oidc: true                                     # Bitbucket sets BITBUCKET_STEP_OIDC_TOKEN
           script:
-            - pipe: docker://yvogl/aws-eks-helm-deploy:1.3.0
+            - pipe: docker://ghcr.io/yves-vogl/aws-eks-helm-deploy:2
               variables:
-                AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
-                AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+                OIDC_AUDIENCE: $OIDC_AUDIENCE            # ari:cloud:bitbucket::workspace/<UUID>
+                ROLE_ARN: $DEPLOY_ROLE_ARN
                 AWS_REGION: eu-central-1
                 CLUSTER_NAME: my-eks-cluster
-                CHART: ./charts/my-app
-                RELEASE_NAME: my-app
+                CHART: repo://bitnami/nginx
+                REPO_URL: https://charts.bitnami.com/bitnami
+                CHART_VERSION: 18.2.0
+                RELEASE_NAME: nginx
                 NAMESPACE: production
-                CREATE_NAMESPACE: "true"
                 WAIT: "true"
-                TIMEOUT: "10m"
+                TIMEOUT: 10m
 ```
 
-Pin the pipe to a specific tag (e.g. `:1.3.0`). Consumers that pin to `:latest` get whatever was last pushed — avoid that in production.
+Pin the pipe to `:2` (rolling major) or to a specific version like `:2.0.0`. `:latest` is also published but pinning to a major is the recommended pattern.
+
+**Need to keep static AWS keys for now?** See [`examples/basic/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/basic) — same shape, swap OIDC for `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
+
+More copy-paste-ready snippets:
+
+- [`examples/basic/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/basic) — static keys + `local://` chart
+- [`examples/oidc-only/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/oidc-only) — OIDC + `repo://` chart
+- [`examples/oci-chart/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/oci-chart) — OIDC + `oci://` chart from GHCR
+- [`examples/multi-env/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/multi-env) — multi-env with `ACTION=diff` PR comments
+- [`examples/migration-v1-to-v2/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/migration-v1-to-v2) — before/after diff with line-level explanations
 
 ---
 
 ## Variables
 
-| Variable                  | Required | Default          | Description                                                                 |
-| ------------------------- | :------: | ---------------- | --------------------------------------------------------------------------- |
-| `AWS_ACCESS_KEY_ID`       |    ✓     | —                | AWS access key ID.                                                          |
-| `AWS_SECRET_ACCESS_KEY`   |    ✓     | —                | AWS secret access key.                                                      |
-| `CLUSTER_NAME`            |    ✓     | —                | Name of the target EKS cluster.                                             |
-| `CHART`                   |    ✓     | —                | Path or name of the Helm chart to deploy.                                   |
-| `AWS_REGION`              |          | `eu-central-1`   | AWS region the cluster lives in.                                            |
-| `ROLE_ARN`                |          | —                | IAM role to assume via STS before talking to EKS.                           |
-| `SESSION_NAME`            |          | —                | STS session name when assuming `ROLE_ARN`.                                  |
-| `RELEASE_NAME`            |          | `$CHART`         | Name of the Helm release.                                                   |
-| `NAMESPACE`               |          | `default`        | Target Kubernetes namespace.                                                |
-| `CREATE_NAMESPACE`        |          | `false`          | Pass `--create-namespace` to Helm.                                          |
-| `SET`                     |          | `[]`             | List of values forwarded to Helm as `--set` arguments.                      |
-| `VALUES`                  |          | `[]`             | Local values YAML files forwarded to Helm as `--values` arguments.          |
-| `WAIT`                    |          | `false`          | Wait for resources to become ready (`helm --wait`).                         |
-| `TIMEOUT`                 |          | `5m`             | Helm timeout, Go duration syntax (e.g. `30s`, `5m`, `1h`).                  |
-| `DEBUG`                   |          | `false`          | Verbose logging.                                                            |
+The full, autogenerated reference is at [docs/reference/variables](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/reference/variables/). Highlights below.
 
-The pipe also injects the following Bitbucket build metadata as `--set` values, so your chart templates can reference them: `bitbucket.bitbucket_build_number`, `bitbucket.bitbucket_repo_slug`, `bitbucket.bitbucket_commit`, `bitbucket.bitbucket_tag`, `bitbucket.bitbucket_step_triggerer_uuid`.
+**Auth** (pick one path):
 
-> Charts with strict `values.schema.json` validation may reject these fields. An opt-out flag is tracked for v2.0 in [#16](https://github.com/yves-vogl/aws-eks-helm-deploy/issues/16).
+| Variable                  | Required for       | Description                                                              |
+| ------------------------- | ------------------ | ------------------------------------------------------------------------ |
+| `OIDC_AUDIENCE`           | OIDC               | Bitbucket workspace ARI (`ari:cloud:bitbucket::workspace/<UUID>`).      |
+| `ROLE_ARN`                | OIDC + key-assume  | IAM role to assume via OIDC or STS.                                     |
+| `AWS_ACCESS_KEY_ID`       | Static keys        | AWS access key ID. **Not recommended** — prefer OIDC.                   |
+| `AWS_SECRET_ACCESS_KEY`   | Static keys        | AWS secret access key.                                                  |
+| `SESSION_NAME`            | optional           | STS session name (default `BitbucketPipe`).                             |
+
+> When **both** static keys AND a Bitbucket OIDC token are present, static keys win (mirrors the botocore default-chain order). To use OIDC, leave `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` unset.
+
+**Cluster + chart**:
+
+| Variable                  | Required | Default       | Description                                                             |
+| ------------------------- | :------: | ------------- | ----------------------------------------------------------------------- |
+| `CLUSTER_NAME`            |    ✓     | —             | Target EKS cluster name.                                                |
+| `CHART`                   |    ✓     | —             | Chart source: `./path` (local), `repo://repo/chart`, or `oci://host/path`. |
+| `REPO_URL`                |  for `repo://` | —      | Helm repository URL (e.g. `https://charts.bitnami.com/bitnami`).        |
+| `CHART_VERSION`           |          | latest        | Pin a specific chart version.                                           |
+| `REGISTRY_USERNAME`       |   for `oci://` private  | — | Registry auth (paired with `REGISTRY_PASSWORD`).                 |
+| `REGISTRY_PASSWORD`       |   for `oci://` private  | — | Registry auth secret.                                            |
+| `AWS_REGION`              |          | `eu-central-1`| AWS region of the cluster.                                              |
+| `RELEASE_NAME`            |          | `$CHART`      | Helm release name.                                                      |
+| `NAMESPACE`               |          | `default`     | Target Kubernetes namespace.                                            |
+| `CREATE_NAMESPACE`        |          | `false`       | Pass `--create-namespace` to Helm.                                      |
+
+**Action + behavior**:
+
+| Variable                       | Required | Default       | Description                                                        |
+| ------------------------------ | :------: | ------------- | ------------------------------------------------------------------ |
+| `ACTION`                       |          | `upgrade`     | One of `upgrade`, `diff`, `rollback`.                              |
+| `SAFE_UPGRADE`                 |          | `false`       | Atomic upgrade — auto-rollback on failure.                         |
+| `HISTORY_MAX`                  |          | —             | Trim release history (`helm --history-max`).                       |
+| `REVISION`                     |  for `ACTION=rollback`  | — | Target revision number (omit for previous).                  |
+| `DRY_RUN`                      |          | `false`       | Pass through to Helm.                                              |
+| `SET`                          |          | `[]`          | List of `--set-string` arguments.                                  |
+| `VALUES`                       |          | `[]`          | Local values YAML files forwarded as `--values`.                   |
+| `WAIT`                         |          | `false`       | Wait for resources to become ready (`helm --wait`).                |
+| `TIMEOUT`                      |          | `600s`        | Helm timeout, Go duration syntax (e.g. `30s`, `10m`).              |
+| `INJECT_BITBUCKET_METADATA`    |          | `false`       | Inject Bitbucket build metadata (`build_number`, `commit`, …) as `--set-string`. |
+| `POST_DIFF_AS_COMMENT`         |          | `false`       | When `ACTION=diff`, post the diff back as a Bitbucket PR comment.  |
+| `BITBUCKET_TOKEN`              |  for diff-comment  | — | Bitbucket repo access token (write scope on PR comments).      |
+| `LOG_FORMAT`                   |          | `human`       | `human` or `json` (JSON masks secrets per a structured redactor).  |
+| `DEBUG`                        |          | `false`       | Verbose logging.                                                   |
+
+> **v1 → v2 breaking change.** `INJECT_BITBUCKET_METADATA` defaults to **off** in v2 (was on by default in v1). Charts with strict `values.schema.json` validation no longer reject the pipe; opt in explicitly when you want the metadata injected.
 
 ---
 
 ## Authentication
 
-Today the pipe authenticates using **static AWS access keys**, optionally combined with `ROLE_ARN` assumption via STS. Store keys as [secured repository or deployment variables](https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/) — never commit them.
+v2 supports two paths. **Pick one — never combine in the same pipeline step.**
 
-**Native OIDC / IRSA (Bitbucket OIDC → STS `AssumeRoleWithWebIdentity`)** support is on the v2.0 roadmap — see [#3](https://github.com/yves-vogl/aws-eks-helm-deploy/issues/3). OIDC eliminates long-lived AWS keys in your pipeline and is the recommended pattern for production deployments going forward.
+**1. OIDC (recommended for production).** Bitbucket OIDC → STS `AssumeRoleWithWebIdentity`. No long-lived AWS keys, scoped to a specific Bitbucket workspace + repo via the IAM trust policy. Full setup with the trust-policy template lives in the [OIDC setup guide](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/guides/oidc-setup/).
+
+```yaml
+- step:
+    oidc: true
+    script:
+      - pipe: docker://ghcr.io/yves-vogl/aws-eks-helm-deploy:2
+        variables:
+          OIDC_AUDIENCE: $OIDC_AUDIENCE
+          ROLE_ARN: $DEPLOY_ROLE_ARN
+          # … cluster + chart vars
+```
+
+**2. Static AWS keys (legacy).** Store keys as [secured repository or deployment variables](https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/) — never commit them. Optionally combine with `ROLE_ARN` to assume a role via STS. Recommended only for migrations from v1.x.
 
 ---
 
 ## Version matrix
 
-The `yvogl/aws-eks-helm-deploy:1.3.0` image bundles:
+The `ghcr.io/yves-vogl/aws-eks-helm-deploy:2` image bundles:
 
-| Component                      | Version           | Notes                                                                  |
-| ------------------------------ | ----------------- | ---------------------------------------------------------------------- |
-| Base image                     | `python:3-alpine` | Latest 3.x at image build time.                                        |
-| Helm                           | `3.15.1`          | Copied from `alpine/helm:3.15.1`. Compatible with EKS Kubernetes versions supported by Helm 3.15 — see the [Helm version skew policy](https://helm.sh/docs/topics/version_skew/). |
-| `kubectl`                      | not bundled       | The pipe generates a kubeconfig and lets Helm talk to the EKS API directly. |
-| `awscli`                       | `~=1.32`          | Used for EKS token generation (`TokenGenerator`).                      |
-| `bitbucket-pipes-toolkit`      | `~=4.4`           | Pipe scaffolding, schema validation, logging.                          |
-| Jinja2                         | `~=3.1`           | Kubeconfig templating.                                                 |
+| Component                      | Version             | Notes                                                                  |
+| ------------------------------ | ------------------- | ---------------------------------------------------------------------- |
+| Base image                     | `python:3.13-slim-bookworm` | Pinned by SHA; non-root user (`USER pipe`, uid ≥ 10000).        |
+| Helm                           | `3.18.6`            | Bundled (no `kubectl` required). See the [Helm version skew policy](https://helm.sh/docs/topics/version_skew/). |
+| `helm-diff`                    | `3.10.0`            | Plugin for `ACTION=diff`; SHA-pinned binary.                           |
+| Cosign                         | `2.6.3`             | Bundled for image-side signature operations.                           |
+| `kubectl`                      | not bundled         | The pipe generates a kubeconfig and talks to the EKS API directly.     |
+| `boto3`                        | latest stable       | Generates the EKS token natively — no `awscli` in the image.           |
+| `bitbucket-pipes-toolkit`      | `~=6.2`             | Pipe scaffolding, schema validation, logging.                          |
+| Architecture support           | `linux/amd64`, `linux/arm64` | Multi-arch via native runners (no QEMU).                      |
+| Signature                      | Cosign keyless (Sigstore) | Verify: `cosign verify --certificate-identity-regexp '^https://github.com/yves-vogl/aws-eks-helm-deploy/' --certificate-oidc-issuer https://token.actions.githubusercontent.com ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0`. |
+| SBOMs                          | SPDX + CycloneDX    | Attested via Cosign; `cosign verify-attestation --type spdxjson|cyclonedx <image>`. |
+| SLSA build provenance          | Level 3             | `actions/attest-build-provenance` on every release.                    |
 
-Tooling versions are advanced in lockstep with each release. See [`CHANGELOG.md`](CHANGELOG.md) for the per-release upgrade history.
+Tooling versions are advanced in lockstep with each release. See [`CHANGELOG.md`](CHANGELOG.md) for the per-release history.
 
 ---
 
 ## Examples
 
-### Basic
+See [`examples/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples) for five copy-paste-ready `bitbucket-pipelines.yml` snippets:
 
-```yaml
-script:
-  - pipe: docker://yvogl/aws-eks-helm-deploy:1.3.0
-    variables:
-      AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
-      AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
-      CLUSTER_NAME: my-cluster
-      CHART: ./charts/my-app
-```
+| Scenario                          | Path                                            |
+| --------------------------------- | ----------------------------------------------- |
+| Static keys + local chart         | [`examples/basic/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/basic) |
+| OIDC + Helm repo chart            | [`examples/oidc-only/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/oidc-only) |
+| OIDC + OCI chart from GHCR        | [`examples/oci-chart/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/oci-chart) |
+| Multi-env with `ACTION=diff` PR comment | [`examples/multi-env/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/multi-env) |
+| v1 → v2 line-by-line migration diff | [`examples/migration-v1-to-v2/`](https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/migration-v1-to-v2) |
 
-### Pull secrets from AWS Secrets Manager, then deploy with a different IAM role
-
-```yaml
-script:
-  - step:
-      name: Fetch secrets
-      image: amazon/aws-cli
-      deployment: Development
-      caches:
-        - docker
-      script:
-        - yum install -y -q jq
-        - aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID --profile default
-        - aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY --profile default
-        - aws configure set region eu-central-1 --profile default
-        - aws configure set role_arn $VAULT_ROLE_ARN --profile vault
-        - aws configure set source_profile default --profile vault
-        - aws configure set region eu-central-1 --profile vault
-        - aws secretsmanager get-secret-value --secret-id application/secret --profile vault | jq -r ".SecretString" > secrets.yaml
-  - pipe: docker://yvogl/aws-eks-helm-deploy:1.3.0
-    variables:
-      AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
-      AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
-      ROLE_ARN: $KUBERNETES_USER_ROLE_ARN
-      CLUSTER_NAME: a-cluster-name
-      CHART: path-to-helm-chart
-      RELEASE_NAME: my-example-release
-      NAMESPACE: default
-      SET: [
-        'replicaCount=3',
-        'image.version=1.0.2-${BITBUCKET_BUILD_NUMBER}',
-        'env.foo_from_repository_or_deployment_variable=${BAR}',
-      ]
-      VALUES: [
-        secrets.yaml
-      ]
-```
+All `bitbucket-pipelines.yml` files in `examples/` are schema-validated in CI via `check-jsonschema --builtin-schema vendor.bitbucket-pipelines`.
 
 ---
 
-## Roadmap
+## Verifying releases
 
-The **[v2.0.0 milestone](https://github.com/yves-vogl/aws-eks-helm-deploy/milestones)** tracks the planned modernization:
+Every release is signed and SBOMed. Verify before you pull into production:
 
-- Native AWS OIDC / IRSA authentication
-- Helm OCI registry and `repo://` chart support
-- `helm --history-max` integration for release history pruning ([#17](https://github.com/yves-vogl/aws-eks-helm-deploy/issues/17))
-- Opt-out for injected Bitbucket metadata ([#16](https://github.com/yves-vogl/aws-eks-helm-deploy/issues/16))
-- Multi-architecture image (`linux/amd64` + `linux/arm64`), native ARM runners
-- Cosign keyless signing + SBOM (SPDX + CycloneDX) + SLSA provenance
-- 100% test coverage (unit + integration + acceptance tiers)
-- GitHub Actions release pipeline (release-please v4)
-- **Published exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`)** — Docker Hub frozen at v1.3.0 as the v1.x archive
+```bash
+# Image signature (Sigstore keyless via Fulcio + Rekor)
+cosign verify \
+  --certificate-identity-regexp '^https://github.com/yves-vogl/aws-eks-helm-deploy/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0
+
+# SBOMs (attested in the registry)
+cosign verify-attestation --type spdxjson    ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0
+cosign verify-attestation --type cyclonedx   ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0
+```
+
+SLSA build provenance is also attached to every release; see the per-release entry on the [Releases page](https://github.com/yves-vogl/aws-eks-helm-deploy/releases).
 
 ---
 
 ## Support and contributing
 
-- **Questions or bug reports** → open a [GitHub issue](https://github.com/yves-vogl/aws-eks-helm-deploy/issues/new/choose). Please include the pipe version, your `bitbucket-pipelines.yml` snippet, and the relevant log output.
-- **Security reports** → please report privately rather than via a public issue; see `SECURITY.md` once available (tracked for v2.0).
-- **Pull requests welcome** — contribution guidelines (`CONTRIBUTING.md`) and PR template are tracked for v2.0.
+- **Documentation** → [yves-vogl.github.io/aws-eks-helm-deploy/v2/](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/) (migration guide, OIDC setup, ADRs, variables reference).
+- **Questions or bug reports** → open a [GitHub issue](https://github.com/yves-vogl/aws-eks-helm-deploy/issues/new/choose). Please include the pipe version, your `bitbucket-pipelines.yml` snippet, and relevant log output.
+- **Security reports** → use [GitHub Private Vulnerability Reporting](https://github.com/yves-vogl/aws-eks-helm-deploy/security/advisories/new). See [`SECURITY.md`](SECURITY.md) for the full disclosure flow.
+- **Contributing** → [`CONTRIBUTING.md`](CONTRIBUTING.md) documents the `uv sync` + `pre-commit` + `pytest` + `kind` dev loop and the Conventional Commits rule.
 
 ## Sponsor
 
-If this pipe saves you time or production headaches, consider [sponsoring the work on GitHub Sponsors](https://github.com/sponsors/yves-vogl). Sponsorships fund v2.0 modernization (OIDC, multi-arch, Cosign keyless, 100% test coverage, versioned docs) and ongoing v1.x security maintenance.
+If this pipe saves you time or production headaches, consider [sponsoring the work on GitHub Sponsors](https://github.com/sponsors/yves-vogl). Sponsorships fund ongoing v2.x maintenance.
 
 Maintained by [Yves Vogl](https://github.com/yves-vogl) · [Sponsor](https://github.com/sponsors/yves-vogl).
 
