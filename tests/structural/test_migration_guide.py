@@ -36,9 +36,10 @@ REQUIRED_BREAKING_CHANGE_TOKENS: frozenset[str] = frozenset(
     },
 )
 
-# SI-07-07 gate: the D10 placeholder appears verbatim in this file AND in
-# SECURITY.md (Plan 07-06). Tag-cut replaces the literal string.
-D10_PLACEHOLDER = "2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut."
+# SI-07-07 gate (post tag-cut): the v1.x EOS date appears verbatim in this
+# file AND in SECURITY.md (Plan 07-06). v2.0.0 was released 2026-06-23,
+# so EOS = 2026-12-23 (6 months later).
+V1_EOS_DATE = "2026-12-23"
 
 
 # ---------------------------------------------------------------------------
@@ -83,12 +84,10 @@ def test_migration_guide_covers_inject_bitbucket_metadata() -> None:
     )
 
 
-def test_migration_guide_has_d10_six_month_placeholder() -> None:
-    """SI-07-07 gate: the D10 6-month placeholder is committed verbatim."""
+def test_migration_guide_has_v1_eos_date() -> None:
+    """SI-07-07 gate (post tag-cut): the v1.x EOS date is committed verbatim."""
     text = MIGRATION_MD.read_text(encoding="utf-8")
-    assert D10_PLACEHOLDER in text, (
-        f"D10 placeholder string missing from {MIGRATION_MD}; expected literal: {D10_PLACEHOLDER!r}"
-    )
+    assert V1_EOS_DATE in text, f"v1.x EOS date `{V1_EOS_DATE}` missing from {MIGRATION_MD}"
 
 
 def test_migration_guide_cross_references_examples_diff() -> None:

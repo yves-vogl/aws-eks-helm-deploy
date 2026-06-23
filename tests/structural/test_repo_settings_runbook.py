@@ -9,9 +9,10 @@ v2.0.0 release ceremony per D11 (Phase 6 §§5-6 + §12 restored alongside):
 - Section 10: Update Bitbucket Pipe Marketplace listing (D11).
 - Section 11: Post Docker Hub README deprecation banner (MIG-01 / D10).
 
-Also asserts the SI-07-07 invariant: the D10 placeholder
-'2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.' appears
-at least twice in the runbook (sections 9 + 11).
+Also asserts the SI-07-07 invariant: the v1.x EOS date `2026-12-23`
+(v2.0.0 released 2026-06-23 + 6 months) appears at least twice in the
+runbook (sections 9 + 11). The pre-tag-cut placeholder was replaced
+after v2.0.0 was tagged on 2026-06-23.
 """
 
 from __future__ import annotations
@@ -23,7 +24,7 @@ import pytest
 pytestmark = pytest.mark.unit
 
 RUNBOOK = pathlib.Path(__file__).resolve().parents[2] / "docs" / "admin" / "repo-settings.md"
-D10_PLACEHOLDER = "2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut."
+V1_EOS_DATE = "2026-12-23"
 
 
 def test_runbook_exists() -> None:
@@ -94,12 +95,12 @@ def test_runbook_has_docker_hub_banner_section() -> None:
     )
 
 
-def test_runbook_propagates_d10_placeholder() -> None:
-    """SI-07-07: the D10 6-month placeholder must appear ≥ 2 times (Sections 9 + 11)."""
+def test_runbook_propagates_v1_eos_date() -> None:
+    """SI-07-07: the v1.x EOS date 2026-12-23 must appear ≥ 2 times (Sections 9 + 11)."""
     text = RUNBOOK.read_text()
-    count = text.count(D10_PLACEHOLDER)
+    count = text.count(V1_EOS_DATE)
     assert count >= 2, (
-        f"SI-07-07 invariant broken: D10 placeholder appears {count} time(s), "
+        f"SI-07-07 invariant broken: v1.x EOS date `{V1_EOS_DATE}` appears {count} time(s), "
         f"expected ≥ 2 (Section 9 v1 banner + Section 11 Docker Hub banner)"
     )
 

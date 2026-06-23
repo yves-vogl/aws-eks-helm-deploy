@@ -19,9 +19,9 @@ pytestmark = pytest.mark.unit
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 SECURITY_MD = REPO_ROOT / "SECURITY.md"
 
-# D10 verbatim placeholder — SI-07-07 grep gate enforces byte-for-byte equality
-# across SECURITY.md AND docs/migration/v1-to-v2.md.
-D10_PLACEHOLDER = "2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut."
+# Post tag-cut: the v1.x EOS date is now absolute (SI-07-07 invariant).
+# v2.0.0 was released 2026-06-23 → EOS = 2026-12-23.
+V1_EOS_DATE = "2026-12-23"
 
 
 # ---------------------------------------------------------------------------
@@ -34,12 +34,12 @@ def test_security_md_exists() -> None:
     assert SECURITY_MD.is_file(), f"SECURITY.md missing at {SECURITY_MD}"
 
 
-def test_security_md_has_d10_six_month_placeholder() -> None:
-    """SI-07-07 gate: the D10 placeholder must be present verbatim."""
+def test_security_md_has_v1_eos_date() -> None:
+    """SI-07-07 gate: the v1.x EOS date 2026-12-23 must be present verbatim."""
     text = SECURITY_MD.read_text(encoding="utf-8")
-    assert D10_PLACEHOLDER in text, (
-        "SECURITY.md must contain the D10 6-month placeholder verbatim "
-        f"({D10_PLACEHOLDER!r}). SI-07-07 gate failure."
+    assert V1_EOS_DATE in text, (
+        f"SECURITY.md must contain the v1.x EOS date `{V1_EOS_DATE}` "
+        "(v2.0.0 released 2026-06-23 + 6 months). SI-07-07 gate failure."
     )
 
 
