@@ -44,3 +44,7 @@ id_ed25519.*
 
 # mkdocs build output (Phase 7)
 site/
+
+# v1 frozen-snapshot source — generated on demand by the maintainer per
+# docs/admin/repo-settings.md §9; mike deploy --push v1 reads from it once.
+.v1-snapshot/
