@@ -77,11 +77,6 @@ jobs:
     name: "integration (kind + helm)"
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    # TODO(phase-6 follow-up): META-01 test_inject_bitbucket_metadata_sets_all_5_keys
-    # still fails on the curly-brace UUID round-trip even with -o json. The braces
-    # are interpreted somewhere in the helm-template/get-values pipeline. Track in
-    # a separate fix-PR; do not block Phase 6 ship.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
@@ -108,9 +103,6 @@ jobs:
         uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
 
       - name: Run integration tests
-        # TODO(post-Phase-6): META-01 curly-brace UUID round-trip fails.
-        # Tracked as follow-up.
-        continue-on-error: true
         run: uv run pytest tests/integration -m integration --no-cov
 
   trivy-image:

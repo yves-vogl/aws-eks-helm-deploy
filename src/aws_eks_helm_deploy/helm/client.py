@@ -202,6 +202,7 @@ class HelmClient:
         timeout: str,
         *,
         safe_upgrade: bool = False,
+        set_json_args: list[str] | None = None,
     ) -> list[str]:
         """Build the ``helm upgrade --install`` argv list (pure function — no I/O).
 
@@ -217,9 +218,11 @@ class HelmClient:
             values_files: List of values file paths; each produces
                 ``["--values", path]`` in order (last-wins semantics).
             set_args: List of ``"key=value"`` strings; each produces
-                ``["--set-string", "key=value"]``. Uses ``--set-string``
-                (not ``--set``) for ALL entries to handle curly-brace values
-                such as BITBUCKET_STEP_TRIGGERER_UUID (RESEARCH G / Pitfall 4).
+                ``["--set-string", "key=value"]``. ``--set-string`` skips
+                helm's type coercion (so ``"42"`` stays a string), but it
+                does NOT escape ``{}`` — helm parses ``{...}`` as YAML
+                flow-set notation regardless. Use ``set_json_args`` for
+                values that contain literal curly braces.
             history_max: When ``None``, ``--history-max`` is omitted (helm
                 uses its own default of 10). When 0 or any non-negative int,
                 ``--history-max <N>`` is appended (0 means unlimited per
@@ -232,6 +235,14 @@ class HelmClient:
                 ``SAFE_UPGRADE_DESCRIPTION`` marker enables the
                 ``RollbackAction`` pre-flight check to detect safe-upgraded
                 revisions (05-RESEARCH CONTRADICTION 2 workaround).
+            set_json_args: List of ``key=<json-encoded-value>`` strings; each
+                produces ``["--set-json", "key=value"]``. Required for
+                values containing literal ``{`` / ``}`` (helm's set parser
+                interprets braces as flow-set notation under both
+                ``--set`` and ``--set-string``; only ``--set-json`` treats
+                the value as a JSON literal). Used for the BITBUCKET_*
+                metadata (META-01 / Pitfall 4) where
+                ``BITBUCKET_STEP_TRIGGERER_UUID`` carries curly braces.
 
         Returns:
             Complete argv list suitable for ``subprocess.run``.
@@ -253,6 +264,9 @@ class HelmClient:
             argv.extend(["--values", vf])
         for sa in set_args:
             argv.extend(["--set-string", sa])
+        if set_json_args:
+            for sj in set_json_args:
+                argv.extend(["--set-json", sj])
         if history_max is not None:
             argv.extend(["--history-max", str(history_max)])
         if safe_upgrade:
@@ -271,6 +285,7 @@ class HelmClient:
         timeout: str,
         *,
         safe_upgrade: bool = False,
+        set_json_args: list[str] | None = None,
     ) -> HelmResult:
         """Run ``helm upgrade --install`` and return a typed result.
 
@@ -317,6 +332,7 @@ class HelmClient:
             history_max,
             timeout,
             safe_upgrade=safe_upgrade,
+            set_json_args=set_json_args,
         )
         timeout_seconds = _parse_timeout(timeout)
         try:
@@ -423,6 +439,8 @@ class HelmClient:
         values_files: list[str],
         set_args: list[str],
         timeout: str,
+        *,
+        set_json_args: list[str] | None = None,
     ) -> str:
         """Run ``helm diff upgrade`` and return the redacted diff text (PIPE-02 / SEC-06).
 
@@ -464,6 +482,7 @@ class HelmClient:
             namespace,
             values_files,
             set_args,
+            set_json_args=set_json_args,
         )
         timeout_seconds = _parse_timeout(timeout)
         try:
@@ -641,6 +660,8 @@ class HelmClient:
         namespace: str,
         values_files: list[str],
         set_args: list[str],
+        *,
+        set_json_args: list[str] | None = None,
     ) -> list[str]:
         """Build the ``helm diff upgrade`` argv list (pure function — no I/O).
 
@@ -685,6 +706,9 @@ class HelmClient:
             argv.extend(["--values", vf])
         for sa in set_args:
             argv.extend(["--set-string", sa])
+        if set_json_args:
+            for sj in set_json_args:
+                argv.extend(["--set-json", sj])
         return argv
 
     def _build_rollback_argv(

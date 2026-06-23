@@ -27,6 +27,7 @@ auth/__init__.py::_derive_session_name. See CONTEXT D5 + RESEARCH Section G.
 
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import re
@@ -50,7 +51,12 @@ if TYPE_CHECKING:
     from aws_eks_helm_deploy.pipe_io import PipeIO
     from aws_eks_helm_deploy.settings import Settings
 
-__all__: list[str] = ["BITBUCKET_META_VARS", "UpgradeAction", "build_bitbucket_set_args"]
+__all__: list[str] = [
+    "BITBUCKET_META_VARS",
+    "UpgradeAction",
+    "build_bitbucket_set_args",
+    "build_bitbucket_set_json_args",
+]
 
 logger = get_logger(__name__)
 
@@ -65,21 +71,17 @@ BITBUCKET_META_VARS: Final[list[tuple[str, str]]] = [
 
 
 def build_bitbucket_set_args(log: structlog.BoundLogger) -> list[str]:
-    """Build --set-string-formatted args for all present BITBUCKET_* env vars.
-
-    For each (env_var, helm_key) in BITBUCKET_META_VARS:
-      - If env_var is absent or empty: emit structlog warning + skip.
-      - Otherwise: append "helm_key=value" to result.
-
-    The returned list is consumed by HelmClient.upgrade_install(set_args=...)
-    which renders each entry as --set-string helm_key=value (RESEARCH G /
-    corrections #4 / Pitfall 4).
+    """DEPRECATED — use :func:`build_bitbucket_set_json_args` for the actual
+    helm injection. This thin wrapper is kept for backward compatibility with
+    any out-of-tree callers; in the pipe itself we route metadata through
+    ``--set-json`` (META-01 / Pitfall 4 fix — see the docstring on
+    :func:`build_bitbucket_set_json_args`).
 
     Args:
         log: Bound structlog logger (injected to allow capture_logs in tests).
 
     Returns:
-        List of "helm_key=value" strings for present BITBUCKET_* vars.
+        List of "helm_key=value" strings (raw, unquoted values).
     """
     result: list[str] = []
     for env_var, helm_key in BITBUCKET_META_VARS:
@@ -88,6 +90,50 @@ def build_bitbucket_set_args(log: structlog.BoundLogger) -> list[str]:
             log.warning("missing_metadata_key", key=env_var)
             continue
         result.append(f"{helm_key}={value}")
+    return result
+
+
+def build_bitbucket_set_json_args(log: structlog.BoundLogger) -> list[str]:
+    """Build --set-json args for the BITBUCKET_* metadata (META-01 / Pitfall 4).
+
+    Why --set-json instead of --set-string:
+
+        helm's set parser interprets ``{...}`` as YAML flow-set notation under
+        BOTH ``--set`` and ``--set-string``. ``BITBUCKET_STEP_TRIGGERER_UUID``
+        is emitted by Bitbucket Pipelines with literal curly braces — e.g.
+        ``{deadbeef-cafe-1234-5678-abcdef012345}``. Passing that via
+        ``--set-string`` round-trips as a single-element list
+        (``['deadbeef-cafe-1234-5678-abcdef012345']``) rather than a string.
+
+        ``--set-json`` was added in helm 3.10 and treats the value as a JSON
+        literal — no flow-set interpretation. We JSON-encode each value as
+        a string (``json.dumps(str(value))``) so all five fields land as
+        strings on the chart side, irrespective of content.
+
+    For each (env_var, helm_key) in BITBUCKET_META_VARS:
+      - If env_var is absent or empty: emit structlog warning + skip.
+      - Otherwise: append ``helm_key=<json-encoded-string>``.
+
+    Args:
+        log: Bound structlog logger (injected to allow capture_logs in tests).
+
+    Returns:
+        List of ``"helm_key=<json-quoted value>"`` strings for present
+        ``BITBUCKET_*`` vars. Consumed by
+        ``HelmClient.upgrade_install(set_json_args=...)`` and
+        ``HelmClient.diff(set_json_args=...)``.
+    """
+    result: list[str] = []
+    for env_var, helm_key in BITBUCKET_META_VARS:
+        value = os.environ.get(env_var)
+        if not value:  # None or empty string (CONTEXT D5)
+            log.warning("missing_metadata_key", key=env_var)
+            continue
+        # json.dumps wraps in double quotes + JSON-escapes any internal
+        # quotes/backslashes. Curly braces are literal characters in JSON
+        # strings, so the resulting argv element is e.g.
+        # `bitbucket.bitbucket_step_triggerer_uuid="{deadbeef-...}"`.
+        result.append(f"{helm_key}={json.dumps(value)}")
     return result
 
 
@@ -190,11 +236,17 @@ class UpgradeAction:
         # Step 6: chart source factory (routes by prefix: oci://, repo://, else local)
         chart_source = select_chart_source(s)
 
-        # Step 7: Bitbucket metadata args (opt-in per CONTEXT D5 / META-01)
-        bitbucket_args: list[str] = (
-            build_bitbucket_set_args(logger) if s.inject_bitbucket_metadata else []
+        # Step 7: Bitbucket metadata args (opt-in per CONTEXT D5 / META-01).
+        # Route through --set-json (set_json_args) instead of --set-string
+        # because BITBUCKET_STEP_TRIGGERER_UUID has literal curly braces that
+        # helm's set parser would otherwise interpret as YAML flow-set.
+        bitbucket_set_json: list[str] = (
+            build_bitbucket_set_json_args(logger) if s.inject_bitbucket_metadata else []
         )
-        set_args = bitbucket_args + s.set_values  # user-supplied AFTER bitbucket (last-wins)
+        # User-supplied SET values stay on --set-string (last-wins ordering
+        # preserved by helm: --set-string entries override --set-json entries
+        # of the same key path — verified by integration test).
+        set_args = s.set_values
 
         # Step 8: chart resolve + kubeconfig write + helm upgrade
         start = time.monotonic()
@@ -213,6 +265,7 @@ class UpgradeAction:
                     history_max=s.history_max,
                     timeout=s.timeout,
                     safe_upgrade=s.safe_upgrade,
+                    set_json_args=bitbucket_set_json,
                 )
                 cluster_name = s.cluster_name
             else:
@@ -228,6 +281,7 @@ class UpgradeAction:
                             history_max=s.history_max,
                             timeout=s.timeout,
                             safe_upgrade=s.safe_upgrade,
+                            set_json_args=bitbucket_set_json,
                         )
                 except OSError as exc:
                     raise KubeconfigError(f"Failed to write kubeconfig: {exc}") from exc
