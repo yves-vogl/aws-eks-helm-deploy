@@ -1547,9 +1547,8 @@ with a side-by-side <code>mkdocs.yml</code> pointing at a tiny <code>docs/</code
 <div class="highlight"><pre><span></span><code><span class="c1"># 1. Stage v1 snapshot source under a gitignored directory.</span>
 mkdir<span class="w"> </span>-p<span class="w"> </span>.v1-snapshot/docs
 
-<span class="c1"># 2. Author a minimal docs/index.md with the &quot;v1 frozen&quot; banner — note the</span>
-<span class="c1">#    `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.`</span>
-<span class="c1">#    placeholder (SI-07-07; replaced in the v1.x-EOS follow-up PR).</span>
+<span class="c1"># 2. Author a minimal docs/index.md with the &quot;v1 frozen&quot; banner — the v1.x</span>
+<span class="c1">#    EOS is `2026-12-23` (v2.0.0 released 2026-06-23 + 6 months; per D10).</span>
 cat<span class="w"> </span>&gt;<span class="w"> </span>.v1-snapshot/docs/index.md<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
 <span class="s"># aws-eks-helm-deploy v1 — frozen</span>
 
@@ -1557,7 +1556,7 @@ cat<span class="w"> </span>&gt;<span class="w"> </span>.v1-snapshot/docs/index.m
 <span class="s">    The v1.x line of this pipe was distributed via Docker Hub at</span>
 <span class="s">    `yvogl/aws-eks-helm-deploy` and is **frozen at v1.3.0**.</span>
 <span class="s">    Security fixes for v1.x are released for **6 months from the v2.0.0</span>
-<span class="s">    release date** — ending `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.`</span>
+<span class="s">    release date** — ending `2026-12-23` (v2.0.0 released 2026-06-23 + 6 months).</span>
 
 <span class="s">    Use **v2** for all new and existing deployments:</span>
 <span class="s">    &lt;https://yves-vogl.github.io/aws-eks-helm-deploy/v2/&gt;</span>
@@ -1623,7 +1622,7 @@ above the existing content):</p>
 <span class="k">&gt; </span><span class="ge">version (`:2.0.0`).</span>
 <span class="k">&gt;</span>
 <span class="ge">&gt; Security fixes for v1.x are released for 6 months from the v2.0.0 release</span>
-<span class="k">&gt; </span><span class="ge">date — ending `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.`</span>
+<span class="k">&gt; </span><span class="ge">date — ending `2026-12-23` (v2.0.0 released 2026-06-23 + 6 months).</span>
 <span class="k">&gt;</span>
 <span class="ge">&gt; Migration guide: https://yves-vogl.github.io/aws-eks-helm-deploy/migration/v1-to-v2/</span>
 </code></pre></div>
@@ -1672,11 +1671,12 @@ gh<span class="w"> </span>label<span class="w"> </span>list<span class="w"> </sp
   intent — re-running is harmless but unnecessary).</li>
 <li>Sections 10–11 (Bitbucket Pipe Marketplace + Docker Hub banner) are web-UI
   only with no programmatic idempotency guarantee; confirm visually.</li>
-<li>The literal placeholder <code>2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.</code>
-  is the SI-07-07 invariant; it appears in v2.0 in <code>SECURITY.md</code> (Plan 07-06),
+<li>The v1.x EOS date is <code>2026-12-23</code> (v2.0.0 released 2026-06-23 + 6 months;
+  per D10 / SI-07-07). It appears in <code>SECURITY.md</code> (Plan 07-06),
   <code>docs/migration/v1-to-v2.md</code> (Plan 07-04), AND <code>docs/admin/repo-settings.md</code>
-  Section 9 + 11 (this plan). After the v2.0.0 tag-cut, the maintainer
-  replaces all occurrences in a single follow-up PR.</li>
+  Sections 9 + 11 (this plan). The pre-tag-cut placeholder
+  <code>2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.</code> was
+  replaced in the v1.x-EOS-freeze follow-up PR after v2.0.0 was tagged.</li>
 </ul>
 
 
