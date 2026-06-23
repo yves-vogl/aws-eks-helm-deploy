@@ -296,34 +296,68 @@ misconfigured.
 
 ## 9. Deploy frozen v1 docs snapshot (D2 — Plan 07-01)
 
-The mike layout in CONTEXT D2 reserves `/v1/` for a single-page frozen v1.3.0
-reference. This deploy is a one-shot maintainer command (NEVER from CI —
+The mike layout in CONTEXT D2 reserves `/v1/` for a single-page frozen v1.x
+reference. The v1.x line was distributed only via Docker Hub (no `v1.3.0` git
+tag exists in this repo), so the snapshot is **authored fresh** with a single
+landing page that explains v1 is frozen and points readers at v2.
+
+This deploy is a one-shot maintainer command (NEVER from CI —
 RESEARCH Q10 pitfall #6: running from CI would re-render `/v1/` on every push,
 potentially with newer mkdocs-material HTML; CI never touches it).
 
-**Run ONCE from a local workspace pinned at the v1 docs snapshot:**
+**One-shot procedure (mike needs a git repo, so we run it from the main worktree
+with a side-by-side `mkdocs.yml` pointing at a tiny `docs/` tree):**
 
 ```bash
-# Check out the v1.3.0 docs snapshot (or a `v1.3.0-docs-snapshot` tag if one exists):
-git checkout v1.3.0  # or v1.3.0-docs-snapshot
+# 1. Stage v1 snapshot source under a gitignored directory.
+mkdir -p .v1-snapshot/docs
+
+# 2. Author a minimal docs/index.md with the "v1 frozen" banner — note the
+#    `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.`
+#    placeholder (SI-07-07; replaced in the v1.x-EOS follow-up PR).
+cat > .v1-snapshot/docs/index.md <<'EOF'
+# aws-eks-helm-deploy v1 — frozen
+
+!!! warning "v1.x is frozen"
+    The v1.x line of this pipe was distributed via Docker Hub at
+    `yvogl/aws-eks-helm-deploy` and is **frozen at v1.3.0**.
+    Security fixes for v1.x are released for **6 months from the v2.0.0
+    release date** — ending `2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.`
+
+    Use **v2** for all new and existing deployments:
+    <https://yves-vogl.github.io/aws-eks-helm-deploy/v2/>
+EOF
+# (Expand with a v1 environment-variable table and the "Migration" cross-link;
+# see the README excerpt for canonical content.)
+
+# 3. Author a minimal mkdocs.yml.
+cat > .v1-snapshot/mkdocs.yml <<'EOF'
+site_name: aws-eks-helm-deploy (v1 — frozen)
+site_url: https://yves-vogl.github.io/aws-eks-helm-deploy/v1/
+repo_url: https://github.com/yves-vogl/aws-eks-helm-deploy
+docs_dir: docs
+theme: { name: material, features: [content.code.copy] }
+nav:
+  - Frozen v1: index.md
+markdown_extensions:
+  - admonition
+EOF
+
+# 4. Deploy via mike (pushes to gh-pages, adds a `v1` entry to versions.json).
 uv sync --extra docs
-uv run mike deploy --push v1
+uv run --extra docs mike deploy --push --config-file .v1-snapshot/mkdocs.yml v1
 
-git checkout main
+# 5. Drop the snapshot tree (it is gitignored — see `.gitignore`).
+rm -rf .v1-snapshot
 ```
-
-**Banner on /v1/:** CONTEXT D2 specifies the banner "v1 is frozen — security-only
-patches until 2026-MM-DD (= v2.0.0 release date + 6 months) — replace at tag-cut.
-Use v2: <link>." Update the v1 docs site index manually with this banner before
-the `mike deploy --push v1` command.
 
 **Verify:**
 
 ```bash
 uv run mike list
 # Expected output contains both `v1` and `v2`.
-curl -sf https://yves-vogl.github.io/aws-eks-helm-deploy/v1/ | head -5
-# Expected: v1 docs HTML renders.
+curl -sI https://yves-vogl.github.io/aws-eks-helm-deploy/v1/
+# Expected: HTTP/2 200 from server: GitHub.com
 ```
 
 ---

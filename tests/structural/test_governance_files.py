@@ -89,10 +89,12 @@ def test_repo_settings_mentions_mike_one_shots() -> None:
     """Phase 7 / Plan 07-07: runbook must document the mike one-shot maintainer commands."""
     content = REPO_SETTINGS.read_text()
     assert "mike set-default" in content, (
-        "docs/admin/repo-settings.md must document `mike set-default v2 --push` (Phase 7 § 6)"
+        "docs/admin/repo-settings.md must document `mike set-default v2 --push` (Phase 7 § 8)"
     )
-    assert "mike deploy --push v1" in content, (
-        "docs/admin/repo-settings.md must document `mike deploy --push v1` (Phase 7 § 7)"
+    # Tolerate either the direct `mike deploy --push v1` form OR the
+    # `mike deploy --push --config-file ... v1` form (actual ceremony usage).
+    assert "mike deploy --push" in content and " v1" in content, (
+        "docs/admin/repo-settings.md must document `mike deploy --push ... v1` (Phase 7 § 9)"
     )
 
 
