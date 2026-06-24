@@ -13,19 +13,25 @@
 #
 # Add a suppression by appending a line below this comment block.
 
-# ── Helm binary Go-stdlib CVEs (9 entries; pinned helm 3.18.6) ────────────────
-# Rationale: these are CVEs in the Go standard library that helm 3.18.6 was compiled
-# against (Go 1.24.6). They are NOT exploitable through the helm CLI surface that the
-# pipe uses — helm runs as a transient subprocess in our pipe with no network listener.
-# Upstream helm releases that adopt Go ≥ 1.25.x will close them; Dependabot docker
-# group + SEC-08 release-on-bump contract will pull the new helm into our base image
-# automatically. Review at expiry: bump HELM_VERSION pin if a fixed 3.x release exists.
-CVE-2026-42504  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-42499  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-39836  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-39825  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-39823  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-39820  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-33814  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-33811  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
-CVE-2026-32283  # expires=2026-09-18 rationale="Go stdlib CVE in helm 3.18.6 binary; upstream helm release pending; not reachable via pipe surface" reviewer=yves-vogl
+# ── Helm v4 binary Go-stdlib CVE (1 entry; pinned helm 4.2.2 built against Go 1.26.3) ──
+# Rationale: Go stdlib CVE-2026-27145 (`*x509.Certificate.VerifyHostname` quadratic DoS via
+# attacker-crafted DNS SAN list during TLS handshake). Fixed in Go 1.25.11 and 1.26.4; the
+# helm 4.2.2 binary was compiled against Go 1.26.3 so it carries the unfixed version.
+#
+# Defensive analysis:
+#   - This is a DoS issue (CPU exhaustion during TLS handshake), NOT a hostname-validation
+#     bypass. Attacker cannot use this to forge identity — only to slow the pipe down.
+#   - Reachable surface: TLS handshakes the helm binary performs against OCI registries
+#     (chart pull) and HTTPS Helm repositories. An attacker must control the registry
+#     endpoint AND present a cert with hundreds/thousands of DNS SAN entries.
+#   - Already-mitigated: the pipe runs in an ephemeral container as a single-pass subprocess
+#     with a hard `--timeout` budget (Go-duration string from settings). Worst case: one
+#     deploy times out and exits non-zero. No persistent damage, no impact on other deploys.
+#   - The pipe consumer chooses the registry endpoint via CHART/REPO_URL — an attacker who
+#     can substitute that endpoint already pwns the consumer's deploy independently of this
+#     CVE.
+#
+# Expiry: 2026-12-20 (180-day max per D2 grammar). Review trigger: next helm 4.x release
+# that bumps the Go toolchain to ≥ 1.26.4 will close this finding automatically via the
+# Dependabot docker-group + release-on-bump contract.
+CVE-2026-27145  # expires=2026-12-20 rationale="Go stdlib x509.VerifyHostname quadratic DoS in helm 4.2.2 (Go 1.26.3); reachable in OCI/HTTPS chart pull but bounded by ephemeral container + --timeout, attacker needs registry control + crafted cert SAN list" reviewer=yves-vogl

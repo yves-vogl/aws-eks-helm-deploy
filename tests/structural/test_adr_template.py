@@ -33,7 +33,8 @@ ADR_DIR = REPO_ROOT / "docs" / "adr"
 #: in the provenance comment of ``docs/adr/0000-template.md``.
 MADR_4_0_TEMPLATE_BLOB_SHA: str = "08dac30ed895cf728fc7da95f9702ca4dd5ab900"
 
-#: Filenames of every ADR shipped by Plan 07-02 (template + 9 authored ADRs).
+#: Filenames of every ADR shipped by Plan 07-02 (template + 9 authored ADRs) plus
+#: ADR-0010 added for the helm v3 → v4 migration in v3.0.0 (issue #70).
 EXPECTED_ADR_FILENAMES: frozenset[str] = frozenset(
     {
         "0000-template.md",
@@ -46,6 +47,7 @@ EXPECTED_ADR_FILENAMES: frozenset[str] = frozenset(
         "0007-multi-arch-native-runners.md",
         "0008-mkdocs-material-now-zensical-later.md",
         "0009-src-layout-no-compat-shims.md",
+        "0010-helm-v4-migration.md",
     }
 )
 
@@ -131,8 +133,8 @@ def test_all_nine_adrs_exist() -> None:
 def test_each_adr_has_madr_sections() -> None:
     """Every authored ADR must preserve MADR 4.0 section structure."""
     authored = _authored_adrs()
-    assert len(authored) == 9, (
-        f"Expected exactly 9 authored ADRs (0001..0009); "
+    assert len(authored) == 10, (
+        f"Expected exactly 10 authored ADRs (0001..0010); "
         f"found {len(authored)}: {[p.name for p in authored]}"
     )
     for adr in authored:

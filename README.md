@@ -31,6 +31,8 @@ Deploy [Helm](https://helm.sh) charts to [AWS Elastic Kubernetes Service (EKS)](
 
 This pipe is purpose-built for **Bitbucket Pipelines**. For GitHub Actions, use upstream actions such as [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials) combined with a Helm action.
 
+> **🚀 v3.0.0 launching August 2026** — content-frozen on `main`. Bundles Helm 4.2.2 + Cosign 3.1.1 ahead of the [Helm v3 EOL on 2026-11-11](https://helm.sh/docs/topics/version_skew/). One-line migration for most consumers (`:2` → `:3`). Preview the [v2 → v3 migration guide](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/migration/v2-to-v3/) and the rationale in [ADR-0010](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/adr/0010-helm-v4-migration/). Pin `:2` until launch.
+>
 > **Status:** v2.0 is the active line published exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`). **v1.3.0 is frozen on Docker Hub and is not maintained** — no security fixes, no bug fixes; please migrate to v2.x. See [docs/migration/v1-to-v2.md](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/migration/v1-to-v2/) for upgrade steps.
 
 ---
