@@ -144,26 +144,33 @@ def test_security_rescan_no_id_token_write(workflow: dict[str, Any]) -> None:
 
 
 def test_security_rescan_permissions_minimal(workflow: dict[str, Any]) -> None:
-    """Workflow-level permissions must include contents:read, security-events:write, issues:write.
+    """Workflow-level perms are read-only; write scopes hoisted to the rescan job.
 
-    NO id-token present at all (Pitfall #1 guard).
+    OpenSSF Scorecard best practice (TokenPermissionsID) — least-privilege
+    GITHUB_TOKEN. The rescan job still needs security-events:write (SARIF
+    upload) and issues:write (auto-issue creation) at job level only.
+
+    NO id-token present at workflow OR job level (Pitfall #1 guard — checked
+    independently by test_security_rescan_no_id_token_anywhere).
     """
-    perms: Any = workflow.get("permissions", {})
-    assert isinstance(perms, dict), (
-        f"Expected 'permissions:' to be a dict; got {type(perms).__name__}"
+    wf_perms: Any = workflow.get("permissions", {})
+    assert isinstance(wf_perms, dict), (
+        f"Expected workflow-level 'permissions:' to be a dict; got {type(wf_perms).__name__}"
     )
-    assert perms.get("contents") == "read", (
-        f"Expected permissions.contents: read; got {perms.get('contents')!r}"
+    assert wf_perms == {"contents": "read"}, (
+        f"Workflow-level permissions must be {{'contents': 'read'}} only; got {wf_perms!r}"
     )
-    assert perms.get("security-events") == "write", (
-        f"Expected permissions.security-events: write; got {perms.get('security-events')!r}"
+    job_perms: Any = workflow.get("jobs", {}).get("rescan", {}).get("permissions", {})
+    assert job_perms.get("contents") == "read", (
+        f"Job 'rescan' must declare permissions.contents:read; got {job_perms.get('contents')!r}"
     )
-    assert perms.get("issues") == "write", (
-        f"Expected permissions.issues: write; got {perms.get('issues')!r}"
+    assert job_perms.get("security-events") == "write", (
+        f"Job 'rescan' must declare permissions.security-events:write for the SARIF upload; "
+        f"got {job_perms.get('security-events')!r}"
     )
-    assert "id-token" not in perms, (
-        f"Pitfall #1 violation: permissions must NOT include 'id-token' in security-rescan.yml; "
-        f"found permissions.id-token: {perms.get('id-token')!r}"
+    assert job_perms.get("issues") == "write", (
+        f"Job 'rescan' must declare permissions.issues:write for auto-issue creation; "
+        f"got {job_perms.get('issues')!r}"
     )
 
 

@@ -12,11 +12,10 @@ on:
     # Mondays 07:00 UTC — separate hour from scorecard.yml to avoid collision.
     - cron: '0 7 * * 1'
 
+# Top-level permissions are read-only per OpenSSF Scorecard best practice
+# (least-privilege GITHUB_TOKEN); write scopes are hoisted to job level below.
 permissions:
   contents: read
-  security-events: write
-  # actions: read needed for CodeQL to find workflows when analysing actions.
-  actions: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -27,6 +26,12 @@ jobs:
     name: analyze (python)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      # security-events:write so CodeQL can upload SARIF to Code Scanning.
+      security-events: write
+      # actions:read so CodeQL can resolve workflow refs when analysing actions.
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
