@@ -15,7 +15,7 @@
 
 Deploy [Helm](https://helm.sh) charts to [AWS Elastic Kubernetes Service (EKS)](https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html) from [Bitbucket Pipelines](https://bitbucket.org/product/features/pipelines) — a thin, opinionated wrapper around `helm upgrade --install` that handles EKS authentication for you.
 
-![Logo](logo.png)
+<p align="center"><img src="logo.svg" alt="aws-eks-helm-deploy logo — a ship's wheel (the Helm motif) on a Kubernetes-blue / AWS-orange gradient" width="180" height="180"></p>
 
 ---
 
@@ -124,14 +124,14 @@ v2 supports two paths. **Pick one — never combine in the same pipeline step.**
 
 ## Version matrix
 
-The `ghcr.io/yves-vogl/aws-eks-helm-deploy:2` image bundles:
+The **currently-published** `ghcr.io/yves-vogl/aws-eks-helm-deploy:2` image (v2.x line) bundles:
 
 | Component                      | Version             | Notes                                                                  |
 | ------------------------------ | ------------------- | ---------------------------------------------------------------------- |
 | Base image                     | `python:3.13-slim-bookworm` | Pinned by SHA; non-root user (`USER pipe`, uid ≥ 10000).        |
-| Helm                           | `4.2.2`             | Bundled (no `kubectl` required). See the [Helm version skew policy](https://helm.sh/docs/topics/version_skew/). Helm v3 EOL: 2026-11-11. |
-| `helm-diff`                    | `3.15.10`           | Plugin for `ACTION=diff`; SHA-pinned binary; Helm v4 compatible (server-side apply default). |
-| Cosign                         | `3.1.1`             | Bundled for image-side signature operations.                           |
+| Helm                           | `3.18.6`            | Bundled (no `kubectl` required). See the [Helm version skew policy](https://helm.sh/docs/topics/version_skew/). |
+| `helm-diff`                    | `3.10.0`            | Plugin for `ACTION=diff`; SHA-pinned binary.                           |
+| Cosign                         | `2.6.3`             | Bundled for image-side signature operations.                           |
 | `kubectl`                      | not bundled         | The pipe generates a kubeconfig and talks to the EKS API directly.     |
 | `boto3`                        | latest stable       | Generates the EKS token natively — no `awscli` in the image.           |
 | `bitbucket-pipes-toolkit`      | `~=6.2`             | Pipe scaffolding, schema validation, logging.                          |
@@ -141,6 +141,8 @@ The `ghcr.io/yves-vogl/aws-eks-helm-deploy:2` image bundles:
 | SLSA build provenance          | Level 3             | `actions/attest-build-provenance` on every release.                    |
 
 Tooling versions are advanced in lockstep with each release. See [`CHANGELOG.md`](CHANGELOG.md) for the per-release history.
+
+> 🚀 **Preview — v3.0.0 (August 2026 launch, `:3` tag).** The next major release bundles **Helm `4.2.2`** (ahead of the [Helm v3 EOL on 2026-11-11](https://helm.sh/docs/topics/version_skew/)), **Cosign `3.1.1`**, and **helm-diff `3.15.10`** (Helm v4 compatible). Consumer migration is a one-line `:2` → `:3` swap for most pipelines. See the [v2 → v3 migration guide](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/migration/v2-to-v3/) and [ADR-0010](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/adr/0010-helm-v4-migration/) for the kstatus-wait behavioural change and the `:2`-tag freeze policy through 2026-11-11.
 
 ---
 
