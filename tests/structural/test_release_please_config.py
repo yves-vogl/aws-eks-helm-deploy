@@ -93,4 +93,4 @@ def test_manifest_matches_latest_released_version() -> None:
     final-release tag publish.
     """
     manifest: dict[str, str] = json.loads(MANIFEST_PATH.read_text())
-    assert manifest["."] == "2.0.0", f"Expected manifest['.'] == '2.0.0', got {manifest['.']!r}"
+    assert manifest["."] == "3.0.0", f"Expected manifest['.'] == '3.0.0', got {manifest['.']!r}"
