@@ -32,7 +32,13 @@ jobs:
       - name: Run release-please
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
-          # release-please reads the JSON config + manifest from the repo root
-          # (no `config-file:` / `manifest-file:` overrides needed when files
-          # live at the documented default paths).
+          # The project ships its release-please config at the dot-prefixed path
+          # `.release-please-config.json` (Phase 6 CONTEXT D1 — enforced by
+          # `tests/structural/test_release_please_config.py`). The action's
+          # default `config-file:` input is `release-please-config.json` (no
+          # dot), so we override it explicitly here; without the override the
+          # action errors with "Missing required manifest config:
+          # release-please-config.json" on every push to main.
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json
           token: ${{ secrets.GITHUB_TOKEN }}
