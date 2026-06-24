@@ -16,6 +16,8 @@
         <link rel="prev" href="../reference/variables/">
       
       
+        <link rel="next" href="../admin/repo-settings/">
+      
       
         
       
@@ -326,6 +328,26 @@
   
   
   ADRs
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../admin/repo-settings/" class="md-tabs__link">
+          
+  
+  
+  Admin
 
         </a>
       </li>
@@ -877,6 +899,95 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Admin
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/repo-settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repo Settings Runbook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -1013,11 +1124,6 @@
 <td><a href="0009-src-layout-no-compat-shims/">ADR-0009</a></td>
 <td>src/-layout, no v1 compat shims</td>
 <td>v2 Python package uses <code>src/aws_eks_helm_deploy/</code>; no <code>aws_eks_helm_deploy.v1</code> shim namespace (v1 was a shell pipe, not a Python package).</td>
-</tr>
-<tr>
-<td><a href="0010-helm-v4-migration/">ADR-0010</a></td>
-<td>Helm v3 → v4 migration before EOL</td>
-<td>Bundled Helm bumped 3.x → 4.2.2 ahead of the 2026-11-11 v3 EOL; pipe bumps to v3.0.0 to signal the kstatus-wait operational change; <code>:2</code> floating tag frozen at the last helm-3 build through EOL.</td>
 </tr>
 </tbody>
 </table>
