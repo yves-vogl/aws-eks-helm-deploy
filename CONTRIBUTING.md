@@ -46,6 +46,14 @@ Stale suppressions fail CI. Suppressions whose root cause is fixed upstream must
 - For PRs that don't follow the conventions above, expect specific feedback rather than a silent close — the goal is to land your change, not bounce it.
 - Substantial features may require an [ADR](./.planning/) before implementation. The maintainer will say so explicitly.
 
+## Release cadence and version-line freezes
+
+`release-please` opens a Release PR every time a Conventional Commit lands on `main`. The Release PR aggregates pending commits into the next version bump + CHANGELOG entry. Maintainer-only merge — contributors should never merge an open Release PR.
+
+**v3.0.0 is content-frozen on `main` ahead of an August 2026 launch.** The Release PR for `3.0.0` carries a `release-blocker:august-2026` label and an inline notice in its body. Do not merge it before the launch date — see [ADR-0010 §"Launch timeline"](docs/migration/v2-to-v3.md#launch-timeline) for the soak rationale (six weeks between content-freeze and tag-publish). If you need to ship a non-blocking v3 patch fix before launch, open a discussion first so the release-PR scope stays clean.
+
+After v3.0.0 ships, the `:2` rolling tag freezes at the last published v2.x patch through Helm v3 EOL on **2026-11-11**, then sunsets. The `:3` tag becomes the new rolling major.
+
 ## What gets rejected
 
 - PRs that change behavior without tests, or that lower the coverage gate.
