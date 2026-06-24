@@ -335,26 +335,6 @@
   
 
       
-        
-  
-  
-  
-  
-    
-    
-      <li class="md-tabs__item">
-        <a href="../../admin/repo-settings/" class="md-tabs__link">
-          
-  
-  
-  Admin
-
-        </a>
-      </li>
-    
-  
-
-      
     </ul>
   </div>
 </nav>
@@ -506,6 +486,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -522,6 +520,69 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#need-static-aws-keys-for-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Need static AWS keys for now?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#more-copy-paste-ready-snippets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        More copy-paste-ready snippets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verifying-releases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying releases
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -829,95 +890,6 @@
   
 
     
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
-        
-          
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Admin
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Admin
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../admin/repo-settings/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Repo Settings Runbook
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
   </ul>
 </nav>
                   </div>
@@ -938,6 +910,58 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#need-static-aws-keys-for-now" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Need static AWS keys for now?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#more-copy-paste-ready-snippets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        More copy-paste-ready snippets
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#verifying-releases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying releases
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -957,8 +981,88 @@
 
 
 <h1 id="quickstart">Quickstart<a class="headerlink" href="#quickstart" title="Permanent link">&para;</a></h1>
-<p>The canonical 60-second quickstart lives in the <a href="https://github.com/yves-vogl/aws-eks-helm-deploy#quick-start">GitHub README</a>. This page mirrors the snippet for the docs site.</p>
-<!-- TODO Plan 07-04: expand with copy-pasted snippet from README + cross-links to examples/basic/bitbucket-pipelines.yml. -->
+<p>Drop the snippet below into your <code>bitbucket-pipelines.yml</code>. It uses <strong>OIDC</strong> so
+no AWS access keys ever land in your pipeline. The IAM trust policy that pairs
+with it lives in the <a href="../../guides/oidc-setup/">OIDC setup guide</a>.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">atlassian/default-image:4</span>
+
+<span class="nt">pipelines</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">branches</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">main</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">step</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Deploy to EKS</span>
+<span class="w">          </span><span class="nt">deployment</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">production</span>
+<span class="w">          </span><span class="nt">oidc</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                                     </span><span class="c1"># Bitbucket sets BITBUCKET_STEP_OIDC_TOKEN</span>
+<span class="w">          </span><span class="nt">script</span><span class="p">:</span>
+<span class="w">            </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pipe</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">docker://ghcr.io/yves-vogl/aws-eks-helm-deploy:2</span>
+<span class="w">              </span><span class="nt">variables</span><span class="p">:</span>
+<span class="w">                </span><span class="nt">OIDC_AUDIENCE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$OIDC_AUDIENCE</span><span class="w">            </span><span class="c1"># ari:cloud:bitbucket::workspace/&lt;UUID&gt;</span>
+<span class="w">                </span><span class="nt">ROLE_ARN</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">$DEPLOY_ROLE_ARN</span>
+<span class="w">                </span><span class="nt">AWS_REGION</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">eu-central-1</span>
+<span class="w">                </span><span class="nt">CLUSTER_NAME</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-eks-cluster</span>
+<span class="w">                </span><span class="nt">CHART</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">repo://bitnami/nginx</span>
+<span class="w">                </span><span class="nt">REPO_URL</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://charts.bitnami.com/bitnami</span>
+<span class="w">                </span><span class="nt">CHART_VERSION</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">18.2.0</span>
+<span class="w">                </span><span class="nt">RELEASE_NAME</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span>
+<span class="w">                </span><span class="nt">NAMESPACE</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">production</span>
+<span class="w">                </span><span class="nt">WAIT</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;true&quot;</span>
+<span class="w">                </span><span class="nt">TIMEOUT</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10m</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Image pinning</p>
+<p>Pin the pipe to <code>:2</code> (rolling major) or to a specific version like
+<code>:2.0.0</code>. <code>:latest</code> is also published but pinning to a major is the
+recommended pattern — you get patch + minor updates automatically while
+a major-version bump always requires an explicit migration step.</p>
+</div>
+<h2 id="need-static-aws-keys-for-now">Need static AWS keys for now?<a class="headerlink" href="#need-static-aws-keys-for-now" title="Permanent link">&para;</a></h2>
+<p>If OIDC isn't an option yet, the <a href="https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/basic"><code>examples/basic/</code></a>
+snippet has the same shape with <code>AWS_ACCESS_KEY_ID</code> + <code>AWS_SECRET_ACCESS_KEY</code>
+instead. When you're ready to migrate, follow the
+<a href="../../guides/oidc-setup/#migrating-from-static-keys">Migrating from static keys</a>
+walkthrough.</p>
+<h2 id="more-copy-paste-ready-snippets">More copy-paste-ready snippets<a class="headerlink" href="#more-copy-paste-ready-snippets" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Static keys + local chart</td>
+<td><a href="https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/basic"><code>examples/basic/</code></a></td>
+</tr>
+<tr>
+<td>OIDC + Helm repo chart</td>
+<td><a href="https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/oidc-only"><code>examples/oidc-only/</code></a></td>
+</tr>
+<tr>
+<td>OIDC + OCI chart from GHCR</td>
+<td><a href="https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/oci-chart"><code>examples/oci-chart/</code></a></td>
+</tr>
+<tr>
+<td>Multi-env with <code>ACTION=diff</code> PR comments</td>
+<td><a href="https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/multi-env"><code>examples/multi-env/</code></a></td>
+</tr>
+<tr>
+<td>v1 → v2 line-by-line migration diff</td>
+<td><a href="https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/examples/migration-v1-to-v2"><code>examples/migration-v1-to-v2/</code></a></td>
+</tr>
+</tbody>
+</table>
+<p>All five <code>bitbucket-pipelines.yml</code> files in <code>examples/</code> are schema-validated
+in CI via <code>check-jsonschema --builtin-schema vendor.bitbucket-pipelines</code>.</p>
+<h2 id="variables">Variables<a class="headerlink" href="#variables" title="Permanent link">&para;</a></h2>
+<p>The full, autogenerated reference is at
+<a href="../../reference/variables/">reference/variables</a>. For an at-a-glance summary
+of the most common variables — auth, cluster + chart, action + behaviour —
+see the <a href="https://github.com/yves-vogl/aws-eks-helm-deploy#variables">README</a>.</p>
+<h2 id="verifying-releases">Verifying releases<a class="headerlink" href="#verifying-releases" title="Permanent link">&para;</a></h2>
+<p>Every release is signed (Cosign keyless) and ships SPDX + CycloneDX SBOMs.
+The exact <code>cosign verify</code> and <code>cosign verify-attestation</code> commands live in
+the <a href="https://github.com/yves-vogl/aws-eks-helm-deploy#verifying-releases">README "Verifying releases" section</a>.</p>
 
 
 
