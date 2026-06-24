@@ -102,16 +102,20 @@ Today the pipe authenticates using **static AWS access keys**, optionally combin
 
 ## Version matrix
 
-The `yvogl/aws-eks-helm-deploy:1.3.0` image bundles:
+The currently-published `ghcr.io/yves-vogl/aws-eks-helm-deploy:2` image (v2.x line) bundles:
 
-| Component                      | Version           | Notes                                                                  |
-| ------------------------------ | ----------------- | ---------------------------------------------------------------------- |
-| Base image                     | `python:3-alpine` | Latest 3.x at image build time.                                        |
-| Helm                           | `3.15.1`          | Copied from `alpine/helm:3.15.1`. Compatible with EKS Kubernetes versions supported by Helm 3.15 — see the [Helm version skew policy](https://helm.sh/docs/topics/version_skew/). |
-| `kubectl`                      | not bundled       | The pipe generates a kubeconfig and lets Helm talk to the EKS API directly. |
-| `awscli`                       | `~=1.32`          | Used for EKS token generation (`TokenGenerator`).                      |
-| `bitbucket-pipes-toolkit`      | `~=4.4`           | Pipe scaffolding, schema validation, logging.                          |
-| Jinja2                         | `~=3.1`           | Kubeconfig templating.                                                 |
+| Component                      | Version             | Notes                                                                  |
+| ------------------------------ | ------------------- | ---------------------------------------------------------------------- |
+| Base image                     | `python:3.13-slim-bookworm` | Pinned by SHA; non-root user (`USER pipe`, uid ≥ 10000).        |
+| Helm                           | `3.21.1`            | Bundled (no `kubectl` required). See the [Helm version skew policy](https://helm.sh/docs/topics/version_skew/). Helm v3 EOL: 2026-11-11. |
+| `helm-diff`                    | `3.15.10`           | Plugin for `ACTION=diff`; SHA-pinned binary.                           |
+| Cosign                         | `2.6.3`             | Bundled for image-side signature operations.                           |
+| `kubectl`                      | not bundled         | The pipe generates a kubeconfig and talks to the EKS API directly.     |
+| `boto3`                        | `~= 1.43`           | Generates the EKS token natively — no `awscli` in the image.           |
+| `bitbucket-pipes-toolkit`      | `~= 6.2`            | Pipe scaffolding, schema validation, logging.                          |
+| Architecture support           | `linux/amd64`, `linux/arm64` | Multi-arch via native runners (no QEMU).                      |
+| Signature                      | Cosign keyless (Sigstore) | Verify: `cosign verify --certificate-identity-regexp '^https://github.com/yves-vogl/aws-eks-helm-deploy/' --certificate-oidc-issuer https://token.actions.githubusercontent.com ghcr.io/yves-vogl/aws-eks-helm-deploy:2.1.0`. |
+| SBOMs                          | SPDX + CycloneDX    | Attested via Cosign; `cosign verify-attestation --type spdxjson|cyclonedx <image>`. |
 
 Tooling versions are advanced in lockstep with each release. See [`CHANGELOG.md`](CHANGELOG.md) for the per-release upgrade history.
 

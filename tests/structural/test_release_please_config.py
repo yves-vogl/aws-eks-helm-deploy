@@ -84,9 +84,11 @@ def test_extra_files_lists_pipe_yml(config: dict[str, Any]) -> None:
     )
 
 
-def test_manifest_seeds_2_0_0_rc_0() -> None:
-    """Manifest must seed the version baseline at 2.0.0-rc.0 (CONTEXT D1)."""
+def test_manifest_matches_latest_released_version() -> None:
+    """Manifest must track the latest published GitHub release tag (CONTEXT D1).
+
+    v2.1.0 is the maintenance release on the v2 line (Helm 3.21.1 + dep bumps);
+    bump this assertion in lockstep with each tag publish.
+    """
     manifest: dict[str, str] = json.loads(MANIFEST_PATH.read_text())
-    assert manifest["."] == "2.0.0-rc.0", (
-        f"Expected manifest['.'] == '2.0.0-rc.0', got {manifest['.']!r}"
-    )
+    assert manifest["."] == "2.1.0", f"Expected manifest['.'] == '2.1.0', got {manifest['.']!r}"
