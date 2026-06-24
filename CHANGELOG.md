@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.0.0](https://github.com/yves-vogl/aws-eks-helm-deploy/compare/v2.0.0...v3.0.0) (2026-08)
+## [3.0.0](https://github.com/yves-vogl/aws-eks-helm-deploy/compare/v2.1.0...v3.0.0) (2026-08)
 
 ### ⚠ BREAKING CHANGES
 
@@ -28,7 +28,27 @@
 ### Continuous Integration
 
 * **ci:** the integration test (`test_helm_version_in_cluster`) now asserts helm v4.x; the structural ADR-count test moves to 10 (covering ADR-0010). ([#71](https://github.com/yves-vogl/aws-eks-helm-deploy/pull/71))
+* **ci:** hoist workflow GITHUB_TOKEN write scopes to job level per OpenSSF Scorecard `TokenPermissionsID` best practice — workflow-level perms now read-only across codeql.yml, dependabot-auto-merge.yml, docs.yml, release-please.yml, release.yml, security-rescan.yml. Pitfall #1 (id-token only minted in release.yml) preserved at job level. ([#80](https://github.com/yves-vogl/aws-eks-helm-deploy/pull/80))
 * **ci:** drop release-please `bootstrap-sha` + `release-as` one-shot fields after the v3.0.0 GA — release-please resumes standard commit-walking for v3.0.1+. ([#75](https://github.com/yves-vogl/aws-eks-helm-deploy/issues/75))
+
+### Dependencies (post-v2.1.0 carry-forward into v3)
+
+* **deps:** force `requests >= 2.33.0` via `[tool.uv].override-dependencies` to close [Dependabot alert #1](https://github.com/yves-vogl/aws-eks-helm-deploy/security/dependabot/1) — GHSA-gc5v-m9x4-r6x2 / CVE-2026-25645 (Insecure Temp File Reuse in `extract_zipped_paths()`). uv resolved to 2.34.2. ([#83](https://github.com/yves-vogl/aws-eks-helm-deploy/pull/83))
+
+## [2.1.0](https://github.com/yves-vogl/aws-eks-helm-deploy/releases/tag/v2.1.0) (2026-06-24)
+
+Maintenance release on the v2.x line, ahead of the [Helm v3 EOL on 2026-11-11](https://helm.sh/docs/topics/version_skew/). Final published v2.x patch — the `:2` floating tag is frozen here through Helm v3 EOL.
+
+### Features
+
+* **helm:** bump bundled Helm from 3.18.6 → 3.21.1 (latest 3.x patch).
+* **deps:** bump bundled helm-diff plugin from 3.10.0 → 3.15.10.
+* **deps:** bump bundled `uv` from 0.11.21 → 0.11.24.
+* **deps:** advance Python `boto3` / `botocore` / `boto3-stubs` / `coverage` / `ruff` / `pymdown-extensions` to the latest within their current major lines.
+
+### Stays unchanged
+
+Cosign at 2.6.3 (already latest 2.x). Pipe public surface — env-var schema, exit-code map, structured-log shape, action verbs, chart-source URI schemes, SAFE_UPGRADE argv tail — all unchanged.
 
 ## [2.0.0](https://github.com/yves-vogl/aws-eks-helm-deploy/releases/tag/v2.0.0) (2026-06-23)
 

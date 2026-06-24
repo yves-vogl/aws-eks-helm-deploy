@@ -19,7 +19,7 @@ Deploy [Helm](https://helm.sh) charts to [AWS Elastic Kubernetes Service (EKS)](
 
 ---
 
-## What this pipe does (v2.0)
+## What this pipe does (v3.0)
 
 - **OIDC-first AWS auth** — no static AWS keys in your pipeline; Bitbucket OIDC → STS `AssumeRoleWithWebIdentity`. Static keys remain supported for legacy migrations.
 - **Three chart sources** — `local://` (path in repo), `repo://` (Helm repository), `oci://` (OCI registry).
@@ -31,9 +31,7 @@ Deploy [Helm](https://helm.sh) charts to [AWS Elastic Kubernetes Service (EKS)](
 
 This pipe is purpose-built for **Bitbucket Pipelines**. For GitHub Actions, use upstream actions such as [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials) combined with a Helm action.
 
-> **🚀 v3.0.0 launching August 2026** — content-frozen on `main`. Bundles Helm 4.2.2 + Cosign 3.1.1 ahead of the [Helm v3 EOL on 2026-11-11](https://helm.sh/docs/topics/version_skew/). One-line migration for most consumers (`:2` → `:3`). Preview the [v2 → v3 migration guide](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/migration/v2-to-v3/) and the rationale in [ADR-0010](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/adr/0010-helm-v4-migration/). Pin `:2` until launch.
->
-> **Status:** v2.0 is the active line published exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`). **v1.3.0 is frozen on Docker Hub and is not maintained** — no security fixes, no bug fixes; please migrate to v2.x. See [docs/migration/v1-to-v2.md](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/migration/v1-to-v2/) for upgrade steps.
+> **Status:** v3.0 is the active line, bundling **Helm 4.2.2** + **Cosign 3.1.1** ahead of the [Helm v3 EOL on 2026-11-11](https://helm.sh/docs/topics/version_skew/). Published exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`). The v2.x line is frozen at **v2.1.0** (the final helm-3 build) — `:2` remains pullable through Helm v3 EOL, then sunsets. **v1.3.0 is frozen on Docker Hub and is not maintained** — no security fixes, no bug fixes. See [docs/migration/v2-to-v3.md](https://yves-vogl.github.io/aws-eks-helm-deploy/v3/migration/v2-to-v3/) and [docs/migration/v1-to-v2.md](https://yves-vogl.github.io/aws-eks-helm-deploy/v3/migration/v1-to-v2/) for upgrade paths.
 
 ---
 
@@ -124,25 +122,25 @@ v2 supports two paths. **Pick one — never combine in the same pipeline step.**
 
 ## Version matrix
 
-The **currently-published** `ghcr.io/yves-vogl/aws-eks-helm-deploy:2` image (v2.x line) bundles:
+The **currently-published** `ghcr.io/yves-vogl/aws-eks-helm-deploy:3` image (v3.x line) bundles:
 
 | Component                      | Version             | Notes                                                                  |
 | ------------------------------ | ------------------- | ---------------------------------------------------------------------- |
 | Base image                     | `python:3.13-slim-bookworm` | Pinned by SHA; non-root user (`USER pipe`, uid ≥ 10000).        |
-| Helm                           | `3.18.6`            | Bundled (no `kubectl` required). See the [Helm version skew policy](https://helm.sh/docs/topics/version_skew/). |
-| `helm-diff`                    | `3.10.0`            | Plugin for `ACTION=diff`; SHA-pinned binary.                           |
-| Cosign                         | `2.6.3`             | Bundled for image-side signature operations.                           |
+| Helm                           | `4.2.2`             | Bundled (no `kubectl` required). See the [Helm version skew policy](https://helm.sh/docs/topics/version_skew/). Helm v3 EOL: 2026-11-11. |
+| `helm-diff`                    | `3.15.10`           | Plugin for `ACTION=diff`; SHA-pinned binary; Helm v4 compatible.       |
+| Cosign                         | `3.1.1`             | Bundled for image-side signature operations.                           |
 | `kubectl`                      | not bundled         | The pipe generates a kubeconfig and talks to the EKS API directly.     |
 | `boto3`                        | latest stable       | Generates the EKS token natively — no `awscli` in the image.           |
 | `bitbucket-pipes-toolkit`      | `~=6.2`             | Pipe scaffolding, schema validation, logging.                          |
 | Architecture support           | `linux/amd64`, `linux/arm64` | Multi-arch via native runners (no QEMU).                      |
-| Signature                      | Cosign keyless (Sigstore) | Verify: `cosign verify --certificate-identity-regexp '^https://github.com/yves-vogl/aws-eks-helm-deploy/' --certificate-oidc-issuer https://token.actions.githubusercontent.com ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0`. |
+| Signature                      | Cosign keyless (Sigstore) | Verify: `cosign verify --certificate-identity-regexp '^https://github.com/yves-vogl/aws-eks-helm-deploy/' --certificate-oidc-issuer https://token.actions.githubusercontent.com ghcr.io/yves-vogl/aws-eks-helm-deploy:3.0.0`. |
 | SBOMs                          | SPDX + CycloneDX    | Attested via Cosign; `cosign verify-attestation --type spdxjson|cyclonedx <image>`. |
 | SLSA build provenance          | Level 3             | `actions/attest-build-provenance` on every release.                    |
 
 Tooling versions are advanced in lockstep with each release. See [`CHANGELOG.md`](CHANGELOG.md) for the per-release history.
 
-> 🚀 **Preview — v3.0.0 (August 2026 launch, `:3` tag).** The next major release bundles **Helm `4.2.2`** (ahead of the [Helm v3 EOL on 2026-11-11](https://helm.sh/docs/topics/version_skew/)), **Cosign `3.1.1`**, and **helm-diff `3.15.10`** (Helm v4 compatible). Consumer migration is a one-line `:2` → `:3` swap for most pipelines. See the [v2 → v3 migration guide](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/migration/v2-to-v3/) and [ADR-0010](https://yves-vogl.github.io/aws-eks-helm-deploy/v2/adr/0010-helm-v4-migration/) for the kstatus-wait behavioural change and the `:2`-tag freeze policy through 2026-11-11.
+> 📦 **Still on `:2`?** The v2.x line is frozen at **v2.1.0** (Helm 3.21.1, Cosign 2.6.3, helm-diff 3.10.0). The `:2` tag stays pullable through the [Helm v3 EOL on 2026-11-11](https://helm.sh/docs/topics/version_skew/) — after that, migrate to `:3`. See the [v2 → v3 migration guide](https://yves-vogl.github.io/aws-eks-helm-deploy/v3/migration/v2-to-v3/) and [ADR-0010](https://yves-vogl.github.io/aws-eks-helm-deploy/v3/adr/0010-helm-v4-migration/) for the kstatus-wait behavioural change and the consumer migration playbook.
 
 ---
 
@@ -171,11 +169,11 @@ Every release is signed and SBOMed. Verify before you pull into production:
 cosign verify \
   --certificate-identity-regexp '^https://github.com/yves-vogl/aws-eks-helm-deploy/' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0
+  ghcr.io/yves-vogl/aws-eks-helm-deploy:3.0.0
 
 # SBOMs (attested in the registry)
-cosign verify-attestation --type spdxjson    ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0
-cosign verify-attestation --type cyclonedx   ghcr.io/yves-vogl/aws-eks-helm-deploy:2.0.0
+cosign verify-attestation --type spdxjson    ghcr.io/yves-vogl/aws-eks-helm-deploy:3.0.0
+cosign verify-attestation --type cyclonedx   ghcr.io/yves-vogl/aws-eks-helm-deploy:3.0.0
 ```
 
 SLSA build provenance is also attached to every release; see the per-release entry on the [Releases page](https://github.com/yves-vogl/aws-eks-helm-deploy/releases).
