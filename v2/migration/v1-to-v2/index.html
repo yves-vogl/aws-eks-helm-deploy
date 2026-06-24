@@ -1778,12 +1778,20 @@ not critical path — your diff still succeeds even if the comment cannot be pos
 <hr />
 <h2 id="actionrollback-safe_upgrade-safe-rollback-only-pipe-0405">ACTION=rollback + SAFE_UPGRADE — safe rollback only (PIPE-04/05)<a class="headerlink" href="#actionrollback-safe_upgrade-safe-rollback-only-pipe-0405" title="Permanent link">&para;</a></h2>
 <h3 id="deploying-with-safe_upgradetrue">Deploying with SAFE_UPGRADE=true<a class="headerlink" href="#deploying-with-safe_upgradetrue" title="Permanent link">&para;</a></h3>
-<p><code>SAFE_UPGRADE=true</code> causes <code>helm upgrade --install</code> to run with <code>--wait</code>, <code>--atomic</code>, AND
-<code>--description "pipe:safe-upgrade"</code>. The description marker is persisted in helm's release
-history and serves as the safety token for rollback pre-flight.</p>
-<p>When <code>--atomic</code> is set, helm rolls back the release automatically on a failed upgrade. The
-combination of <code>--wait</code> + <code>--atomic</code> ensures that only a deployment that passed Kubernetes
-readiness checks leaves a <code>pipe:safe-upgrade</code> description in history.</p>
+<p><code>SAFE_UPGRADE=true</code> causes <code>helm upgrade --install</code> to run with <code>--wait</code>,
+<code>--rollback-on-failure</code>, AND <code>--description "pipe:safe-upgrade"</code>. The description marker is
+persisted in helm's release history and serves as the safety token for rollback pre-flight.</p>
+<blockquote>
+<p><strong>Helm v4 note (issue #70):</strong> The flag is <code>--rollback-on-failure</code> in helm v4 (bundled since
+pipe <code>2.x</code> post-issue-#70). In helm 3.x this flag was named <code>--atomic</code>; the bundled binary
+upgrade to helm 4.2.2 made the pipe switch to the canonical v4 name. The behaviour is
+identical — automatic rollback on failure — and the <code>pipe:safe-upgrade</code> description marker is
+unchanged, so historical releases tagged from older pipe builds remain recognised as
+safe-upgrade rollback targets.</p>
+</blockquote>
+<p>When <code>--rollback-on-failure</code> is set, helm rolls back the release automatically on a failed
+upgrade. The combination of <code>--wait</code> + <code>--rollback-on-failure</code> ensures that only a deployment
+that passed Kubernetes readiness checks leaves a <code>pipe:safe-upgrade</code> description in history.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># bitbucket-pipelines.yml — upgrade with SAFE_UPGRADE=true</span>
 <span class="nt">script</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pipe</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">docker://ghcr.io/yves-vogl/aws-eks-helm-deploy:2</span>
@@ -1807,7 +1815,8 @@ for the target revision and checks whether the description contains the substrin
 <p>If the substring is absent, the pipe <strong>refuses the rollback</strong> with exit code 4 and a clear
 error message:</p>
 <div class="highlight"><pre><span></span><code>ERROR  ChartResolutionError: Refusing rollback to revision 3 of release &#39;my-release&#39; —
-       that revision was NOT deployed with SAFE_UPGRADE=true (no --wait/--atomic guarantee).
+       that revision was NOT deployed with SAFE_UPGRADE=true
+       (no --wait/--rollback-on-failure guarantee).
        Re-deploy with SAFE_UPGRADE=true first, then retry rollback.
 </code></pre></div>
 <p>If you see this error, re-deploy the target configuration with <code>SAFE_UPGRADE=true</code> on the
@@ -1857,7 +1866,7 @@ safe-upgraded revision is permitted from any pipeline step.</p>
 <td><code>bool</code></td>
 <td><code>false</code></td>
 <td>PIPE-05</td>
-<td>Adds <code>--wait --atomic --description "pipe:safe-upgrade"</code> to upgrade argv.</td>
+<td>Adds <code>--wait --rollback-on-failure --description "pipe:safe-upgrade"</code> to upgrade argv (helm v4; flag was <code>--atomic</code> in helm 3, see issue #70).</td>
 </tr>
 <tr>
 <td><code>REVISION</code></td>

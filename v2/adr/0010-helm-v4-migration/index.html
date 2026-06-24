@@ -10,29 +10,27 @@
       
       
       
-        <link rel="canonical" href="https://yves-vogl.github.io/aws-eks-helm-deploy/v2/adr/">
+        <link rel="canonical" href="https://yves-vogl.github.io/aws-eks-helm-deploy/v2/adr/0010-helm-v4-migration/">
       
-      
-        <link rel="prev" href="../reference/variables/">
       
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Overview - aws-eks-helm-deploy</title>
+        <title>Helm v3 → v4 migration before the 2026-11-11 EOL - aws-eks-helm-deploy</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -51,7 +49,7 @@
       
     
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -76,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#architecture-decision-records" class="md-skip">
+        <a href="#helm-v3-v4-migration-before-the-2026-11-11-eol" class="md-skip">
           Skip to content
         </a>
       
@@ -92,7 +90,7 @@
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="aws-eks-helm-deploy" class="md-header__button md-logo" aria-label="aws-eks-helm-deploy" data-md-component="logo">
+    <a href="../.." title="aws-eks-helm-deploy" class="md-header__button md-logo" aria-label="aws-eks-helm-deploy" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Overview
+              Helm v3 → v4 migration before the 2026-11-11 EOL
             
           </span>
         </div>
@@ -219,7 +217,7 @@
   
   
     <li class="md-tabs__item">
-      <a href=".." class="md-tabs__link">
+      <a href="../.." class="md-tabs__link">
         
   
   
@@ -240,7 +238,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../quickstart/overview/" class="md-tabs__link">
+        <a href="../../quickstart/overview/" class="md-tabs__link">
           
   
   
@@ -258,7 +256,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../migration/v1-to-v2/" class="md-tabs__link">
+      <a href="../../migration/v1-to-v2/" class="md-tabs__link">
         
   
   
@@ -279,7 +277,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../guides/oidc-setup/" class="md-tabs__link">
+        <a href="../../guides/oidc-setup/" class="md-tabs__link">
           
   
   
@@ -299,7 +297,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../reference/variables/" class="md-tabs__link">
+        <a href="../../reference/variables/" class="md-tabs__link">
           
   
   
@@ -315,13 +313,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../" class="md-tabs__link">
           
   
   
@@ -361,7 +357,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="aws-eks-helm-deploy" class="md-nav__button md-logo" aria-label="aws-eks-helm-deploy" data-md-component="logo">
+    <a href="../.." title="aws-eks-helm-deploy" class="md-nav__button md-logo" aria-label="aws-eks-helm-deploy" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -391,7 +387,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -472,7 +468,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../quickstart/overview/" class="md-nav__link">
+      <a href="../../quickstart/overview/" class="md-nav__link">
         
   
   
@@ -507,7 +503,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../migration/v1-to-v2/" class="md-nav__link">
+      <a href="../../migration/v1-to-v2/" class="md-nav__link">
         
   
   
@@ -588,7 +584,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guides/oidc-setup/" class="md-nav__link">
+      <a href="../../guides/oidc-setup/" class="md-nav__link">
         
   
   
@@ -677,7 +673,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/variables/" class="md-nav__link">
+      <a href="../../reference/variables/" class="md-nav__link">
         
   
   
@@ -709,31 +705,28 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   
@@ -751,7 +744,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -766,37 +759,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Overview
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -812,59 +778,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#archive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Archive
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-to-add-a-new-adr" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How to add a new ADR
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#related-references" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Related references
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -904,10 +817,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#archive" class="md-nav__link">
+  <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Archive
+        Context and Problem Statement
       
     </span>
   </a>
@@ -915,10 +828,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-to-add-a-new-adr" class="md-nav__link">
+  <a href="#decision-drivers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How to add a new ADR
+        Decision Drivers
       
     </span>
   </a>
@@ -926,10 +839,110 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#related-references" class="md-nav__link">
+  <a href="#considered-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Related references
+        Considered Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-outcome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Outcome
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision Outcome">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#confirmation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Confirmation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pros-and-cons-of-the-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pros and Cons of the Options
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pros and Cons of the Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-migrate-to-helm-v4-pipe-v300" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A — Migrate to Helm v4, pipe v3.0.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-stay-on-helm-v3-until-eol-then-accept-risk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B — Stay on Helm v3 until EOL, then accept-risk
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-c-migrate-to-helm-v4-keep-pipe-on-v2x" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option C — Migrate to Helm v4, keep pipe on v2.x
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#more-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        More Information
       
     </span>
   </a>
@@ -956,83 +969,78 @@
   
 
 
-<h1 id="architecture-decision-records">Architecture Decision Records<a class="headerlink" href="#architecture-decision-records" title="Permanent link">&para;</a></h1>
-<p>This project uses <a href="https://adr.github.io/madr/">MADR 4.0</a> as the ADR template. Every architectural decision shipped in v2.0 has an ADR here. The template is committed verbatim at <a href="0000-template/"><code>0000-template.md</code></a> — upstream blob SHA <code>08dac30ed895cf728fc7da95f9702ca4dd5ab900</code> from MADR tag <code>4.0.0</code>, CC0-1.0.</p>
-<p>New ADRs are append-only: status transitions are documented in-file (<code>accepted</code> → <code>deprecated</code> → <code>superseded by ADR-NNNN</code>); we never delete or rewrite past ADRs.</p>
-<h2 id="archive">Archive<a class="headerlink" href="#archive" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>#</th>
-<th>Title</th>
-<th>One-line summary</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="0001-github-primary-forge/">ADR-0001</a></td>
-<td>GitHub primary forge</td>
-<td>v2 development happens on GitHub; Bitbucket Pipe Marketplace listing stays for v1.x compatibility (Docker Hub frozen at v1.3.0).</td>
-</tr>
-<tr>
-<td><a href="0002-v2-clean-break/">ADR-0002</a></td>
-<td>v1.x → v2.x clean break</td>
-<td>No runtime compatibility shim layer; v1.x stays frozen on Docker Hub at v1.3.0, v2.x is a Python rewrite on GHCR, migration is documented.</td>
-</tr>
-<tr>
-<td><a href="0003-cosign-keyless-over-gpg/">ADR-0003</a></td>
-<td>Cosign keyless over GPG</td>
-<td>Image signing uses Cosign keyless (OIDC → Fulcio → Rekor) — no long-lived signing keys, transparency-log proof, composes with SLSA build provenance.</td>
-</tr>
-<tr>
-<td><a href="0004-boto3-only-over-awscli/">ADR-0004</a></td>
-<td>boto3-only EKS auth</td>
-<td>EKS tokens are generated in ~40 lines of Python against <code>boto3</code> STS presign; bundled <code>awscli</code> is dropped (~120 MB image weight reclaimed).</td>
-</tr>
-<tr>
-<td><a href="0005-release-please-over-semversioner/">ADR-0005</a></td>
-<td>release-please over semversioner</td>
-<td>release-please-action v4 (<code>release-type: python</code>) replaces <code>.changes/</code>-fragment ceremony; release-PR model + Conventional Commits enforce semver mechanically.</td>
-</tr>
-<tr>
-<td><a href="0006-oidc-default-precedence/">ADR-0006</a></td>
-<td>OIDC default precedence (static wins)</td>
-<td>When both static AWS keys and an OIDC token are present, static keys win — matches the <code>botocore</code> default credential resolver chain; a one-shot WARN log surfaces the precedence.</td>
-</tr>
-<tr>
-<td><a href="0007-multi-arch-native-runners/">ADR-0007</a></td>
-<td>Multi-arch native runners (no QEMU)</td>
-<td><code>linux/amd64</code> builds on <code>ubuntu-24.04</code>, <code>linux/arm64</code> builds on <code>ubuntu-24.04-arm</code>; manifest fan-in via <code>docker buildx imagetools create</code>. No QEMU emulation — eliminates silent broken-arm64 builds.</td>
-</tr>
-<tr>
-<td><a href="0008-mkdocs-material-now-zensical-later/">ADR-0008</a></td>
-<td>mkdocs-material now, Zensical later</td>
-<td>mkdocs-material 9.7.6 ships v2.0 docs; Zensical migration tracked as DOC-NEXT-01 for v2.1+ (mkdocs-material maintenance-mode critical fixes through Nov 2026).</td>
-</tr>
-<tr>
-<td><a href="0009-src-layout-no-compat-shims/">ADR-0009</a></td>
-<td>src/-layout, no v1 compat shims</td>
-<td>v2 Python package uses <code>src/aws_eks_helm_deploy/</code>; no <code>aws_eks_helm_deploy.v1</code> shim namespace (v1 was a shell pipe, not a Python package).</td>
-</tr>
-<tr>
-<td><a href="0010-helm-v4-migration/">ADR-0010</a></td>
-<td>Helm v3 → v4 migration before EOL</td>
-<td>Bundled Helm bumped 3.x → 4.2.2 ahead of the 2026-11-11 v3 EOL; pipe bumps to v3.0.0 to signal the kstatus-wait operational change; <code>:2</code> floating tag frozen at the last helm-3 build through EOL.</td>
-</tr>
-</tbody>
-</table>
-<h2 id="how-to-add-a-new-adr">How to add a new ADR<a class="headerlink" href="#how-to-add-a-new-adr" title="Permanent link">&para;</a></h2>
-<ol>
-<li>Copy <a href="0000-template/"><code>0000-template.md</code></a> to <code>NNNN-{title-slug}.md</code> (4-digit zero-padded next index).</li>
-<li>Fill in the MADR sections. Keep the front-matter (<code>status</code>, <code>date</code>, <code>decision-makers</code>).</li>
-<li>Update this index with the new row.</li>
-<li>Open a PR. Substantial architectural changes should ship the ADR alongside (or before) the implementation PR — see <a href="https://github.com/yves-vogl/aws-eks-helm-deploy/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>.</li>
-</ol>
-<h2 id="related-references">Related references<a class="headerlink" href="#related-references" title="Permanent link">&para;</a></h2>
+<h1 id="helm-v3-v4-migration-before-the-2026-11-11-eol">Helm v3 → v4 migration before the 2026-11-11 EOL<a class="headerlink" href="#helm-v3-v4-migration-before-the-2026-11-11-eol" title="Permanent link">&para;</a></h1>
+<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
+<p>The bundled Helm binary in the runtime image was pinned to Helm 3.18.6 through v2.0.0 and to 3.21.2 in the unreleased post-v2.0.0 main. Helm v3 enters end-of-life on <strong>2026-11-11</strong> (<a href="https://helm.sh/docs/topics/version_skew/">Helm Version Support Policy</a>) — no further security backports after that date. Trivy scans against the helm 3.21.2 image surface 29 HIGH + 2 CRITICAL findings (<a href="https://github.com/yves-vogl/aws-eks-helm-deploy/pull/68">PR #68</a> trivy-image run, 2026-06-23), the bulk of which are transitive Go libraries that Helm v4 already bumped past. We need to decide: <strong>migrate the pipe to Helm v4, or accept-risk and stay on an unsupported v3 line.</strong></p>
+<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="https://github.com/adr/madr">MADR upstream</a> — the template source.</li>
-<li><a href="https://github.com/yves-vogl/aws-eks-helm-deploy/blob/main/.planning/REQUIREMENTS.md">REQUIREMENTS.md</a> — every REQ ID referenced from ADRs lives here.</li>
-<li><a href="https://github.com/yves-vogl/aws-eks-helm-deploy/tree/main/.planning/phases">Phase planning archive</a> — every ADR cites its source phase's CONTEXT.md for traceability.</li>
+<li>Helm v3 EOL is a hard deadline (2026-11-11) — staying on v3 means accepting unsupported-binary risk indefinitely.</li>
+<li>The trivy-image gate became a hard gate in this same release line (see <a href="https://github.com/yves-vogl/aws-eks-helm-deploy/issues/67">Issue #67</a>); HIGH/CRITICAL CVE volume on v3.21.2 makes the gate unworkable without aggressive suppression.</li>
+<li>Helm v4 has been stable since v4.0.0 (released in 2026); chart authors and consumers have had several months to prepare.</li>
+<li>Only one CLI surface used by the pipe is affected by v4 breaking changes: <code>--atomic</code> is now a deprecated alias for <code>--rollback-on-failure</code> (<a href="https://raw.githubusercontent.com/helm/helm/v4.2.2/pkg/cmd/upgrade.go">helm v4.2.2 <code>pkg/cmd/upgrade.go</code> L290-292</a>).</li>
+<li>The kstatus-based <code>watcher</code> wait strategy in helm v4 is a consumer-visible operational change for <code>SAFE_UPGRADE=true</code> deploys (different stderr lines, possibly different timing characteristics).</li>
+<li>The pipe's bundled-binary version is part of its public contract (consumers pin to a major tag and expect predictable behaviour) — a helm major bump should not happen silently on a <code>:2.x.y</code> patch release.</li>
+</ul>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Option A — Migrate to Helm v4 (<code>HELM_VERSION=4.2.2</code>) and bump the pipe to v3.0.0.</strong></li>
+<li><strong>Option B — Stay on Helm v3 until EOL, then accept unsupported runtime; release pipe v2.x patches only.</strong></li>
+<li><strong>Option C — Migrate to Helm v4 but keep the pipe on the v2.x line (treat the bundled-binary version as an implementation detail).</strong></li>
+</ul>
+<h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
+<p>Chosen option: <strong>"Option A — Migrate to Helm v4 and bump the pipe to v3.0.0"</strong>, because it eliminates the EOL deadline as a recurring decision, clears the trivy-image gate to a workable state, and signals the kstatus-wait behavioural change to consumers via a SemVer-major bump so they can pin and opt-in deliberately. The migration is also cheap: one argv-tail rename (<code>--atomic</code> → <code>--rollback-on-failure</code>), one plugin bump (helm-diff 3.10.0 → 3.15.10), and supporting docstring + test updates — total 11 files, 107 insertions, 43 deletions.</p>
+<h3 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Good, because Helm v3 EOL stops being an open question — the pipe never carries an unsupported runtime.</li>
+<li>Good, because the trivy-image hard gate is feasible against helm 4.2.2's newer Go transitive dependencies (most v3.21.2 findings are fixed in v4's bundle).</li>
+<li>Good, because the SAFE_UPGRADE argv tail uses the canonical helm v4 form (<code>--rollback-on-failure</code>) and no longer emits a stderr deprecation warning on every safe upgrade.</li>
+<li>Good, because the <code>SAFE_UPGRADE_DESCRIPTION = "pipe:safe-upgrade"</code> marker is preserved across the migration, so historical releases tagged by helm-3 pipe builds remain rollback-safe via <code>RollbackAction</code>'s pre-flight check.</li>
+<li>Good, because the SemVer-major bump (pipe v3.0.0) gives consumers an explicit opt-in path; the <code>:2</code> floating tag stays frozen at the last helm-3 build through 2026-11-11 (see ADR-0002 freeze precedent).</li>
+<li>Bad, because consumers who tail-follow <code>:latest</code> get the kstatus-wait change automatically and may need to update brittle log-line assertions on <code>helm upgrade</code> stderr.</li>
+<li>Bad, because the bundled binary now requires the new argv (<code>--rollback-on-failure</code> does not exist in helm 3.x); downgrading the runtime to helm 3.x would silently break <code>SAFE_UPGRADE=true</code>. Documented inline in <a href="https://github.com/yves-vogl/aws-eks-helm-deploy/blob/main/src/aws_eks_helm_deploy/helm/client.py"><code>helm/client.py::_build_argv</code></a> and locked in by the Dockerfile pin.</li>
+<li>Bad, because the migration accelerates the next decision point: consumers who never adopt v3 will be stranded on an EOL'd helm-3 build after 2026-11-11.</li>
+</ul>
+<h3 id="confirmation">Confirmation<a class="headerlink" href="#confirmation" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The <a href="https://github.com/yves-vogl/aws-eks-helm-deploy/blob/main/.github/workflows/ci.yml"><code>integration (kind + helm)</code></a> job pins the runner's Helm to <code>v4.2.2</code> matching the Dockerfile bundle, exercising the kstatus-wait code path against a real cluster.</li>
+<li><a href="https://github.com/yves-vogl/aws-eks-helm-deploy/blob/main/tests/unit/test_helm_client_argv.py"><code>tests/unit/test_helm_client_argv.py</code></a> asserts both that <code>--rollback-on-failure</code> is present in the SAFE_UPGRADE argv tail AND that the deprecated <code>--atomic</code> alias is NOT present (defensive; ensures the stderr deprecation warning never leaks back in).</li>
+<li>The <a href="https://github.com/yves-vogl/aws-eks-helm-deploy/blob/main/.github/workflows/ci.yml"><code>acceptance (docker run image)</code></a> job runs the built image and verifies <code>helm diff version</code> resolves the bundled helm-diff plugin against helm v4.2.2 — protects against the helm-diff/helm-major mismatch that motivated the plugin bump to 3.15.10.</li>
+<li>The <a href="https://github.com/yves-vogl/aws-eks-helm-deploy/blob/main/.github/workflows/ci.yml"><code>trivy-image</code></a> hard gate enforces "no HIGH/CRITICAL findings" — confirms the migration's CVE-curation goal is met.</li>
+</ul>
+<h2 id="pros-and-cons-of-the-options">Pros and Cons of the Options<a class="headerlink" href="#pros-and-cons-of-the-options" title="Permanent link">&para;</a></h2>
+<h3 id="option-a-migrate-to-helm-v4-pipe-v300">Option A — Migrate to Helm v4, pipe v3.0.0<a class="headerlink" href="#option-a-migrate-to-helm-v4-pipe-v300" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Good, because covers every decision driver.</li>
+<li>Good, because the only required code change is <code>--atomic</code> → <code>--rollback-on-failure</code> (one line in <code>_build_argv</code>).</li>
+<li>Good, because helm-diff 3.15.10 is already verified compatible with helm v4 via the existing directory-copy install pattern.</li>
+<li>Good, because the <code>:2</code> tag freeze precedent already exists (ADR-0002 froze v1 at v1.3.0 on Docker Hub; we apply the same playbook to v2.x on GHCR through 2026-11-11).</li>
+<li>Neutral, because consumers must consciously bump to <code>:3</code> to adopt; this is the price of the SemVer signal.</li>
+</ul>
+<h3 id="option-b-stay-on-helm-v3-until-eol-then-accept-risk">Option B — Stay on Helm v3 until EOL, then accept-risk<a class="headerlink" href="#option-b-stay-on-helm-v3-until-eol-then-accept-risk" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Good, because zero migration cost in the short term.</li>
+<li>Good, because consumers on <code>:2</code> get no behavioural surprise.</li>
+<li>Bad, because after 2026-11-11 the pipe ships an unsupported binary with zero upstream security maintenance.</li>
+<li>Bad, because the trivy-image hard gate would need permanent suppression of any helm-3-side CVE published after EOL — operational sink, no end in sight.</li>
+<li>Bad, because we would still face this decision at some point — Helm v4 LTS will EOL too eventually; deferring the migration just resets the clock.</li>
+</ul>
+<h3 id="option-c-migrate-to-helm-v4-keep-pipe-on-v2x">Option C — Migrate to Helm v4, keep pipe on v2.x<a class="headerlink" href="#option-c-migrate-to-helm-v4-keep-pipe-on-v2x" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Good, because no consumer breakage signal — <code>:2.x.y+1</code> ships helm v4 transparently.</li>
+<li>Good, because matches the SemVer-strict reading: "the env-var schema and exit-code map didn't change."</li>
+<li>Bad, because the kstatus-wait behavioural change is invisible to consumers — log-line assertions and timing assumptions break silently mid-patch-release.</li>
+<li>Bad, because it conflates a runtime-bundle major change with a routine patch — the project's <code>image.bundled-component</code> contract becomes meaningless.</li>
+<li>Bad, because it sets a precedent that bundled-binary majors are "implementation details" — future runtime-major bumps (Python 3.13 → 3.14, helm v4 → v5) would face the same "should we signal this?" question with the wrong answer baked in.</li>
+</ul>
+<h2 id="more-information">More Information<a class="headerlink" href="#more-information" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Sources: <a href="https://github.com/yves-vogl/aws-eks-helm-deploy/issues/70">Issue #70</a> (migration tracking with full breaking-change audit table), <a href="https://github.com/yves-vogl/aws-eks-helm-deploy/issues/67">Issue #67</a> (trivy-image hard-gate motivation), <a href="https://github.com/yves-vogl/aws-eks-helm-deploy/pull/71">PR #71</a> (the migration commit).</li>
+<li>Helm v4.0.0 release notes: https://github.com/helm/helm/releases/tag/v4.0.0</li>
+<li>Helm v4.2.2 source for <code>--atomic</code> deprecation: <a href="https://raw.githubusercontent.com/helm/helm/v4.2.2/pkg/cmd/upgrade.go">pkg/cmd/upgrade.go L290-292</a></li>
+<li>helm-diff v4-compatible release notes: https://github.com/databus23/helm-diff/releases (the v3.15.x line added helm v4 support)</li>
+<li>Cross-references: <a href="../0002-v2-clean-break/">ADR-0002</a> (clean-break precedent for runtime-major bumps), <a href="../0009-src-layout-no-compat-shims/">ADR-0009</a> (no compat shims — same philosophy applied to the helm-3 argv: we don't emit both <code>--atomic</code> and <code>--rollback-on-failure</code> for "v3+v4 compat", we pick the canonical v4 form and document the forward-incompatibility).</li>
+<li>Release timing: v3.0.0 is prepared on <code>main</code> after PR #71 merges; the release-please-generated Release PR is held until <strong>August 2026</strong> (six-week soak between content-freeze and tag-publish) — see <a href="../../migration/v2-to-v3/">docs/migration/v2-to-v3.md</a> for the launch timeline.</li>
+<li>NIH check: we are bumping an upstream-maintained binary, not re-implementing helm. Not applicable.</li>
 </ul>
 
 
@@ -1040,6 +1048,9 @@
 
 
 
+
+  
+  
 
 
 
@@ -1091,10 +1102,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "search.highlight", "search.suggest", "content.code.copy", "content.code.annotate", "content.tabs.link"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
