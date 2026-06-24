@@ -497,7 +497,10 @@ def test_safe_upgrade_default_is_false() -> None:
 
 @pytest.mark.unit
 def test_safe_upgrade_env_true_sets_field_true(monkeypatch: pytest.MonkeyPatch) -> None:
-    """SAFE_UPGRADE=true adds --wait --atomic --description to helm upgrade argv (PIPE-05/D5)."""
+    """SAFE_UPGRADE=true adds --wait --rollback-on-failure --description to helm upgrade argv.
+
+    Issue #70: helm 4 renamed --atomic to --rollback-on-failure (PIPE-05/D5).
+    """
     monkeypatch.setenv("SAFE_UPGRADE", "true")
     s = Settings()
     assert s.safe_upgrade is True

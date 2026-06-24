@@ -17,6 +17,7 @@ New ADRs are append-only: status transitions are documented in-file (`accepted` 
 | [ADR-0007](0007-multi-arch-native-runners.md) | Multi-arch native runners (no QEMU) | `linux/amd64` builds on `ubuntu-24.04`, `linux/arm64` builds on `ubuntu-24.04-arm`; manifest fan-in via `docker buildx imagetools create`. No QEMU emulation — eliminates silent broken-arm64 builds. |
 | [ADR-0008](0008-mkdocs-material-now-zensical-later.md) | mkdocs-material now, Zensical later | mkdocs-material 9.7.6 ships v2.0 docs; Zensical migration tracked as DOC-NEXT-01 for v2.1+ (mkdocs-material maintenance-mode critical fixes through Nov 2026). |
 | [ADR-0009](0009-src-layout-no-compat-shims.md) | src/-layout, no v1 compat shims | v2 Python package uses `src/aws_eks_helm_deploy/`; no `aws_eks_helm_deploy.v1` shim namespace (v1 was a shell pipe, not a Python package). |
+| [ADR-0010](0010-helm-v4-migration.md) | Helm v3 → v4 migration before EOL | Bundled Helm bumped 3.x → 4.2.2 ahead of the 2026-11-11 v3 EOL; pipe bumps to v3.0.0 to signal the kstatus-wait operational change; `:2` floating tag frozen at the last helm-3 build through EOL. |
 
 ## How to add a new ADR
 

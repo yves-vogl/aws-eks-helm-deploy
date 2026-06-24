@@ -28,7 +28,9 @@ Security:
 
 Env isolation (RESEARCH §5):
   - HELM_REGISTRY_CONFIG = <tmp>/registry-config.json
-  - DOCKER_CONFIG = <tmp>/docker-config (belt-and-braces against helm 3 fallback to docker creds)
+  - DOCKER_CONFIG = <tmp>/docker-config (belt-and-braces against helm's fallback to docker creds —
+        helm v3 and v4 both consult $DOCKER_CONFIG for OCI registry credentials when
+        HELM_REGISTRY_CONFIG does not carry the requested host)
   - HELM_REPOSITORY_CONFIG = <tmp>/repositories.yaml
   - HELM_REPOSITORY_CACHE = <tmp>/cache
   All four point at the tempdir; nothing leaks past the context-manager scope.

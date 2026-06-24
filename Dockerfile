@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1.7
 ARG PYTHON_VERSION=3.13
 ARG UV_VERSION=0.11.21
-ARG HELM_VERSION=3.18.6
-ARG HELM_DIFF_VERSION=3.10.0
-ARG COSIGN_VERSION=2.6.3
+ARG HELM_VERSION=4.2.2
+ARG HELM_DIFF_VERSION=3.15.10
+ARG COSIGN_VERSION=3.1.1
 
 # Base image digests — pinned for reproducible builds and supply-chain safety.
 # Dependabot's `docker` ecosystem (.github/dependabot.yml) keeps these current

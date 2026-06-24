@@ -4,8 +4,11 @@ REQ traceability:
     PIPE-01    — upgrade_install invokes ``helm upgrade --install`` with exact argv contract
     PIPE-02    — diff invokes ``helm diff upgrade`` via the bundled helm-diff plugin (Phase 5 D2)
     PIPE-04    — rollback invokes ``helm rollback <release> <revision>`` (Phase 5 D5)
-    PIPE-05    — SAFE_UPGRADE=true adds --wait --atomic --description "pipe:safe-upgrade" to
-                 upgrade argv (Phase 5 D5 / 05-RESEARCH CONTRADICTION 2)
+    PIPE-05    — SAFE_UPGRADE=true adds ``--wait --rollback-on-failure --description
+                 "pipe:safe-upgrade"`` to upgrade argv (Phase 5 D5 / 05-RESEARCH CONTRADICTION 2).
+                 The flag was named ``--atomic`` in helm 3.x; helm 4 renamed it to
+                 ``--rollback-on-failure`` (helm v4.2.2 pkg/cmd/upgrade.go L290 - ``--atomic``
+                 remains as a deprecated alias).
     PIPE-06    — typed errors: HelmExecutionError (exit=5) and HelmTimeoutError (exit=6)
     HISTORY-02 — ``--history-max`` passthrough; None suppresses the flag
     META-01    — ``--set-string`` for ALL injected key=value pairs (Pitfall 4: curly braces)
@@ -62,9 +65,13 @@ SAFE_UPGRADE_DESCRIPTION: Final[str] = "pipe:safe-upgrade"
 """Marker substring stored in helm release history description when SAFE_UPGRADE=true.
 
 The RollbackAction pre-flight check searches for this substring in HelmRevision.description
-to detect revisions deployed with --wait --atomic. See 05-RESEARCH "CONTRADICTION 2" for the
-rationale: helm 3.x does NOT record --wait status in the history description by default,
-so the pipe explicitly sets it via --description on upgrade.
+to detect revisions deployed with --wait --rollback-on-failure. See 05-RESEARCH
+"CONTRADICTION 2" for the rationale: helm does NOT record --wait status in the history
+description by default, so the pipe explicitly sets it via --description on upgrade.
+
+The marker string is INTENTIONALLY preserved as ``"pipe:safe-upgrade"`` across the helm 3 →
+helm 4 migration (issue #70) so RollbackAction can still recognise revisions deployed by
+older pipe builds (helm 3.x with --atomic) — both are equally rollback-safe.
 """
 
 __all__: list[str] = ["HelmClient", "HelmResult", "HelmRevision", "SAFE_UPGRADE_DESCRIPTION"]  # noqa: RUF022
@@ -229,12 +236,15 @@ class HelmClient:
                 CONTEXT D4 / Pitfall 3).
             timeout: Go-duration string passed verbatim to helm
                 (e.g. ``"600s"`` or ``"10m"``).
-            safe_upgrade: When ``True``, appends ``["--wait", "--atomic",
+            safe_upgrade: When ``True``, appends ``["--wait", "--rollback-on-failure",
                 "--description", SAFE_UPGRADE_DESCRIPTION]`` after the
                 ``--history-max`` block (PIPE-05 / CONTEXT D5). The
                 ``SAFE_UPGRADE_DESCRIPTION`` marker enables the
                 ``RollbackAction`` pre-flight check to detect safe-upgraded
                 revisions (05-RESEARCH CONTRADICTION 2 workaround).
+                ``--rollback-on-failure`` is helm v4's canonical flag (per
+                helm v4.2.2 pkg/cmd/upgrade.go L290); ``--atomic`` from helm 3.x
+                remains as a deprecated alias but emits a stderr warning.
             set_json_args: List of ``key=<json-encoded-value>`` strings; each
                 produces ``["--set-json", "key=value"]``. Required for
                 values containing literal ``{`` / ``}`` (helm's set parser
@@ -270,8 +280,16 @@ class HelmClient:
         if history_max is not None:
             argv.extend(["--history-max", str(history_max)])
         if safe_upgrade:
-            # PIPE-05 / CONTEXT D5: --wait + --atomic + --description marker for rollback safety.
-            argv.extend(["--wait", "--atomic", "--description", SAFE_UPGRADE_DESCRIPTION])
+            # PIPE-05 / CONTEXT D5: --wait + --rollback-on-failure + --description marker for
+            # rollback safety. Helm v4.2.2 renamed --atomic to --rollback-on-failure
+            # (pkg/cmd/upgrade.go L290-292: --atomic kept as deprecated alias that emits a
+            # stderr WARNING). Using the canonical name avoids the deprecation noise on every
+            # safe upgrade. NOTE: this argv requires helm >= 4.0.0; downgrading the bundled
+            # binary to helm 3.x will break safe-upgrade because helm 3 does not know
+            # --rollback-on-failure. The migration is locked in by Dockerfile HELM_VERSION=4.2.2.
+            argv.extend(
+                ["--wait", "--rollback-on-failure", "--description", SAFE_UPGRADE_DESCRIPTION]
+            )
         return argv
 
     def upgrade_install(
@@ -312,7 +330,7 @@ class HelmClient:
             history_max: ``None`` to omit ``--history-max``; 0 or N≥1 to pass it.
             timeout: Go-duration string, e.g. ``"600s"`` or ``"10m"``.
             safe_upgrade: When ``True``, forwards to ``_build_argv`` to append
-                ``--wait --atomic --description "pipe:safe-upgrade"`` (PIPE-05 /
+                ``--wait --rollback-on-failure --description "pipe:safe-upgrade"`` (PIPE-05 /
                 CONTEXT D5). Default ``False`` preserves backward compatibility.
 
         Returns:

@@ -114,14 +114,15 @@ def test_sign_attest_installs_cosign_at_pinned_sha(release_workflow: dict[str, A
     )
 
 
-def test_sign_attest_installs_cosign_v_2_6_3(release_workflow: dict[str, Any]) -> None:
-    """cosign-installer must pin cosign-release to v2.6.3 — Dockerfile Phase 4 D8 carry-forward."""
+def test_sign_attest_installs_cosign_v_3_1_1(release_workflow: dict[str, Any]) -> None:
+    """cosign-installer must pin cosign-release to v3.1.1 — matches Dockerfile pin."""
     steps = _get_sign_attest_steps(release_workflow)
     step = _step_has_uses(steps, "sigstore/cosign-installer@")
     assert step is not None, "cosign-installer step not found in sign-and-attest job"
     cosign_release: str = step.get("with", {}).get("cosign-release", "")
-    assert cosign_release == "v2.6.3", (
-        f"cosign-installer must pin cosign-release to 'v2.6.3' (Phase 4 D8); got {cosign_release!r}"
+    assert cosign_release == "v3.1.1", (
+        f"cosign-installer must pin cosign-release to 'v3.1.1' "
+        f"(matches Dockerfile); got {cosign_release!r}"
     )
 
 
