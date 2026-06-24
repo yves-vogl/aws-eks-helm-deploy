@@ -84,9 +84,13 @@ def test_extra_files_lists_pipe_yml(config: dict[str, Any]) -> None:
     )
 
 
-def test_manifest_seeds_2_0_0_rc_0() -> None:
-    """Manifest must seed the version baseline at 2.0.0-rc.0 (CONTEXT D1)."""
+def test_manifest_matches_latest_released_version() -> None:
+    """Manifest must track the latest published GitHub release tag (CONTEXT D1).
+
+    The v2.0.0 GA was cut on 2026-06-23; the manifest must move forward from
+    2.0.0-rc.0 to 2.0.0 so release-please walks commits since v2.0.0 instead
+    of since the pre-release. Bump this assertion in lockstep with each
+    final-release tag publish.
+    """
     manifest: dict[str, str] = json.loads(MANIFEST_PATH.read_text())
-    assert manifest["."] == "2.0.0-rc.0", (
-        f"Expected manifest['.'] == '2.0.0-rc.0', got {manifest['.']!r}"
-    )
+    assert manifest["."] == "2.0.0", f"Expected manifest['.'] == '2.0.0', got {manifest['.']!r}"
