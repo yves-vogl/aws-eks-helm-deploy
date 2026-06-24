@@ -20,14 +20,13 @@ set -euo pipefail
 # Remove an entry here AND its --ignore-vuln counterpart once the upstream
 # dependency ships a fix.
 SUPPRESSED_CVES=(
-    "CVE-2026-25645"
-    # CVE-2026-25645: requests<2.33 pinned by bitbucket-pipes-toolkit==6.2.0;
-    # unblocked when bpt releases >=6.3.0 (see uv tree). Remove once resolved.
+    # No active suppressions. CVE-2026-25645 was removed after a [tool.uv]
+    # override-dependencies entry in pyproject.toml forced requests >= 2.33.0,
+    # which resolves uv.lock onto requests 2.34.2 (post-fix). See PR #83.
 )
 
 AUDIT_ARGS=(
     --skip-editable
-    --ignore-vuln CVE-2026-25645
 )
 
 # ── Pass 1: run pip-audit with suppressions ────────────────────────────────────
@@ -44,7 +43,9 @@ echo "pip-audit pass 2: checking suppressed CVEs are still present (stale-ignore
 audit_output="$(uv run pip-audit --skip-editable 2>&1 || true)"
 
 stale=()
-for cve in "${SUPPRESSED_CVES[@]}"; do
+# Guard the loop: with set -u, expanding ${arr[@]} on an empty array throws
+# "unbound variable". The ${arr[@]+...} pattern only expands when set.
+for cve in "${SUPPRESSED_CVES[@]+"${SUPPRESSED_CVES[@]}"}"; do
     if ! echo "$audit_output" | grep -q "$cve"; then
         stale+=("$cve")
     fi

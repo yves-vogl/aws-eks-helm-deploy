@@ -59,6 +59,18 @@ acceptance = [
 
 [tool.uv]
 default-groups = ["dev"]
+# Security-driven minimum-version overrides for transitive dependencies that
+# carry open CVEs unfixed in the version range our direct deps would otherwise
+# resolve to. Each entry below has a Dependabot or Trivy finding behind it.
+#
+#   - requests >= 2.33.0  → GHSA-gc5v-m9x4-r6x2 / CVE-2026-25645 (Insecure
+#     Temp File Reuse in extract_zipped_paths). Transitive via
+#     bitbucket-pipes-toolkit, cachecontrol (pip-audit), moto, check-jsonschema,
+#     docker, mkdocs-material, responses. Drop the override once one of those
+#     direct deps bumps its own floor past 2.33.0.
+override-dependencies = [
+    "requests>=2.33.0",
+]
 
 [tool.ruff]
 target-version = "py313"
