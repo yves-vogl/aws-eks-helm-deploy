@@ -10,12 +10,17 @@ concurrency:
   group: docs-deploy-${{ github.ref }}
   cancel-in-progress: false
 
+# Top-level permissions are read-only per OpenSSF Scorecard best practice
+# (least-privilege GITHUB_TOKEN); the gh-pages push needs contents:write at
+# job level only.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   deploy:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write   # mike push to gh-pages branch
     steps:
       - name: Checkout (full history needed for mike to push gh-pages)
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

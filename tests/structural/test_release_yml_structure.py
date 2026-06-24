@@ -22,7 +22,7 @@ RELEASE_YML_PATH = (
     pathlib.Path(__file__).resolve().parents[2] / ".github" / "workflows" / "release.yml"
 )
 
-REQUIRED_WORKFLOW_PERMISSIONS: frozenset[str] = frozenset(
+REQUIRED_JOB_PERMISSIONS: frozenset[str] = frozenset(
     {"contents", "packages", "id-token", "attestations"}
 )
 
@@ -131,16 +131,44 @@ def test_release_workflow_does_not_trigger_on_pull_request(
     )
 
 
-def test_release_workflow_declares_required_permissions(release_workflow: dict[str, Any]) -> None:
-    """Workflow-level permissions must include contents/packages/id-token/attestations: write."""
+def test_release_workflow_top_level_perms_are_read_only(release_workflow: dict[str, Any]) -> None:
+    """Workflow-level perms are read-only; write scopes hoist to per-job blocks.
+
+    OpenSSF Scorecard best practice (TokenPermissionsID) — least-privilege
+    GITHUB_TOKEN. Write scopes (contents/packages/id-token/attestations) are
+    declared on the build + sign-and-attest jobs only.
+    """
     perms: dict[str, Any] = release_workflow.get("permissions", {})
-    missing = REQUIRED_WORKFLOW_PERMISSIONS - set(perms.keys())
-    assert not missing, (
-        f"release.yml workflow-level permissions missing: {missing}. "
-        "Plan 06-04 (sign-and-attest) inherits these from the workflow level."
+    assert perms == {"contents": "read"}, (
+        f"Workflow-level permissions must be {{'contents': 'read'}}; got {perms!r}"
     )
-    for perm in REQUIRED_WORKFLOW_PERMISSIONS:
-        assert perms[perm] == "write", f"Expected permissions.{perm}: write, got {perms[perm]!r}"
+
+
+def test_release_build_and_sign_jobs_declare_required_perms(
+    release_workflow: dict[str, Any],
+) -> None:
+    """Both the build job and the sign-and-attest job must carry the write scopes.
+
+    contents:write, packages:write, id-token:write, attestations:write — required
+    for GHCR push, Fulcio cert issuance, and SLSA provenance attestation.
+    """
+    jobs = release_workflow.get("jobs", {})
+    for job_name in ("build", "sign-and-attest"):
+        job_perms: dict[str, Any] = jobs.get(job_name, {}).get("permissions", {})
+        # contents may be 'read' on build or 'write' on sign-and-attest; the four
+        # write scopes (packages/id-token/attestations) must always be 'write'.
+        write_required = REQUIRED_JOB_PERMISSIONS - {"contents"}
+        for perm in write_required:
+            assert job_perms.get(perm) == "write", (
+                f"Job '{job_name}' permissions.{perm} must be 'write'; "
+                f"got {job_perms.get(perm)!r} (full block: {job_perms!r})"
+            )
+        # contents must be at least 'read'; 'write' (needed on sign-and-attest for
+        # the GitHub Release edit) is also acceptable.
+        assert job_perms.get("contents") in {"read", "write"}, (
+            f"Job '{job_name}' must declare permissions.contents (read or write); "
+            f"got {job_perms.get('contents')!r}"
+        )
 
 
 def test_release_workflow_concurrency_cancel_false(release_workflow: dict[str, Any]) -> None:

@@ -6,9 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# Top-level permissions are read-only per OpenSSF Scorecard best practice
+# (least-privilege GITHUB_TOKEN); write scopes are hoisted to job level below.
 permissions:
-  contents: write          # for gh pr merge
-  pull-requests: write     # for gh pr review --approve + gh pr merge --auto
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -20,6 +21,9 @@ jobs:
     if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    permissions:
+      contents: write          # for gh pr merge --squash --auto
+      pull-requests: write     # for gh pr review --approve + gh pr merge --auto
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

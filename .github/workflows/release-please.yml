@@ -13,9 +13,11 @@ on:
   push:
     branches: [main]
 
+# Top-level permissions are read-only per OpenSSF Scorecard best practice
+# (least-privilege GITHUB_TOKEN); release-please needs contents:write +
+# pull-requests:write at job level only.
 permissions:
-  contents: write          # release-please pushes the release branch
-  pull-requests: write     # release-please opens/updates the Release PR
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,6 +27,9 @@ jobs:
   release-please:
     name: release-please
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write          # release-please pushes the release branch
+      pull-requests: write     # release-please opens/updates the Release PR
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

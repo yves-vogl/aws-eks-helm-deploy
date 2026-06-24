@@ -21,11 +21,11 @@ on:
         description: "Tag to (re-)release (e.g. v2.0.0)"
         required: true
 
+# Top-level permissions are read-only per OpenSSF Scorecard best practice
+# (least-privilege GITHUB_TOKEN); all write scopes are hoisted to job level on
+# the two jobs that need them (build, sign-and-attest).
 permissions:
-  contents: write          # GitHub Release creation (Plan 06-04 extension)
-  packages: write          # push image + cosign signature artifact to GHCR
-  id-token: write          # OIDC token for Fulcio cert issuance (Plan 06-04)
-  attestations: write      # SLSA provenance (Plan 06-04)
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -41,6 +41,11 @@ jobs:
     name: build (${{ matrix.platform }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write    # docker push to GHCR
+      id-token: write    # OIDC token for GHCR push auth
+      attestations: write # SLSA build provenance via actions/attest-build-provenance
     strategy:
       fail-fast: false
       matrix:

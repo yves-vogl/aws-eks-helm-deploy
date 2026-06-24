@@ -37,9 +37,22 @@ def test_docs_yml_concurrency_cancel_in_progress_false() -> None:
     assert "docs-deploy-" in data["concurrency"]["group"]
 
 
-def test_docs_yml_permissions_only_contents_write() -> None:
+def test_docs_yml_permissions_least_privilege() -> None:
+    """Workflow-level perms are read-only; contents:write is hoisted to the deploy job.
+
+    OpenSSF Scorecard best practice (TokenPermissionsID) — least-privilege
+    GITHUB_TOKEN. The mike push to gh-pages still needs contents:write at job
+    level only.
+    """
     data = _load()
-    assert data["permissions"] == {"contents": "write"}
+    assert data["permissions"] == {"contents": "read"}, (
+        f"Top-level permissions must be {{'contents': 'read'}}; got {data['permissions']!r}"
+    )
+    deploy_perms = data["jobs"]["deploy"].get("permissions", {})
+    assert deploy_perms.get("contents") == "write", (
+        f"Job 'deploy' must declare permissions.contents:write for the mike gh-pages push; "
+        f"got {deploy_perms!r}"
+    )
 
 
 def test_docs_yml_uses_40_char_sha_pins() -> None:

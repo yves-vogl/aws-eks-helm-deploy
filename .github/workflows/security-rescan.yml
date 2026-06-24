@@ -9,10 +9,10 @@ on:
     - cron: '17 6 * * *'  # daily ~06:17 UTC (off the :00/:30 mark); 07:17 Berlin winter / 08:17 summer
   workflow_dispatch:
 
+# Top-level permissions are read-only per OpenSSF Scorecard best practice
+# (least-privilege GITHUB_TOKEN); SARIF upload + issue creation hoisted to job.
 permissions:
   contents: read
-  security-events: write  # SARIF upload to Code Scanning
-  issues: write           # auto-issue creation
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,6 +23,10 @@ jobs:
     name: trivy rescan (${{ matrix.tag }})
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write  # SARIF upload to Code Scanning
+      issues: write           # auto-issue creation on CRITICAL/HIGH findings
     strategy:
       fail-fast: false
       matrix:
