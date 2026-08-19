@@ -25,7 +25,7 @@ SECURITY_RESCAN_YML_PATH = (
 
 # SHA from 06-RESEARCH.md "Action Digest Resolution" (verified via gh api 2026-06-20)
 TRIVY_ACTION_SHA = "ed142fd0673e97e23eac54620cfb913e5ce36c25"  # v0.36.0
-UPLOAD_SARIF_SHA = "8aad20d150bbac5944a9f9d289da16a4b0d87c1e"  # codeql-action v4.36.2
+UPLOAD_SARIF_SHA = "e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81"  # codeql-action v4.37.3
 
 EXPECTED_CRON = "17 6 * * *"
 EXPECTED_MATRIX_TAGS: frozenset[str] = frozenset({"latest", "2"})
