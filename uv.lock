@@ -69,7 +69,7 @@ wheels = [
 
 [[package]]
 name = "aws-eks-helm-deploy"
-version = "2.0.0.dev0"
+version = "3.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "bitbucket-pipes-toolkit" },
