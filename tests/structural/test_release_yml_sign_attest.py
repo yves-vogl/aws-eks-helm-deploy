@@ -25,8 +25,8 @@ RELEASE_YML_PATH = (
 # SHAs from 06-RESEARCH.md "Action Digest Resolution" (verified via gh api 2026-06-20)
 COSIGN_INSTALLER_SHA = "6f9f17788090df1f26f669e9d70d6ae9567deba6"  # v4.1.2
 SBOM_ACTION_SHA = "e22c389904149dbc22b58101806040fa8d37a610"  # v0.24.0
-# v4.1.0 — RESEARCH C1 correction: NOT @v1
-ATTEST_BUILD_PROVENANCE_SHA = "a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32"
+# v4.1.1 — RESEARCH C1 correction: NOT @v1
+ATTEST_BUILD_PROVENANCE_SHA = "0f67c3f4856b2e3261c31976d6725780e5e4c373"
 
 # ---------------------------------------------------------------------------
 # Module-level fixture
@@ -218,7 +218,7 @@ def test_sign_attest_attests_cyclonedx_via_cosign(release_workflow: dict[str, An
 
 
 def test_sign_attest_uses_attest_build_provenance_v4(release_workflow: dict[str, Any]) -> None:
-    """attest-build-provenance step must be pinned to v4.1.0 SHA — RESEARCH C1 (NOT @v1)."""
+    """attest-build-provenance step must be pinned to v4.1.1 SHA — RESEARCH C1 (NOT @v1)."""
     steps = _get_sign_attest_steps(release_workflow)
     step = _step_has_uses(steps, "actions/attest-build-provenance@")
     assert step is not None, (
@@ -226,7 +226,7 @@ def test_sign_attest_uses_attest_build_provenance_v4(release_workflow: dict[str,
     )
     uses: str = step.get("uses", "")
     assert uses.endswith(f"@{ATTEST_BUILD_PROVENANCE_SHA}"), (
-        f"RESEARCH C1 violation: attest-build-provenance must be pinned to v4.1.0 SHA "
+        f"RESEARCH C1 violation: attest-build-provenance must be pinned to v4.1.1 SHA "
         f"'{ATTEST_BUILD_PROVENANCE_SHA}' (NOT @v1). Got: {uses!r}"
     )
 
