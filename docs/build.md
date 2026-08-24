@@ -119,10 +119,11 @@ It does not attach OCI annotations but otherwise produces an identical runtime i
 
 ## Multi-arch (Phase 6)
 
-Phase 1 ships a single-arch `linux/amd64` image. The Dockerfile targets `linux-amd64` in the
-`helm-fetch` stage's `curl` URL explicitly; running a plain `docker build` on an Apple Silicon
-Mac produces an `arm64` image (via Docker Desktop's transparent QEMU emulation) — this is
-acceptable for local testing but is NOT the production target.
+Phase 1 ships a single-arch `linux/amd64` image. The Dockerfile cross-compiles helm, cosign,
+and helm-diff from source for `linux/${TARGETARCH}` in the `go-source-build` stage (native Go
+cross-compilation, no QEMU needed for that stage); running a plain `docker build` on an Apple
+Silicon Mac produces an `arm64` image — this is acceptable for local testing but is NOT the
+production target.
 
 Phase 6 introduces the multi-arch matrix build via native ARM runners (no QEMU emulation —
 see `PITFALLS.md #5` for why QEMU is problematic for `uv` builds). When Phase 6 lands, the
