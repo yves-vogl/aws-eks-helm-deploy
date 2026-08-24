@@ -30,7 +30,7 @@ packages = ["src/aws_eks_helm_deploy"]
 
 [dependency-groups]
 dev = [
-    "ruff ~= 0.15",
+    "ruff ~= 0.16",
     "mypy ~= 2.1",
     "boto3-stubs[eks,sts]",
     "types-PyYAML",
