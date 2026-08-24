@@ -8,6 +8,7 @@ verified, bootstrap-graceful probe step present.
 from __future__ import annotations
 
 import pathlib
+import re
 from typing import Any
 
 import pytest
@@ -23,8 +24,11 @@ COSIGN_VERIFY_YML_PATH = (
     pathlib.Path(__file__).resolve().parents[2] / ".github" / "workflows" / "cosign-verify.yml"
 )
 
-# SHA from 06-RESEARCH.md "Action Digest Resolution" (verified via gh api 2026-06-20)
-COSIGN_INSTALLER_SHA = "6f9f17788090df1f26f669e9d70d6ae9567deba6"  # v4.1.2
+# Shape-only pin check (Pitfall #5 / #101 recurrence fix): assert the
+# cosign-installer step is pinned to a full 40-char commit SHA, never a
+# specific SHA value — hardcoding the value guarantees the test breaks on
+# exactly the Dependabot bump it exists to permit.
+SHA_PIN_PATTERN: re.Pattern[str] = re.compile(r"@[0-9a-f]{40}(?:\s|$)")
 
 CERT_IDENTITY_REGEXP = "^https://github.com/yves-vogl/aws-eks-helm-deploy/"
 CERT_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
@@ -145,7 +149,7 @@ def test_cosign_verify_no_id_token_write(workflow: dict[str, Any]) -> None:
 
 
 def test_cosign_verify_installs_cosign_at_pinned_sha(workflow: dict[str, Any]) -> None:
-    """cosign-installer step must be pinned to the verified SHA (v4.1.2 per RESEARCH)."""
+    """cosign-installer step must be pinned to a full 40-char commit SHA (not a floating tag)."""
     steps = _get_verify_steps(workflow)
     cosign_step: dict[str, Any] | None = None
     for step in steps:
@@ -156,8 +160,9 @@ def test_cosign_verify_installs_cosign_at_pinned_sha(workflow: dict[str, Any]) -
         "cosign-installer step not found in 'verify' job of cosign-verify.yml"
     )
     uses: str = cosign_step.get("uses", "")
-    assert uses.endswith(f"@{COSIGN_INSTALLER_SHA}"), (
-        f"cosign-installer must be pinned to SHA '{COSIGN_INSTALLER_SHA}' (v4.1.2); got {uses!r}"
+    assert SHA_PIN_PATTERN.search(uses), (
+        f"cosign-installer must be pinned to a 40-char commit SHA (not a floating tag); "
+        f"got {uses!r}"
     )
 
 

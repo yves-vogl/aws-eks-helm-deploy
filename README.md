@@ -31,7 +31,7 @@ Deploy [Helm](https://helm.sh) charts to [AWS Elastic Kubernetes Service (EKS)](
 
 This pipe is purpose-built for **Bitbucket Pipelines**. For GitHub Actions, use upstream actions such as [`aws-actions/configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials) combined with a Helm action.
 
-> **Status:** v3.0 is the active line, bundling **Helm 4.2.2** + **Cosign 3.1.1** ahead of the [Helm v3 EOL on 2026-11-11](https://helm.sh/docs/topics/version_skew/). Published exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`). The v2.x line is frozen at **v2.1.0** (the final helm-3 build) — `:2` remains pullable through Helm v3 EOL, then sunsets. **v1.3.0 is frozen on Docker Hub and is not maintained** — no security fixes, no bug fixes. See [docs/migration/v2-to-v3.md](https://yves-vogl.github.io/aws-eks-helm-deploy/v3/migration/v2-to-v3/) and [docs/migration/v1-to-v2.md](https://yves-vogl.github.io/aws-eks-helm-deploy/v3/migration/v1-to-v2/) for upgrade paths.
+> **Status:** v3.0 is the active line, bundling **Helm 4.2.4** + **Cosign 3.1.3** ahead of the [Helm v3 EOL on 2026-11-11](https://helm.sh/docs/topics/version_skew/). Published exclusively to GitHub Container Registry (`ghcr.io/yves-vogl/aws-eks-helm-deploy`). The v2.x line is frozen at **v2.1.0** (the final helm-3 build) — `:2` remains pullable through Helm v3 EOL, then sunsets. **v1.3.0 is frozen on Docker Hub and is not maintained** — no security fixes, no bug fixes. See [docs/migration/v2-to-v3.md](https://yves-vogl.github.io/aws-eks-helm-deploy/v3/migration/v2-to-v3/) and [docs/migration/v1-to-v2.md](https://yves-vogl.github.io/aws-eks-helm-deploy/v3/migration/v1-to-v2/) for upgrade paths.
 
 ---
 
@@ -127,9 +127,9 @@ The **currently-published** `ghcr.io/yves-vogl/aws-eks-helm-deploy:3` image (v3.
 | Component                      | Version             | Notes                                                                  |
 | ------------------------------ | ------------------- | ---------------------------------------------------------------------- |
 | Base image                     | `python:3.13-slim-bookworm` | Pinned by SHA; non-root user (`USER pipe`, uid ≥ 10000).        |
-| Helm                           | `4.2.2`             | Bundled (no `kubectl` required). See the [Helm version skew policy](https://helm.sh/docs/topics/version_skew/). Helm v3 EOL: 2026-11-11. |
-| `helm-diff`                    | `3.15.10`           | Plugin for `ACTION=diff`; SHA-pinned binary; Helm v4 compatible.       |
-| Cosign                         | `3.1.1`             | Bundled for image-side signature operations.                           |
+| Helm                           | `4.2.4`             | Bundled (no `kubectl` required). See the [Helm version skew policy](https://helm.sh/docs/topics/version_skew/). Helm v3 EOL: 2026-11-11. |
+| `helm-diff`                    | `3.15.11`           | Plugin for `ACTION=diff`; SHA-pinned binary; Helm v4 compatible.       |
+| Cosign                         | `3.1.3`             | Bundled for image-side signature operations.                           |
 | `kubectl`                      | not bundled         | The pipe generates a kubeconfig and talks to the EKS API directly.     |
 | `boto3`                        | latest stable       | Generates the EKS token natively — no `awscli` in the image.           |
 | `bitbucket-pipes-toolkit`      | `~=6.2`             | Pipe scaffolding, schema validation, logging.                          |
