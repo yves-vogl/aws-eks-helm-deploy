@@ -1,12 +1,14 @@
 """Structural tests for the sign-and-attest job in .github/workflows/release.yml.
 
 Phase 6 / SEC-01 / SEC-02 / SEC-03 / CI-03. Asserts: cosign keyless (registry-side bundle in 2.x),
-both SBOM formats attested, SLSA provenance via attest-build-provenance@v4 (RESEARCH C1).
+both SBOM formats attested, SLSA provenance via attest-build-provenance (shape-pinned to a
+full commit SHA).
 """
 
 from __future__ import annotations
 
 import pathlib
+import re
 from typing import Any
 
 import pytest
@@ -22,11 +24,12 @@ RELEASE_YML_PATH = (
     pathlib.Path(__file__).resolve().parents[2] / ".github" / "workflows" / "release.yml"
 )
 
-# SHAs from 06-RESEARCH.md "Action Digest Resolution" (verified via gh api 2026-06-20)
-COSIGN_INSTALLER_SHA = "6f9f17788090df1f26f669e9d70d6ae9567deba6"  # v4.1.2
-SBOM_ACTION_SHA = "e22c389904149dbc22b58101806040fa8d37a610"  # v0.24.0
-# v4.1.1 — RESEARCH C1 correction: NOT @v1
-ATTEST_BUILD_PROVENANCE_SHA = "0f67c3f4856b2e3261c31976d6725780e5e4c373"
+# Shape-only pin check (Pitfall #5 / #101 recurrence fix): assert every
+# pinned action is on a full 40-char commit SHA, never a specific SHA value
+# — hardcoding the value guarantees the test breaks on exactly the
+# Dependabot bump it exists to permit.
+SHA_PIN_PATTERN: re.Pattern[str] = re.compile(r"@[0-9a-f]{40}(?:\s|$)")
+SBOM_ACTION_PREFIX = "anchore/sbom-action@"
 
 # ---------------------------------------------------------------------------
 # Module-level fixture
@@ -104,25 +107,36 @@ def test_sign_attest_declares_attestations_write(release_workflow: dict[str, Any
 
 
 def test_sign_attest_installs_cosign_at_pinned_sha(release_workflow: dict[str, Any]) -> None:
-    """cosign-installer step must be pinned to the verified SHA (v4.1.2 per RESEARCH)."""
+    """cosign-installer step must be pinned to a full 40-char commit SHA (not a floating tag)."""
     steps = _get_sign_attest_steps(release_workflow)
     step = _step_has_uses(steps, "sigstore/cosign-installer@")
     assert step is not None, "cosign-installer step not found in sign-and-attest job"
     uses: str = step.get("uses", "")
-    assert uses.endswith(f"@{COSIGN_INSTALLER_SHA}"), (
-        f"cosign-installer must be pinned to SHA {COSIGN_INSTALLER_SHA}; got {uses!r}"
+    assert SHA_PIN_PATTERN.search(uses), (
+        f"cosign-installer must be pinned to a 40-char commit SHA (not a floating tag); "
+        f"got {uses!r}"
     )
 
 
-def test_sign_attest_installs_cosign_v_3_1_1(release_workflow: dict[str, Any]) -> None:
-    """cosign-installer must pin cosign-release to v3.1.1 — matches Dockerfile pin."""
+def test_sign_attest_installs_cosign_matching_dockerfile(release_workflow: dict[str, Any]) -> None:
+    """cosign-installer's `cosign-release` input must match the Dockerfile's COSIGN_VERSION ARG.
+
+    Reads the expected version from the Dockerfile itself (rather than a second
+    hardcoded literal here) so the two can never silently drift apart — the
+    #101 recurrence class this whole module was fixed for.
+    """
+    dockerfile_text = (pathlib.Path(__file__).resolve().parents[2] / "Dockerfile").read_text()
+    match = re.search(r"^ARG COSIGN_VERSION=(\S+)$", dockerfile_text, re.MULTILINE)
+    assert match is not None, "Dockerfile must declare `ARG COSIGN_VERSION=<version>`"
+    expected_release = f"v{match.group(1)}"
+
     steps = _get_sign_attest_steps(release_workflow)
     step = _step_has_uses(steps, "sigstore/cosign-installer@")
     assert step is not None, "cosign-installer step not found in sign-and-attest job"
     cosign_release: str = step.get("with", {}).get("cosign-release", "")
-    assert cosign_release == "v3.1.1", (
-        f"cosign-installer must pin cosign-release to 'v3.1.1' "
-        f"(matches Dockerfile); got {cosign_release!r}"
+    assert cosign_release == expected_release, (
+        f"cosign-installer must pin cosign-release to {expected_release!r} "
+        f"(matches Dockerfile ARG COSIGN_VERSION); got {cosign_release!r}"
     )
 
 
@@ -158,14 +172,14 @@ def test_sign_attest_generates_spdx_sbom(release_workflow: dict[str, Any]) -> No
     steps = _get_sign_attest_steps(release_workflow)
     found = False
     for step in steps:
-        uses: str = step.get("uses", "")
-        if uses.startswith(f"anchore/sbom-action@{SBOM_ACTION_SHA}"):
+        uses = step.get("uses", "")
+        if uses.startswith(SBOM_ACTION_PREFIX) and SHA_PIN_PATTERN.search(uses):
             fmt: str = step.get("with", {}).get("format", "")
             if fmt == "spdx-json":
                 found = True
                 break
     assert found, (
-        f"SEC-02 violation: no anchore/sbom-action@{SBOM_ACTION_SHA} step with "
+        f"SEC-02 violation: no {SBOM_ACTION_PREFIX}<40-char-sha> step with "
         "format: spdx-json found in sign-and-attest job"
     )
 
@@ -175,14 +189,14 @@ def test_sign_attest_generates_cyclonedx_sbom(release_workflow: dict[str, Any]) 
     steps = _get_sign_attest_steps(release_workflow)
     found = False
     for step in steps:
-        uses: str = step.get("uses", "")
-        if uses.startswith(f"anchore/sbom-action@{SBOM_ACTION_SHA}"):
+        uses = step.get("uses", "")
+        if uses.startswith(SBOM_ACTION_PREFIX) and SHA_PIN_PATTERN.search(uses):
             fmt: str = step.get("with", {}).get("format", "")
             if fmt == "cyclonedx-json":
                 found = True
                 break
     assert found, (
-        f"SEC-02 violation: no anchore/sbom-action@{SBOM_ACTION_SHA} step with "
+        f"SEC-02 violation: no {SBOM_ACTION_PREFIX}<40-char-sha> step with "
         "format: cyclonedx-json found in sign-and-attest job"
     )
 
@@ -218,16 +232,16 @@ def test_sign_attest_attests_cyclonedx_via_cosign(release_workflow: dict[str, An
 
 
 def test_sign_attest_uses_attest_build_provenance_v4(release_workflow: dict[str, Any]) -> None:
-    """attest-build-provenance step must be pinned to v4.1.1 SHA — RESEARCH C1 (NOT @v1)."""
+    """attest-build-provenance step must be pinned to a full 40-char commit SHA (not @v1)."""
     steps = _get_sign_attest_steps(release_workflow)
     step = _step_has_uses(steps, "actions/attest-build-provenance@")
     assert step is not None, (
         "actions/attest-build-provenance step not found in sign-and-attest job (SEC-03)"
     )
     uses: str = step.get("uses", "")
-    assert uses.endswith(f"@{ATTEST_BUILD_PROVENANCE_SHA}"), (
-        f"RESEARCH C1 violation: attest-build-provenance must be pinned to v4.1.1 SHA "
-        f"'{ATTEST_BUILD_PROVENANCE_SHA}' (NOT @v1). Got: {uses!r}"
+    assert SHA_PIN_PATTERN.search(uses), (
+        f"attest-build-provenance must be pinned to a 40-char commit SHA "
+        f"(NOT a floating tag like @v1). Got: {uses!r}"
     )
 
 

@@ -8,6 +8,7 @@ bootstrap-graceful probe step, ubuntu-24.04 runner, minimal permissions block.
 from __future__ import annotations
 
 import pathlib
+import re
 from typing import Any
 
 import pytest
@@ -23,9 +24,12 @@ SECURITY_RESCAN_YML_PATH = (
     pathlib.Path(__file__).resolve().parents[2] / ".github" / "workflows" / "security-rescan.yml"
 )
 
-# SHA from 06-RESEARCH.md "Action Digest Resolution" (verified via gh api 2026-06-20)
-TRIVY_ACTION_SHA = "ed142fd0673e97e23eac54620cfb913e5ce36c25"  # v0.36.0
-UPLOAD_SARIF_SHA = "e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81"  # codeql-action v4.37.3
+# Shape-only pin check (Pitfall #5 / #101 recurrence fix): assert every `uses:`
+# is pinned to a full 40-char lowercase-hex commit SHA, never a specific SHA
+# value — hardcoding the value guarantees the test breaks on exactly the
+# Dependabot bump it exists to permit. See test_workflow_digest_pins.py for
+# the repo-wide version of this same shape check.
+SHA_PIN_PATTERN: re.Pattern[str] = re.compile(r"@[0-9a-f]{40}(?:\s|$)")
 
 EXPECTED_CRON = "17 6 * * *"
 EXPECTED_MATRIX_TAGS: frozenset[str] = frozenset({"latest", "2"})
@@ -195,11 +199,11 @@ def test_security_rescan_uploads_sarif(workflow: dict[str, Any]) -> None:
         "No upload-sarif step found in security-rescan.yml. "
         "SEC-07 requires SARIF upload to GitHub Code Scanning via codeql-action/upload-sarif."
     )
-    # Verify it is SHA-pinned to the expected digest
+    # Verify it is pinned to a full-length commit SHA (not a floating tag)
     for step in upload_steps:
         uses: str = step.get("uses", "")
-        assert UPLOAD_SARIF_SHA in uses, (
-            f"upload-sarif step must be pinned to SHA '{UPLOAD_SARIF_SHA}'; got {uses!r}"
+        assert SHA_PIN_PATTERN.search(uses), (
+            f"upload-sarif step must be pinned to a 40-char commit SHA; got {uses!r}"
         )
 
 
@@ -214,14 +218,15 @@ def test_security_rescan_invokes_issue_creator(workflow: dict[str, Any]) -> None
 
 
 def test_security_rescan_trivy_action_pinned(workflow: dict[str, Any]) -> None:
-    """aquasecurity/trivy-action step must be pinned to the verified SHA (v0.36.0 per RESEARCH)."""
+    """aquasecurity/trivy-action step must be pinned to a full commit SHA (not a floating tag)."""
     steps = _all_steps(workflow)
     trivy_steps = [s for s in steps if "aquasecurity/trivy-action" in s.get("uses", "")]
     assert len(trivy_steps) >= 1, "No aquasecurity/trivy-action step found in security-rescan.yml"
     for step in trivy_steps:
         uses: str = step.get("uses", "")
-        assert uses.endswith(f"@{TRIVY_ACTION_SHA}"), (
-            f"trivy-action must be pinned to SHA '{TRIVY_ACTION_SHA}' (v0.36.0); got {uses!r}"
+        assert SHA_PIN_PATTERN.search(uses), (
+            f"trivy-action must be pinned to a 40-char commit SHA (not a floating tag); "
+            f"got {uses!r}"
         )
 
 
