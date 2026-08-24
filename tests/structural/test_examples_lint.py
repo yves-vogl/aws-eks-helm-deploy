@@ -2,7 +2,7 @@
 
 Lints every ``examples/**/*.yml`` and ``examples/**/*.yaml`` against the
 SchemaStore ``vendor.bitbucket-pipelines`` schema via
-``check-jsonschema 0.37.3`` (RESEARCH Q8). Also asserts the MIG-03 trio
+``check-jsonschema`` (RESEARCH Q8). Also asserts the MIG-03 trio
 (``before.yml``, ``after.yml``, ``README.md``) is complete and every example
 YAML opens with the D8 header block.
 """
