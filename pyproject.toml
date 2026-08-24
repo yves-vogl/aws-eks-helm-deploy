@@ -68,8 +68,15 @@ default-groups = ["dev"]
 #     bitbucket-pipes-toolkit, cachecontrol (pip-audit), moto, check-jsonschema,
 #     docker, mkdocs-material, responses. Drop the override once one of those
 #     direct deps bumps its own floor past 2.33.0.
+#
+#   - pip >= 26.2  → PYSEC-2026-3721 / CVE-2026-13346 (pip mishandles
+#     doubly-encoded package URLs from indexes, allowing files to be
+#     installed outside the target directory even for wheel installs).
+#     Transitive via pip-api (pip-audit's own dependency). Drop the override
+#     once pip-api / pip-audit bump their own floor past 26.2.
 override-dependencies = [
     "requests>=2.33.0",
+    "pip>=26.2",
 ]
 
 [tool.ruff]
