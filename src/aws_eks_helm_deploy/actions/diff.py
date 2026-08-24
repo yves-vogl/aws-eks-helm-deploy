@@ -196,7 +196,7 @@ class DiffAction:
                     diff_text=diff_text,
                     token=s.bitbucket_token.get_secret_value(),
                 )
-            except Exception:  # noqa: BLE001
+            except Exception:
                 # PR-comment posting is observability, NOT critical path (D3).
                 # post_diff_comment is designed to never raise; this guard is defensive.
                 logger.warning("bitbucket.pr_comment.unexpected_exception", exc_info=True)
