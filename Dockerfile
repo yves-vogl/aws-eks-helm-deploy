@@ -114,7 +114,11 @@ RUN git clone --depth 1 --branch "v${HELM_DIFF_VERSION}" https://github.com/data
 WORKDIR /src/helm-diff
 # Same oras-go CVE-2026-50163 as helm above (helm-diff vendors helm.sh/helm/v4
 # and inherits its indirect oras-go dependency).
-RUN go get oras.land/oras-go/v2@v2.6.2 \
+# golang.org/x/crypto v0.54.0 (indirect) — CVE-2026-56854 (x/crypto/ssh:
+# authentication bypass, source-address restrictions in authorized_keys are
+# not enforced). Fixed 0.55.0. Trivy reports this for the plugin binary only;
+# the helm and cosign binaries built above scan clean.
+RUN go get oras.land/oras-go/v2@v2.6.2 golang.org/x/crypto@v0.55.0 \
     && go mod tidy
 # Plugin layout mirrors the upstream `make dist` target: plugin.yaml +
 # bin/diff under a single `diff/` directory (README/LICENSE omitted — not
