@@ -74,7 +74,10 @@ WORKDIR /src/helm
 # oras.land/oras-go/v2 v2.6.1 (indirect, OCI registry client) — CVE-2026-50163
 # (information disclosure / arbitrary file write via crafted tarball
 # hardlinks). Fixed 2.6.2; not yet consumed by a helm patch release.
-RUN go get oras.land/oras-go/v2@v2.6.2 \
+# golang.org/x/crypto v0.54.0 (indirect) — CVE-2026-56854 (x/crypto/ssh:
+# authentication bypass, source-address restrictions not enforced). Fixed
+# 0.55.0. Same CVE as the helm-diff stage below; helm carries it too.
+RUN go get oras.land/oras-go/v2@v2.6.2 golang.org/x/crypto@v0.55.0 \
     && go mod tidy
 RUN GOARCH=${TARGETARCH} go build -trimpath \
       -ldflags "-w -s \
@@ -93,9 +96,12 @@ WORKDIR /src/cosign
 # golang.org/x/text v0.38.0 (indirect) — CVE-2026-56852 (DoS via invalid
 # UTF-8 input). Fixed 0.39.0; bumped to 0.41.0 because golang.org/x/mod
 # v0.40.0 transitively requires golang.org/x/text >= 0.41.0.
-# google.golang.org/grpc v1.82.0 (indirect) — GHSA-hrxh-6v49-42gf (xDS RBAC
-# and HTTP/2 vulnerabilities). Fixed 1.82.1.
-RUN go get golang.org/x/mod@v0.40.0 golang.org/x/text@v0.41.0 google.golang.org/grpc@v1.82.1 \
+# google.golang.org/grpc (indirect) — GHSA-hrxh-6v49-42gf (xDS RBAC and
+# HTTP/2) was fixed in 1.82.1, which this line pinned; 1.82.1 then turned out
+# vulnerable itself: CVE-2026-84304 (fixed 1.83.1) and CVE-2026-84445 (xDS
+# server DoS, fixed 1.82.2 / 1.83.2). 1.83.2 is the first version clear of all
+# three.
+RUN go get golang.org/x/mod@v0.40.0 golang.org/x/text@v0.41.0 google.golang.org/grpc@v1.83.2 \
     && go mod tidy
 # Matches the upstream `cosign:` Makefile target (CGO_ENABLED=0, no
 # pivkey/pkcs11 build tags — same feature set as the release binary we
@@ -134,7 +140,15 @@ FROM python:${PYTHON_VERSION}-slim-bookworm@${PYTHON_BASE_DIGEST} AS runtime
 
 # System deps: ca-certificates for TLS (git + curl no longer needed — helm-diff is bundled
 # via helm-diff-fetch stage; see Phase 5 D2 / CONTEXT D2).
+#
+# `upgrade -y` first: the python slim base is rebuilt on the upstream's cadence,
+# not Debian's, so a security fix published between two upstream rebuilds is
+# otherwise invisible until the digest moves. libpcre2-8-0 10.42-1 in the
+# pinned digest is the case in point — CVE-2026-86145/-89157/-89161, fixed in
+# 10.42-1+deb12u1. A blanket upgrade covers that class instead of a per-CVE
+# package list. CI builds without a layer cache, so this layer is always fresh.
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
